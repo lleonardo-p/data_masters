@@ -6,8 +6,6 @@ O projeto tem como objetivo integrar diferentes fontes públicas de dados relaci
 
 Além da análise de dados históricos, o BAIP contempla um cenário simulado de integração com Sistemas de Informação (SI) hospitalares, onde novos atendimentos de pacientes com suspeita de arboviroses são registrados durante a triagem e publicados como eventos para processamento em tempo real.
 
-A plataforma também prevê a correlação entre dados epidemiológicos, condições climáticas e infraestrutura de saúde, permitindo análises mais abrangentes sobre a evolução das arboviroses e servindo como base para futuras iniciativas de predição de surtos epidemiológicos.
-
 ---
 
 ## Objetivos
