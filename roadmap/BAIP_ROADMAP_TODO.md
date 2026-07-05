@@ -1,563 +1,480 @@
-# 🦟 BAIP — Roadmap e TODO de Implementação
+# 🦟 BAIP — Roadmap Leve até 14/08/2026
 
-> **BAIP — Brazil Arbovirus Intelligence Platform**  
-> Roadmap prático para iniciar a implementação da plataforma de dados, partindo da arquitetura e dos ADRs definidos.
+> **Escopo reduzido do MVP**  
+> Fontes: **DATASUS Arboviroses** + **Open-Meteo**  
+> Prazo final: **14/08/2026**  
+> Objetivo: entregar um case funcional, defendível e bem documentado, sem excesso de escopo.
 
 ---
 
-## 1. Visão geral do roadmap
+## 1. Objetivo do MVP
 
-O objetivo deste roadmap é transformar a arquitetura do BAIP em um plano de execução incremental, começando por um **MVP profissional** e evoluindo para uma arquitetura mais robusta, com boas práticas de segurança, governança, observabilidade, LGPD e escalabilidade.
+Construir uma versão enxuta do **BAIP — Brazil Arbovirus Intelligence Platform**, demonstrando uma plataforma moderna de Engenharia de Dados para análise de arboviroses no Brasil.
 
-A recomendação é seguir uma abordagem em camadas:
+O MVP deve integrar:
 
 ```text
-Fundação → Ingestão → Data Lake → Transformação → DW → Dashboard → Near Real-Time → Governança Avançada
+DATASUS Arboviroses + Open-Meteo
+↓
+Bronze
+↓
+Silver
+↓
+Gold / Data Warehouse
+↓
+Athena
+↓
+Dashboard
+```
+
+E também simular um fluxo hospitalar near real-time:
+
+```text
+Simulador Hospitalar
+↓
+SQS
+↓
+Lambda
+↓
+DynamoDB
+↓
+DLQ
+↓
+Persistência / Reconciliação simples
 ```
 
 ---
 
-## 2. Estratégia de implementação
+## 2. Escopo fechado para a entrega
 
-A implementação deve evitar tentar construir tudo ao mesmo tempo.
+## Dentro do escopo
 
-A ordem ideal é:
+- [ ] Ingestão batch de dados de arboviroses do DATASUS.
+- [ ] Ingestão batch de dados climáticos do Open-Meteo.
+- [ ] Data Lake com camadas Bronze, Silver e Gold.
+- [ ] Transformações Bronze → Silver.
+- [ ] Transformações Silver → Gold.
+- [ ] Data Warehouse simples com fatos e dimensões.
+- [ ] Consulta via Athena.
+- [ ] Dashboard analítico simples.
+- [ ] Regras básicas de qualidade.
+- [ ] Logs e métricas básicas.
+- [ ] Simulador hospitalar de eventos de triagem.
+- [ ] SQS + DLQ.
+- [ ] Lambda para processar eventos.
+- [ ] DynamoDB para estado near real-time.
+- [ ] Documentação do projeto.
+- [ ] C4 Context e C4 Container atualizados.
+- [ ] ADRs revisados.
 
-1. **Criar a fundação do projeto**
-2. **Implementar o Data Lake**
-3. **Ingerir uma fonte pública simples**
-4. **Criar Bronze, Silver e Gold**
-5. **Montar o primeiro indicador analítico**
-6. **Publicar o primeiro dashboard**
-7. **Adicionar novas fontes**
-8. **Adicionar qualidade, observabilidade e governança**
-9. **Simular eventos hospitalares near real-time**
-10. **Evoluir para arquitetura mais próxima de produção**
+## Fora do escopo até 14/08
+
+- [ ] Machine Learning.
+- [ ] API pública.
+- [ ] Apache Iceberg.
+- [ ] Lake Formation avançado.
+- [ ] Multi-Region.
+- [ ] Disaster Recovery completo.
+- [ ] DataHub/DataZone.
+- [ ] CI/CD avançado.
+- [ ] Várias fontes adicionais.
+- [ ] Dashboard muito elaborado.
+- [ ] Modelagem dimensional muito complexa.
 
 ---
 
-## 3. Roadmap visual
+## 3. Princípio de entrega
+
+A prioridade é entregar algo que funcione de ponta a ponta.
+
+```text
+Funcional > completo
+Simples > complexo
+Documentado > sofisticado
+Entregável > perfeito
+```
+
+O MVP deve provar que a arquitetura funciona, mesmo que algumas partes ainda estejam simplificadas.
+
+---
+
+## 4. Roadmap visual
 
 ```mermaid
 flowchart TD
-    A["Fase 0<br/>Setup do Projeto"] --> B["Fase 1<br/>Fundação Cloud e IaC"]
-    B --> C["Fase 2<br/>Data Lake Bronze"]
-    C --> D["Fase 3<br/>Silver - Tratamento e Padronização"]
-    D --> E["Fase 4<br/>Gold e Data Warehouse"]
-    E --> F["Fase 5<br/>Dashboard Analítico"]
-    F --> G["Fase 6<br/>Qualidade e Observabilidade"]
-    G --> H["Fase 7<br/>Near Real-Time Simulado"]
-    H --> I["Fase 8<br/>Governança e Segurança Avançada"]
-    I --> J["Fase 9<br/>Evoluções Futuras"]
+    A["Semana 1<br/>Fundação + Repo + Infra"] --> B["Semana 2<br/>DATASUS Bronze/Silver"]
+    B --> C["Semana 3<br/>Open-Meteo + Enriquecimento"]
+    C --> D["Semana 4<br/>Gold + Athena + Dashboard"]
+    D --> E["Semana 5<br/>NRT Simulado"]
+    E --> F["Semana 6<br/>Ajustes + Documentação + Entrega"]
 ```
 
 ---
 
-## 4. Roadmap por fases
+# 5. Roadmap por semana
 
-| Fase | Nome | Objetivo | Resultado esperado |
-|---|---|---|---|
-| 0 | Setup do Projeto | Organizar repositório, padrões e documentação | Projeto pronto para desenvolvimento |
-| 1 | Fundação Cloud e IaC | Criar infraestrutura base na AWS | S3, IAM, KMS, Glue Catalog e Terraform inicial |
-| 2 | Bronze Layer | Ingerir dados brutos das fontes públicas | Dados raw versionados no S3 |
-| 3 | Silver Layer | Tratar, padronizar e validar dados | Dados limpos e padronizados |
-| 4 | Gold/DW | Criar modelo analítico | Fatos, dimensões e indicadores |
-| 5 | Dashboard | Disponibilizar consumo analítico | Primeira versão do painel |
-| 6 | Observabilidade e Qualidade | Monitorar pipelines e validar dados | Logs, métricas, alarmes e regras de qualidade |
-| 7 | Near Real-Time | Simular eventos hospitalares | SQS, Lambda, DynamoDB e DLQ |
-| 8 | Governança e Segurança | Reforçar LGPD e boas práticas | PII protegida, catálogo e acesso controlado |
-| 9 | Evoluções Futuras | Expandir capacidades da plataforma | API, ML, Iceberg, DR e Multi-Region |
+## Semana 1 — 05/07 a 11/07
 
----
+### Tema
 
-# 5. TODO principal
-
-## ✅ Fase 0 — Setup do projeto
+Fundação do projeto.
 
 ### Objetivo
 
-Preparar a estrutura inicial do projeto para que a implementação seja organizada, rastreável e profissional.
+Deixar o repositório, documentação e infraestrutura base prontos para começar a implementar.
 
 ### Tarefas
 
-- [ ] Padronizar estrutura de pastas do repositório.
-- [ ] Criar ou revisar `README.md`.
-- [ ] Criar ou revisar `docs/architecture/what-is-baip.md`.
-- [ ] Adicionar os ADRs revisados em `docs/architecture/ADR/`.
-- [ ] Criar pasta para diagramas C4.
-- [ ] Criar pasta para documentação das fontes de dados.
-- [ ] Criar pasta para scripts de ingestão.
-- [ ] Criar pasta para jobs de transformação.
-- [ ] Criar pasta para Terraform.
-- [ ] Definir padrão de nomenclatura dos recursos AWS.
-- [ ] Definir tags obrigatórias:
-  - `project`
-  - `environment`
-  - `owner`
-  - `cost-center`
-  - `data-classification`
-
-### Entregáveis
-
-- [ ] Repositório organizado.
-- [ ] Documentação inicial revisada.
-- [ ] ADRs padronizados.
-- [ ] Estrutura base pronta para desenvolvimento.
-
----
-
-## ✅ Fase 1 — Fundação Cloud e IaC
-
-### Objetivo
-
-Criar a base mínima da infraestrutura AWS utilizando Terraform.
-
-### Tarefas
-
-- [ ] Criar estrutura inicial do Terraform.
-- [ ] Configurar provider AWS.
-- [ ] Criar variáveis por ambiente.
-- [ ] Criar bucket S3 para Data Lake.
-- [ ] Criar estrutura lógica:
+- [ ] Organizar estrutura de pastas do repositório.
+- [ ] Atualizar `README.md`.
+- [ ] Atualizar `docs/architecture/what-is-baip.md`.
+- [ ] Adicionar ADRs revisados.
+- [ ] Adicionar C4 Context.
+- [ ] Adicionar C4 Container.
+- [ ] Criar estrutura Terraform.
+- [ ] Criar bucket S3 do Data Lake.
+- [ ] Criar camadas:
   - [ ] Bronze
   - [ ] Silver
   - [ ] Gold
   - [ ] Quarantine
   - [ ] Logs
-- [ ] Habilitar versionamento no bucket.
-- [ ] Habilitar criptografia SSE-KMS.
-- [ ] Criar chave KMS do projeto.
-- [ ] Bloquear acesso público ao bucket.
-- [ ] Criar roles IAM mínimas para:
-  - [ ] Glue
-  - [ ] Lambda
-  - [ ] Step Functions
-  - [ ] Athena
 - [ ] Criar Glue Database.
 - [ ] Criar Athena Workgroup.
-- [ ] Criar CloudWatch Log Groups.
-- [ ] Criar orçamento inicial com AWS Budgets.
+- [ ] Habilitar criptografia no S3.
+- [ ] Habilitar bloqueio de acesso público.
+- [ ] Definir padrão de paths no S3.
+- [ ] Criar estrutura base dos módulos Python.
 
-### Entregáveis
+### Entrega da semana
 
-- [ ] Infraestrutura base provisionada.
-- [ ] Data Lake criado.
-- [ ] Segurança mínima aplicada.
-- [ ] Catálogo inicial criado.
+```text
+Repositório organizado + infraestrutura mínima + arquitetura documentada
+```
 
 ---
 
-## ✅ Fase 2 — Bronze Layer
+## Semana 2 — 12/07 a 18/07
+
+### Tema
+
+DATASUS Arboviroses.
 
 ### Objetivo
 
-Implementar a primeira ingestão batch e armazenar dados brutos no S3 Bronze.
-
-### Fonte recomendada para começar
-
-Comece com uma fonte simples e controlada:
-
-```text
-Open-Meteo → Bronze
-```
-
-Depois evolua para:
-
-```text
-NASA EONET → Bronze
-IBGE → Bronze
-OpenDataSUS → Bronze
-```
+Implementar a ingestão e o tratamento inicial dos dados de arboviroses.
 
 ### Tarefas
 
-- [ ] Criar módulo base de extração.
-- [ ] Criar configuração de fontes em Python ou YAML.
-- [ ] Implementar cliente para Open-Meteo.
-- [ ] Salvar resposta raw no S3 Bronze.
-- [ ] Criar padrão de path:
-
-```text
-s3://baip-data-lake/bronze/source=<source_name>/entity=<entity_name>/ingestion_date=YYYY-MM-DD/
-```
-
-- [ ] Registrar metadados da ingestão:
-  - [ ] source
-  - [ ] entity
-  - [ ] ingestion_timestamp
-  - [ ] status
-  - [ ] record_count
-  - [ ] execution_time
-- [ ] Criar log de execução.
-- [ ] Criar tratamento de erro simples.
-- [ ] Criar primeira execução manual.
-- [ ] Validar arquivo no S3.
-
-### Entregáveis
-
-- [ ] Primeira fonte ingerida.
-- [ ] Dados raw armazenados na Bronze.
-- [ ] Log e métricas básicas de execução.
-
----
-
-## ✅ Fase 3 — Silver Layer
-
-### Objetivo
-
-Tratar, padronizar e validar os dados brutos.
-
-### Tarefas
-
-- [ ] Criar job de transformação Bronze → Silver.
-- [ ] Ler dados raw da Bronze.
-- [ ] Definir schema esperado.
+- [ ] Definir exatamente qual base do DATASUS será usada.
+- [ ] Documentar a fonte em `docs/data-sources/datasus-arboviroses.md`.
+- [ ] Criar extractor DATASUS.
+- [ ] Baixar ou consumir dados de Dengue, Zika e Chikungunya.
+- [ ] Salvar dados raw na Bronze.
+- [ ] Criar metadados de ingestão:
+  - [ ] origem
+  - [ ] data de ingestão
+  - [ ] quantidade de registros
+  - [ ] status da execução
+- [ ] Criar transformação Bronze → Silver.
 - [ ] Padronizar nomes de colunas.
-- [ ] Converter tipos de dados.
-- [ ] Tratar valores nulos.
+- [ ] Corrigir tipos de dados.
+- [ ] Tratar nulos críticos.
 - [ ] Remover duplicidades.
-- [ ] Criar coluna de controle:
-  - [ ] `created_at`
-  - [ ] `updated_at`
-  - [ ] `source_system`
-  - [ ] `ingestion_date`
-- [ ] Escrever dados em Parquet.
-- [ ] Criar particionamento por data e/ou localidade.
-- [ ] Criar regras iniciais de qualidade.
-- [ ] Enviar registros inválidos para Quarantine.
-- [ ] Registrar tabela no Glue Data Catalog.
+- [ ] Criar coluna `source_system`.
+- [ ] Criar coluna `ingestion_date`.
+- [ ] Salvar Silver em Parquet.
+- [ ] Catalogar tabela no Glue.
+- [ ] Validar consulta no Athena.
 
-### Entregáveis
+### Entrega da semana
 
-- [ ] Dados tratados na Silver.
-- [ ] Tabela catalogada.
-- [ ] Primeiras regras de qualidade aplicadas.
-- [ ] Área de quarentena funcionando.
+```text
+DATASUS ingerido na Bronze e tratado na Silver
+```
 
 ---
 
-## ✅ Fase 4 — Gold Layer e Data Warehouse
+## Semana 3 — 19/07 a 25/07
+
+### Tema
+
+Open-Meteo e enriquecimento climático.
 
 ### Objetivo
 
-Criar a camada analítica da plataforma.
+Adicionar dados climáticos e cruzar com os dados de arboviroses.
 
 ### Tarefas
 
-- [ ] Definir os principais indicadores do MVP.
-- [ ] Definir modelagem dimensional.
-- [ ] Criar dimensões:
+- [ ] Documentar fonte Open-Meteo em `docs/data-sources/open-meteo.md`.
+- [ ] Definir municípios ou coordenadas iniciais do MVP.
+- [ ] Criar extractor Open-Meteo.
+- [ ] Coletar variáveis climáticas principais:
+  - [ ] temperatura
+  - [ ] precipitação
+  - [ ] umidade, se disponível no recorte escolhido
+- [ ] Salvar dados raw na Bronze.
+- [ ] Criar transformação Bronze → Silver.
+- [ ] Padronizar dados climáticos.
+- [ ] Salvar Silver em Parquet.
+- [ ] Catalogar tabela no Glue.
+- [ ] Criar primeira junção entre arboviroses e clima.
+- [ ] Definir granularidade do cruzamento:
+  - [ ] município
+  - [ ] data
+  - [ ] semana epidemiológica, se aplicável
+- [ ] Validar dados cruzados no Athena.
+
+### Entrega da semana
+
+```text
+Dados climáticos integrados e primeira base enriquecida disponível
+```
+
+---
+
+## Semana 4 — 26/07 a 01/08
+
+### Tema
+
+Gold, Data Warehouse e Dashboard.
+
+### Objetivo
+
+Criar a camada analítica e o primeiro dashboard apresentável.
+
+### Tarefas
+
+- [ ] Definir indicadores principais do MVP.
+- [ ] Criar dimensões mínimas:
   - [ ] `dim_municipio`
-  - [ ] `dim_estado`
   - [ ] `dim_calendario`
   - [ ] `dim_doenca`
   - [ ] `dim_fonte_dados`
-- [ ] Criar fatos:
+- [ ] Criar fatos mínimas:
   - [ ] `fact_casos_arboviroses`
   - [ ] `fact_clima_municipio`
-  - [ ] `fact_infraestrutura_saude`
-- [ ] Criar agregações analíticas:
-  - [ ] casos por município
-  - [ ] casos por UF
-  - [ ] casos por semana epidemiológica
-  - [ ] incidência por 100 mil habitantes
-  - [ ] relação casos x chuva
-  - [ ] relação casos x temperatura
-- [ ] Salvar tabelas em Parquet na Gold.
-- [ ] Registrar tabelas no Glue Data Catalog.
+  - [ ] `fact_casos_clima`
+- [ ] Criar camada Gold em Parquet.
+- [ ] Catalogar Gold no Glue.
 - [ ] Criar views no Athena.
-
-### Entregáveis
-
-- [ ] Primeira versão do Data Warehouse.
-- [ ] Tabelas fato e dimensão.
-- [ ] Indicadores analíticos consultáveis via Athena.
-
----
-
-## ✅ Fase 5 — Dashboard Analítico
-
-### Objetivo
-
-Disponibilizar uma primeira camada de consumo para análise.
-
-### Tarefas
-
-- [ ] Conectar Power BI ao Athena.
-- [ ] Criar dataset analítico.
-- [ ] Criar primeira página do dashboard.
-- [ ] Criar indicadores principais:
-  - [ ] total de casos
+- [ ] Criar queries de validação.
+- [ ] Criar dashboard MVP.
+- [ ] Criar gráficos:
   - [ ] casos por doença
-  - [ ] casos por UF
-  - [ ] casos por município
+  - [ ] casos por UF/município
   - [ ] evolução temporal
-  - [ ] incidência por 100 mil habitantes
-- [ ] Criar filtros:
-  - [ ] ano
-  - [ ] UF
-  - [ ] município
-  - [ ] doença
-- [ ] Validar dados do dashboard contra tabelas Gold.
+  - [ ] casos x precipitação
+  - [ ] casos x temperatura
 - [ ] Documentar regras dos indicadores.
 
-### Entregáveis
-
-- [ ] Dashboard MVP publicado.
-- [ ] Indicadores documentados.
-- [ ] Primeira história analítica pronta para apresentação.
-
----
-
-## ✅ Fase 6 — Qualidade, Observabilidade e Orquestração
-
-### Objetivo
-
-Tornar a plataforma mais confiável, monitorável e próxima de produção.
-
-### Tarefas
-
-- [ ] Criar Step Functions para orquestrar pipelines.
-- [ ] Criar agendamento com EventBridge.
-- [ ] Criar métricas de execução:
-  - [ ] duração
-  - [ ] volume de registros
-  - [ ] quantidade de erros
-  - [ ] registros rejeitados
-  - [ ] custo estimado
-- [ ] Criar alarmes no CloudWatch.
-- [ ] Criar logs estruturados.
-- [ ] Criar dashboard operacional.
-- [ ] Criar regras de qualidade:
-  - [ ] schema obrigatório
-  - [ ] campos nulos críticos
-  - [ ] duplicidade
-  - [ ] volume mínimo esperado
-  - [ ] ausência de PII na Gold
-- [ ] Criar documentação de troubleshooting.
-- [ ] Criar política de reprocessamento.
-
-### Entregáveis
-
-- [ ] Pipeline orquestrado.
-- [ ] Logs e métricas disponíveis.
-- [ ] Alarmes configurados.
-- [ ] Qualidade de dados monitorada.
-
----
-
-## ✅ Fase 7 — Near Real-Time Simulado
-
-### Objetivo
-
-Simular integração hospitalar com eventos de triagem em tempo quase real.
-
-### Fluxo esperado
+### Entrega da semana
 
 ```text
-Hospital Simulator → SQS → Lambda → DynamoDB → Gold/Reconciliation
+MVP batch completo: DATASUS + Open-Meteo + Gold + Athena + Dashboard
 ```
+
+---
+
+## Semana 5 — 02/08 a 08/08
+
+### Tema
+
+Near Real-Time simulado.
+
+### Objetivo
+
+Adicionar um fluxo simples de eventos hospitalares para demonstrar arquitetura orientada a eventos.
 
 ### Tarefas
 
 - [ ] Criar schema contract do evento de triagem.
-- [ ] Criar simulador de eventos hospitalares.
+- [ ] Criar exemplo de evento JSON.
+- [ ] Criar simulador hospitalar.
 - [ ] Criar fila SQS principal.
 - [ ] Criar DLQ.
-- [ ] Configurar redrive policy.
+- [ ] Criar redrive policy.
 - [ ] Criar Lambda consumer.
 - [ ] Validar schema do evento.
 - [ ] Implementar idempotência por `event_id`.
-- [ ] Criar tabela DynamoDB para indicadores recentes.
 - [ ] Criar tabela DynamoDB para eventos processados.
+- [ ] Criar tabela DynamoDB para indicadores recentes.
 - [ ] Adicionar TTL nas tabelas temporárias.
 - [ ] Persistir eventos válidos no S3.
-- [ ] Enviar eventos inválidos para DLQ ou Quarantine.
-- [ ] Criar job de reconciliação batch x near real-time.
+- [ ] Enviar eventos inválidos para DLQ.
+- [ ] Criar consulta ou relatório simples dos eventos recentes.
+- [ ] Documentar o fluxo NRT.
 
-### Entregáveis
+### Entrega da semana
 
-- [ ] Fluxo near real-time funcionando.
-- [ ] Eventos processados com idempotência.
-- [ ] DLQ funcionando.
-- [ ] DynamoDB com TTL.
-- [ ] Base para indicadores recentes.
+```text
+NRT simulado funcionando com SQS + Lambda + DynamoDB + DLQ
+```
 
 ---
 
-## ✅ Fase 8 — Governança, Segurança e LGPD
+## Semana 6 — 09/08 a 14/08
+
+### Tema
+
+Acabamento final.
 
 ### Objetivo
 
-Reforçar controles de segurança, privacidade e governança de dados.
+Estabilizar, documentar e preparar a entrega.
 
 ### Tarefas
 
-- [ ] Classificar dados por sensibilidade.
-- [ ] Garantir que CPF, nome e identificadores diretos não cheguem na Gold.
-- [ ] Implementar tokenização/pseudonimização.
-- [ ] Proteger segredos com Secrets Manager.
-- [ ] Garantir criptografia com KMS.
-- [ ] Revisar IAM com menor privilégio.
-- [ ] Criar trilha de auditoria com CloudTrail.
-- [ ] Avaliar Lake Formation para controle fino.
-- [ ] Documentar política de retenção.
-- [ ] Criar lifecycle rules no S3.
-- [ ] Criar TTL no DynamoDB.
-- [ ] Documentar política de acesso aos dados.
-- [ ] Criar data catalog com:
-  - [ ] owner
-  - [ ] descrição
-  - [ ] camada
-  - [ ] fonte
-  - [ ] classificação
-  - [ ] frequência
-  - [ ] SLA
+- [ ] Corrigir bugs críticos.
+- [ ] Revisar README.
+- [ ] Revisar documentação do BAIP.
+- [ ] Revisar ADRs.
+- [ ] Atualizar C4 Context.
+- [ ] Atualizar C4 Container.
+- [ ] Atualizar roadmap.
+- [ ] Criar documentação das fontes.
+- [ ] Criar documentação dos indicadores.
+- [ ] Criar documentação do fluxo NRT.
+- [ ] Criar runbook simples:
+  - [ ] falha na ingestão
+  - [ ] falha na qualidade
+  - [ ] falha na Lambda
+  - [ ] mensagens na DLQ
+- [ ] Tirar prints do dashboard.
+- [ ] Criar resumo executivo do case.
+- [ ] Criar seção “como executar”.
+- [ ] Criar seção “decisões arquiteturais”.
+- [ ] Criar seção “próximas evoluções”.
+- [ ] Fazer teste final ponta a ponta.
 
-### Entregáveis
+### Entrega final
 
-- [ ] Controles LGPD documentados.
-- [ ] PII protegida.
-- [ ] Acessos revisados.
-- [ ] Catálogo enriquecido.
-- [ ] Retenção configurada.
-
----
-
-## ✅ Fase 9 — Evoluções Futuras
-
-### Objetivo
-
-Expandir a plataforma após o MVP.
-
-### Possíveis evoluções
-
-- [ ] Criar API para consulta de indicadores.
-- [ ] Criar modelo de Machine Learning para classificação probabilística de arbovirose.
-- [ ] Adotar Apache Iceberg em tabelas críticas.
-- [ ] Implementar Lake Formation.
-- [ ] Implementar DataHub ou AWS DataZone.
-- [ ] Criar lineage automatizado.
-- [ ] Adicionar CI/CD completo.
-- [ ] Adicionar testes automatizados.
-- [ ] Criar ambiente staging.
-- [ ] Separar contas AWS por ambiente.
-- [ ] Implementar estratégia de Disaster Recovery.
-- [ ] Avaliar Multi-Region para produção.
-- [ ] Otimizar custo com FinOps.
-- [ ] Criar documentação de runbook operacional.
+```text
+Case pronto para apresentação até 14/08/2026
+```
 
 ---
 
-# 6. Backlog Kanban
+# 6. Cronograma resumido
+
+| Semana | Período | Foco | Entrega |
+|---|---|---|---|
+| 1 | 05/07–11/07 | Fundação | Repo + Infra + Docs |
+| 2 | 12/07–18/07 | DATASUS | Bronze/Silver DATASUS |
+| 3 | 19/07–25/07 | Open-Meteo | Clima + enriquecimento |
+| 4 | 26/07–01/08 | Gold/Dashboard | MVP batch completo |
+| 5 | 02/08–08/08 | NRT | SQS + Lambda + DynamoDB |
+| 6 | 09/08–14/08 | Finalização | Documentação + apresentação |
+
+---
+
+# 7. Backlog Kanban enxuto
 
 ## 🧊 Backlog
 
-- [ ] Adicionar novas fontes do OpenDataSUS.
-- [ ] Adicionar dados do IBGE.
-- [ ] Adicionar dados de infraestrutura hospitalar.
-- [ ] Adicionar NASA EONET.
-- [ ] Adicionar modelo de ML.
-- [ ] Adicionar API de indicadores.
-- [ ] Adicionar Iceberg.
-- [ ] Adicionar Lake Formation.
-- [ ] Adicionar DataHub/DataZone.
+- [ ] API de indicadores.
+- [ ] Machine Learning.
+- [ ] Apache Iceberg.
+- [ ] Lake Formation.
+- [ ] Multi-Region.
+- [ ] DataHub/DataZone.
+- [ ] CI/CD avançado.
+- [ ] Mais fontes públicas.
 
 ## 🚧 To Do
 
 - [ ] Organizar repositório.
-- [ ] Revisar README.
-- [ ] Revisar documentação arquitetural.
-- [ ] Adicionar ADRs revisados.
 - [ ] Criar Terraform base.
-- [ ] Criar bucket S3.
-- [ ] Criar estrutura Bronze/Silver/Gold.
-- [ ] Criar primeira ingestão Open-Meteo.
+- [ ] Criar Data Lake S3.
+- [ ] Criar extractor DATASUS.
+- [ ] Criar extractor Open-Meteo.
+- [ ] Criar Bronze/Silver/Gold.
+- [ ] Criar dashboard.
+- [ ] Criar fluxo NRT.
 
 ## 🔨 Doing
 
-- [ ] Escolher primeira fonte.
-- [ ] Definir estrutura de pastas.
-- [ ] Criar primeiro extractor.
-- [ ] Criar primeira escrita Bronze.
+- [ ] Fundação do projeto.
+- [ ] Documentação arquitetural.
+- [ ] Estrutura dos pipelines.
 
 ## ✅ Done
 
-- [ ] Definição conceitual da arquitetura.
-- [ ] Definição dos ADRs.
-- [ ] Definição do C4 Context.
-- [ ] Definição do C4 Container.
-- [ ] Definição do roadmap inicial.
+- [ ] Escopo definido.
+- [ ] Arquitetura definida.
+- [ ] ADRs definidos.
+- [ ] C4 Context definido.
+- [ ] C4 Container definido.
 
 ---
 
-# 7. Ordem recomendada para começar amanhã
+# 8. MVP mínimo aceitável
 
-Se o objetivo é sair da arquitetura e começar a implementar, siga esta ordem:
+Se o prazo apertar, o mínimo aceitável para entrega é:
 
-## Dia 1 — Organização
+```text
+DATASUS Arboviroses
+→ Bronze
+→ Silver
+→ Gold
+→ Athena
+→ Dashboard simples
 
-- [ ] Criar branch `feature/project-structure`.
-- [ ] Organizar pastas do projeto.
-- [ ] Adicionar README revisado.
-- [ ] Adicionar ADRs revisados.
-- [ ] Criar pasta `infra/terraform`.
-- [ ] Criar pasta `src/ingestion`.
-- [ ] Criar pasta `src/processing`.
-- [ ] Criar pasta `docs/data-sources`.
+Open-Meteo
+→ Bronze
+→ Silver
+→ enriquecimento simples na Gold
 
-## Dia 2 — Terraform base
+Simulador hospitalar
+→ SQS
+→ Lambda
+→ DynamoDB
+→ DLQ
+```
 
-- [ ] Criar provider AWS.
-- [ ] Criar bucket S3.
-- [ ] Criar estrutura Bronze/Silver/Gold.
-- [ ] Ativar versionamento.
-- [ ] Ativar criptografia.
-- [ ] Criar Glue Database.
-- [ ] Criar Athena Workgroup.
+Com documentação:
 
-## Dia 3 — Primeira ingestão
-
-- [ ] Criar extractor Open-Meteo.
-- [ ] Criar configuração da fonte.
-- [ ] Fazer chamada para API.
-- [ ] Salvar JSON raw local.
-- [ ] Salvar JSON raw no S3 Bronze.
-- [ ] Registrar métricas de execução.
-
-## Dia 4 — Primeira Silver
-
-- [ ] Ler dados da Bronze.
-- [ ] Padronizar schema.
-- [ ] Converter tipos.
-- [ ] Salvar Parquet na Silver.
-- [ ] Catalogar tabela no Glue.
-
-## Dia 5 — Primeira Gold
-
-- [ ] Criar agregação simples.
-- [ ] Criar tabela Gold.
-- [ ] Consultar via Athena.
-- [ ] Documentar indicador.
-
-## Dia 6 — Dashboard MVP
-
-- [ ] Conectar Power BI no Athena.
-- [ ] Criar primeira visualização.
-- [ ] Validar números.
-- [ ] Documentar regra do indicador.
-
-## Dia 7 — Hardening inicial
-
-- [ ] Adicionar logs estruturados.
-- [ ] Adicionar regra de qualidade.
-- [ ] Adicionar tratamento de erro.
-- [ ] Adicionar documentação do pipeline.
-- [ ] Criar primeira versão do runbook.
+- [ ] README.
+- [ ] C4 Context.
+- [ ] C4 Container.
+- [ ] ADRs.
+- [ ] Como executar.
+- [ ] Fontes de dados.
+- [ ] Indicadores.
+- [ ] Próximas evoluções.
 
 ---
 
-# 8. Estrutura de pastas sugerida
+# 9. Indicadores recomendados para o MVP
+
+## Epidemiológicos
+
+- [ ] Total de casos de arboviroses.
+- [ ] Casos por doença.
+- [ ] Casos por UF.
+- [ ] Casos por município.
+- [ ] Evolução temporal de casos.
+- [ ] Casos por semana epidemiológica.
+
+## Climáticos
+
+- [ ] Temperatura média por município/data.
+- [ ] Precipitação acumulada.
+- [ ] Casos x temperatura.
+- [ ] Casos x precipitação.
+
+## Operacionais simulados
+
+- [ ] Eventos hospitalares recebidos.
+- [ ] Eventos processados.
+- [ ] Eventos enviados para DLQ.
+- [ ] Atendimentos suspeitos por doença.
+- [ ] Indicadores recentes no DynamoDB.
+
+---
+
+# 10. Estrutura de pastas recomendada
 
 ```text
 data_masters/
@@ -567,27 +484,21 @@ data_masters/
 │   │   ├── what-is-baip.md
 │   │   ├── c4/
 │   │   │   ├── context.svg
-│   │   │   ├── container.svg
-│   │   │   └── deployment.svg
+│   │   │   └── container.svg
 │   │   └── ADR/
 │   ├── data-sources/
-│   │   ├── opendatasus.md
-│   │   ├── ibge.md
-│   │   ├── open-meteo.md
-│   │   └── nasa-eonet.md
+│   │   ├── datasus-arboviroses.md
+│   │   └── open-meteo.md
 │   ├── indicators/
-│   │   ├── epidemiological-indicators.md
-│   │   └── operational-indicators.md
+│   │   └── baip-indicators.md
 │   └── runbooks/
 │       ├── ingestion-failure.md
-│       ├── data-quality-failure.md
-│       └── reprocessing.md
+│       ├── lambda-failure.md
+│       └── dlq-redrive.md
 ├── infra/
 │   └── terraform/
 │       ├── environments/
-│       │   ├── dev/
-│       │   ├── staging/
-│       │   └── prod/
+│       │   └── dev/
 │       └── modules/
 │           ├── s3-data-lake/
 │           ├── glue/
@@ -597,165 +508,148 @@ data_masters/
 │           └── dynamodb/
 ├── src/
 │   ├── ingestion/
-│   │   ├── sources/
-│   │   ├── clients/
-│   │   └── jobs/
+│   │   ├── datasus/
+│   │   └── open_meteo/
 │   ├── processing/
 │   │   ├── bronze_to_silver/
 │   │   ├── silver_to_gold/
 │   │   └── data_quality/
-│   ├── streaming/
+│   ├── nrt/
 │   │   ├── producer/
 │   │   ├── consumer/
 │   │   └── schemas/
 │   └── common/
 │       ├── config/
 │       ├── logging/
-│       ├── metrics/
 │       └── aws/
 ├── tests/
 │   ├── unit/
-│   ├── integration/
 │   └── data_quality/
 └── notebooks/
-    ├── exploration/
     └── validation/
 ```
 
 ---
 
-# 9. MVP mínimo recomendado
+# 11. Ordem prática para começar
 
-Para não travar no excesso de escopo, o MVP deve ser:
+## Primeiro bloco
+
+- [ ] Criar branch.
+- [ ] Organizar repo.
+- [ ] Subir docs e ADRs.
+- [ ] Criar Terraform base.
+- [ ] Criar S3 Bronze/Silver/Gold.
+
+## Segundo bloco
+
+- [ ] Implementar DATASUS.
+- [ ] Salvar Bronze.
+- [ ] Transformar Silver.
+- [ ] Catalogar.
+- [ ] Consultar Athena.
+
+## Terceiro bloco
+
+- [ ] Implementar Open-Meteo.
+- [ ] Salvar Bronze.
+- [ ] Transformar Silver.
+- [ ] Cruzar com DATASUS.
+- [ ] Criar Gold.
+
+## Quarto bloco
+
+- [ ] Criar dashboard.
+- [ ] Criar indicadores.
+- [ ] Documentar regras.
+
+## Quinto bloco
+
+- [ ] Criar SQS.
+- [ ] Criar Lambda.
+- [ ] Criar DynamoDB.
+- [ ] Criar DLQ.
+- [ ] Criar simulador.
+- [ ] Testar evento válido e inválido.
+
+## Sexto bloco
+
+- [ ] Revisar tudo.
+- [ ] Documentar.
+- [ ] Criar prints.
+- [ ] Preparar apresentação.
+
+---
+
+# 12. Definition of Done
+
+O projeto estará pronto para entrega quando:
+
+- [ ] DATASUS estiver ingerido na Bronze.
+- [ ] DATASUS estiver tratado na Silver.
+- [ ] Open-Meteo estiver ingerido na Bronze.
+- [ ] Open-Meteo estiver tratado na Silver.
+- [ ] Gold tiver pelo menos uma tabela analítica integrada.
+- [ ] Athena conseguir consultar os dados.
+- [ ] Dashboard tiver pelo menos 4 visualizações.
+- [ ] NRT conseguir processar evento válido.
+- [ ] Evento inválido for para DLQ.
+- [ ] DynamoDB armazenar indicador recente ou estado do evento.
+- [ ] README explicar o projeto.
+- [ ] C4 Context e Container estiverem atualizados.
+- [ ] ADRs estiverem versionados.
+- [ ] Fontes de dados estiverem documentadas.
+- [ ] Indicadores estiverem documentados.
+- [ ] Próximas evoluções estiverem claras.
+
+---
+
+# 13. Sugestão de esforço
+
+Para esse escopo reduzido, a estimativa fica mais realista:
+
+| Bloco | Estimativa |
+|---|---:|
+| Setup + docs + infra | 12–20h |
+| DATASUS Bronze/Silver | 14–24h |
+| Open-Meteo Bronze/Silver | 8–14h |
+| Gold + Athena + Dashboard | 14–24h |
+| Qualidade/logs básicos | 6–12h |
+| NRT simulado | 16–28h |
+| Documentação final | 8–14h |
+
+Total estimado:
 
 ```text
-1 fonte pública
-→ Bronze
-→ Silver
-→ Gold
-→ Athena
-→ Dashboard simples
+78 a 136 horas
 ```
 
-## Fonte recomendada para MVP
+Com o prazo até 14/08, isso exige aproximadamente:
 
 ```text
-Open-Meteo
-```
-
-Motivo:
-
-- API simples;
-- dados leves;
-- fácil validar;
-- boa para testar arquitetura;
-- útil depois para enriquecer casos de arboviroses.
-
-Depois de validar o fluxo com Open-Meteo, adicionar:
-
-```text
-NASA EONET
-IBGE
-OpenDataSUS
+14 a 24 horas por semana
 ```
 
 ---
 
-# 10. Definition of Done do MVP
+# 14. Resumo executivo
 
-O MVP pode ser considerado concluído quando:
+O escopo reduzido é viável até 14/08/2026.
 
-- [ ] O repositório estiver organizado.
-- [ ] A infraestrutura base estiver criada via Terraform.
-- [ ] Existir pelo menos uma fonte ingerida na Bronze.
-- [ ] Existir transformação Bronze → Silver.
-- [ ] Existir transformação Silver → Gold.
-- [ ] As tabelas estiverem catalogadas.
-- [ ] O Athena consultar os dados.
-- [ ] O dashboard exibir pelo menos 3 indicadores.
-- [ ] Houver logs de execução.
-- [ ] Houver pelo menos 3 regras de qualidade.
-- [ ] Houver documentação da fonte.
-- [ ] Houver documentação do pipeline.
-- [ ] Houver um runbook básico de erro.
-- [ ] A arquitetura estiver refletida no C4 Container.
-
----
-
-# 11. Critérios para evoluir após o MVP
-
-Evoluir para a próxima etapa quando:
-
-- [ ] O pipeline de uma fonte estiver estável.
-- [ ] O padrão de ingestão puder ser reaproveitado.
-- [ ] A estrutura Bronze/Silver/Gold estiver validada.
-- [ ] Os indicadores básicos estiverem confiáveis.
-- [ ] O custo estiver controlado.
-- [ ] A documentação estiver atualizada.
-
----
-
-# 12. Priorização sugerida
-
-## Prioridade P0 — Obrigatório para começar
-
-- [ ] Estrutura do projeto
-- [ ] Terraform base
-- [ ] S3 Data Lake
-- [ ] Primeira ingestão
-- [ ] Bronze
-- [ ] Silver
-- [ ] Gold
-- [ ] Athena
-
-## Prioridade P1 — Necessário para ficar profissional
-
-- [ ] Glue Catalog
-- [ ] Data Quality
-- [ ] CloudWatch
-- [ ] Step Functions
-- [ ] Dashboard
-- [ ] ADRs
-- [ ] C4 Container
-- [ ] Runbooks
-
-## Prioridade P2 — Diferencial arquitetural
-
-- [ ] SQS
-- [ ] Lambda
-- [ ] DynamoDB
-- [ ] DLQ
-- [ ] TTL
-- [ ] Reconciliation
-- [ ] Tokenização/Pseudonimização
-
-## Prioridade P3 — Evolução avançada
-
-- [ ] Lake Formation
-- [ ] Apache Iceberg
-- [ ] API
-- [ ] Machine Learning
-- [ ] Multi-Region
-- [ ] Disaster Recovery
-- [ ] DataHub/DataZone
-- [ ] CI/CD avançado
-
----
-
-# 13. Resumo executivo
-
-O BAIP deve começar simples, mas com base profissional.
-
-A melhor estratégia é implementar primeiro um fluxo batch completo de ponta a ponta:
+A entrega deve focar em:
 
 ```text
-Open-Meteo → Bronze → Silver → Gold → Athena → Power BI
+DATASUS Arboviroses + Open-Meteo
+↓
+Lakehouse Medallion
+↓
+Gold/DW
+↓
+Athena/Dashboard
+↓
+NRT simulado com SQS, Lambda, DynamoDB e DLQ
 ```
 
-Depois, o projeto deve expandir para mais fontes públicas e, em seguida, adicionar o fluxo hospitalar simulado near real-time:
+A prioridade é ter um projeto funcional, bem documentado e fácil de explicar.
 
-```text
-Hospital Simulator → SQS → Lambda → DynamoDB → Reconciliation → Gold
-```
-
-Essa abordagem permite entregar valor rapidamente, validar a arquitetura e evoluir o projeto sem perder controle de custo, complexidade e qualidade.
+Evite adicionar novas tecnologias antes de concluir o fluxo principal.
