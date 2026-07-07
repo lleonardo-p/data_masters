@@ -23,3 +23,9 @@ Essa camada mantém os dados ainda próximos da origem, porém em formato otimiz
 ![Staging to Bronze Flow](c4/c3_staging_to_bronze_flow.drawio.svg)
 
 ### Camada Silver
+
+A camada Silver recebe os dados da **Bronze Data Lake** e aplica limpeza, padronização e validações de qualidade. O **Bronze to Silver Glue Job** lê os arquivos em Parquet da Bronze, trata inconsistências, normaliza campos e grava os dados limpos na **Silver Data Lake** no Amazon S3.
+
+Essa camada armazena dados limpos e validados em **Parquet**, prontos para enriquecimento, análise e consumo analítico. As tabelas Silver são registradas no **AWS Glue Data Catalog**, e logs, métricas e erros do Glue Job são enviados para o **Amazon CloudWatch Logs**.
+
+![Bronze to Silver Flow](c4/c3_bronze_to_silver_flow.drawio.svg)
