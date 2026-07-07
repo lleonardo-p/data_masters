@@ -8,65 +8,100 @@
 
 ## Contexto
 
-O BAIP integra dados de diferentes fontes, com formatos, granularidades e níveis de confiabilidade distintos.
+O BAIP processa dados de múltiplas fontes com formatos, granularidades e níveis de confiabilidade diferentes.
 
-Erros de schema, duplicidade, valores nulos, datas inválidas e inconsistências de domínio podem impactar diretamente indicadores epidemiológicos.
+Sem validações de qualidade, registros inválidos podem contaminar as camadas Silver, Gold e DW, prejudicando indicadores, dashboards e análises.
+
+A arquitetura precisa definir regras para bloqueio, quarentena, alertas e rastreabilidade de problemas de dados.
 
 ## Decisão
 
-A qualidade de dados será aplicada nos pipelines batch e near real-time com regras classificadas por severidade:
+Será adotada uma estratégia de qualidade de dados com três níveis de tratamento:
 
-- **Bloqueante:** impede avanço da carga.
-- **Quarentena:** isola registros inválidos para análise posterior.
-- **Alerta:** registra anomalia sem interromper o pipeline.
+- **Bloqueante:** falhas críticas que impedem a continuidade do processamento.
+- **Quarentena:** registros inválidos ou suspeitos que devem ser isolados para análise posterior.
+- **Alerta:** desvios que não impedem o processamento, mas devem ser monitorados.
 
-As regras mínimas incluem:
+As validações deverão cobrir, quando aplicável:
 
-- validação de schema;
-- obrigatoriedade de chaves e datas;
-- ausência de PII nas camadas analíticas;
-- checagem de duplicidade;
-- validação de domínios, UF, município e doença;
-- controles de volumetria e freshness.
+- schema obrigatório;
+- tipos de dados;
+- campos nulos críticos;
+- chaves de negócio;
+- duplicidade;
+- datas inválidas ou fora de intervalo;
+- domínios e valores permitidos;
+- volumetria;
+- freshness;
+- presença indevida de PII em camadas analíticas.
+
+Registros em quarentena serão armazenados em área controlada do S3, separados por fonte, data de processamento e tipo de erro.
+
+Padrão sugerido:
+
+```text
+s3://baip-data-lake/quarantine/<domain>/<source>/year=YYYY/month=MM/day=DD/error_type=<error_type>/
+```
+
+Os registros de quarentena devem conter metadados mínimos para rastreabilidade, como:
+
+- `source_system`;
+- `ingestion_date`;
+- `processing_time`;
+- `rule_name`;
+- `error_code`;
+- `error_message`;
+- `raw_payload_reference` ou payload controlado;
+- `pipeline_execution_id`.
 
 ## Justificativa
 
-Qualidade de dados precisa ser parte do pipeline, não uma análise manual posterior.
+A separação entre bloqueio, quarentena e alerta evita tratar todos os problemas de dados da mesma forma.
 
-A classificação por severidade evita que problemas pequenos parem todo o fluxo, mas impede que erros críticos contaminem as camadas Silver, Gold e DW.
+Falhas críticas devem interromper o processamento para evitar propagação de dados inválidos. Registros pontuais com erro podem ser isolados em quarentena sem impedir o processamento de todo o lote. Desvios não críticos podem gerar alertas para investigação posterior.
+
+A quarentena aumenta rastreabilidade e permite correção sem contaminar as camadas analíticas.
 
 ## Alternativas consideradas
 
-- **Sem validação formal:** reduz esforço inicial, mas aumenta risco de indicadores incorretos.
-- **Validação apenas no dashboard:** identifica problemas tarde demais.
-- **Framework externo completo:** pode ser útil, mas aumenta escopo do MVP.
+- **Falhar o pipeline para qualquer erro:** aumenta segurança, mas reduz disponibilidade e pode bloquear cargas por problemas pontuais.
+- **Ignorar registros inválidos:** simplifica o processamento, mas reduz confiabilidade e rastreabilidade.
+- **Corrigir automaticamente todos os erros:** pode mascarar problemas de origem e gerar inconsistências.
+- **Validar apenas na Gold:** detecta problemas tarde demais, após propagação para camadas intermediárias.
 
 ## Consequências
 
 ### Positivas
 
-- Maior confiança nos indicadores.
-- Rastreabilidade de registros inválidos.
-- Prevenção de propagação de erro entre camadas.
-- Melhor governança e operação.
+- Maior confiabilidade dos dados.
+- Redução de contaminação em Silver, Gold e DW.
+- Melhor rastreabilidade de erros.
+- Possibilidade de reprocessamento de registros corrigidos.
+- Separação clara entre erro crítico, erro pontual e alerta.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Maior esforço de desenvolvimento.
-- Necessidade de manter regras por fonte.
-- Risco de bloqueios excessivos se regras forem muito rígidas.
+- Aumenta complexidade dos pipelines.
+- Exige manutenção de regras de qualidade.
+- Pode gerar volume adicional de dados em quarentena.
+- Regras muito rígidas podem bloquear dados úteis.
+- Regras muito flexíveis podem permitir propagação de problemas.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- novas fontes aumentarem a complexidade das regras;
-- houver necessidade de score formal de qualidade;
-- consumidores exigirem SLAs de qualidade;
-- regras passarem a ser gerenciadas por time de governança.
+- novos domínios exigirem regras específicas de qualidade;
+- o volume de registros em quarentena crescer significativamente;
+- houver necessidade de ferramenta dedicada de Data Quality;
+- regras de negócio oficiais forem alteradas;
+- dados reais forem processados;
+- houver necessidade de workflow formal para correção e reprocessamento.
 
 ## Referências
 
-- AWS Glue Data Quality
-- Data Quality Dimensions
+- Data Quality Rules
 - Great Expectations
+- AWS Glue Data Quality
+- Amazon S3
+- Amazon CloudWatch

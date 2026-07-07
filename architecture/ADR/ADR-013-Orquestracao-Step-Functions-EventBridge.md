@@ -1,4 +1,4 @@
-# ADR-013: Orquestração com Step Functions e EventBridge
+# ADR-013: Orquestração com AWS Step Functions e EventBridge
 
 - **Status:** Aceito
 - **Data:** 2026-07-05
@@ -8,56 +8,76 @@
 
 ## Contexto
 
-Os pipelines do BAIP precisam executar etapas dependentes, como ingestão, validação, transformação, geração de Gold, atualização de catálogo e publicação de indicadores.
+O BAIP possui pipelines batch diários, cargas históricas, validações, transformações, publicação de dados analíticos e possíveis execuções parametrizadas de backfill.
 
-A solução precisa ser rastreável, gerenciada e simples para o MVP.
+A arquitetura precisa coordenar etapas, controlar dependências, tratar falhas e permitir agendamento sem administrar infraestrutura de orquestração.
 
 ## Decisão
 
-A orquestração será feita com **AWS Step Functions**, com agendamentos via **Amazon EventBridge Scheduler**.
+A orquestração do MVP será feita com **AWS Step Functions** e **Amazon EventBridge Scheduler**.
 
-As state machines devem ser separadas por domínio ou fluxo principal, evitando uma DAG única e excessivamente acoplada.
+O EventBridge Scheduler será utilizado para disparar execuções agendadas.
 
-Step Functions deve coordenar jobs Glue, Lambdas e etapas de validação, mantendo controle de retries, falhas e status da execução.
+O Step Functions será utilizado para coordenar etapas do pipeline, incluindo:
+
+- extração;
+- validação;
+- processamento Glue;
+- atualização de catálogo;
+- publicação de camadas Silver/Gold/DW;
+- notificações e tratamento de falhas.
+
+Backfills deverão ser modelados como execuções parametrizadas, evitando alterar o fluxo diário padrão.
+
+A arquitetura deve evitar uma DAG única e excessivamente acoplada. Os fluxos deverão ser separados por domínio, fonte ou responsabilidade quando fizer sentido.
 
 ## Justificativa
 
-Step Functions oferece orquestração gerenciada, visualização de estado, controle de erro e integração com serviços AWS.
+Step Functions permite orquestrar fluxos serverless com controle de estados, retries, tratamento de erro e rastreabilidade visual.
 
-EventBridge Scheduler permite execuções programadas sem necessidade de manter um orquestrador próprio.
+EventBridge Scheduler atende ao agendamento de execuções recorrentes sem necessidade de manter um scheduler próprio.
+
+A combinação é adequada ao MVP por ser gerenciada, integrada à AWS e suficiente para coordenar pipelines batch sem introduzir Airflow ou outra plataforma de orquestração mais pesada.
 
 ## Alternativas consideradas
 
-- **Apache Airflow/MWAA:** excelente para orquestração de dados, mas mais complexo e caro para o MVP.
-- **Cron em servidor:** simples, mas frágil e pouco observável.
-- **Glue Workflows:** integrado ao Glue, mas menos flexível para orquestrar múltiplos serviços.
+- **Apache Airflow/MWAA:** forte para DAGs complexas, mas adiciona custo e complexidade operacional para o MVP.
+- **Control-M:** adequado em ambientes corporativos, mas fora do escopo de uma arquitetura AWS serverless para portfólio.
+- **Cron em EC2:** simples, mas pouco resiliente e com maior responsabilidade operacional.
+- **EventBridge sem Step Functions:** atende agendamento, mas não oferece orquestração visual, controle de estados e tratamento estruturado de falhas.
 
 ## Consequências
 
 ### Positivas
 
 - Orquestração gerenciada.
-- Melhor rastreabilidade de execução.
-- Controle de retries e falhas.
-- Baixo esforço operacional.
+- Boa integração com Glue, Lambda, SNS e CloudWatch.
+- Suporte a retries e tratamento de erro.
+- Execuções rastreáveis e parametrizadas.
+- Simplicidade para agendamento de pipelines batch.
+- Possibilidade de separar fluxo diário e backfill.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Pode ficar caro ou complexo com workflows muito grandes.
-- Requer disciplina na decomposição das state machines.
-- Menor flexibilidade que Airflow para dependências muito complexas.
+- Pode ficar limitado para DAGs muito complexas.
+- Fluxos grandes podem se tornar difíceis de manter.
+- Exige modelagem adequada de estados e exceções.
+- Pode gerar custo por transição de estado em cenários de alta frequência.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- os pipelines virarem muitas DAGs interdependentes;
-- houver necessidade de backfill complexo;
-- múltiplos times precisarem gerenciar workflows;
-- dependências entre fontes ficarem difíceis de modelar em Step Functions.
+- a quantidade de pipelines crescer significativamente;
+- houver muitas dependências entre domínios;
+- for necessário recurso avançado de scheduler, calendário ou SLA;
+- múltiplos times precisarem operar DAGs independentes;
+- houver necessidade de ambiente de orquestração mais completo, como Airflow/MWAA.
 
 ## Referências
 
 - AWS Step Functions
 - Amazon EventBridge Scheduler
 - AWS Glue Jobs
+- AWS Lambda
+- Amazon CloudWatch

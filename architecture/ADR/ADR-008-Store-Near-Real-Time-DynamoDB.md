@@ -8,62 +8,75 @@
 
 ## Contexto
 
-O fluxo near real-time precisa disponibilizar indicadores recentes de triagem e suspeita de arboviroses com baixa latência.
+O BAIP precisa manter indicadores recentes em near real-time para consumo operacional, sem aguardar a consolidação batch diária.
 
-Esses dados têm perfil operacional/agregado, diferente do histórico analítico armazenado no Data Lake.
+Esses indicadores não substituem a camada oficial analítica do Data Lake, mas permitem uma visão atualizada de eventos recentes.
+
+A store precisa ter baixa latência, escalabilidade, integração com Lambda e suporte a controle de idempotência.
 
 ## Decisão
 
-Será utilizado **Amazon DynamoDB** como store near real-time para indicadores agregados.
+O **Amazon DynamoDB** será utilizado como store operacional para dados e indicadores near real-time.
 
-A modelagem deverá priorizar padrões de acesso, como:
+O DynamoDB poderá armazenar:
 
-- indicadores por UF, município, doença e janela temporal;
-- últimas atualizações por fonte;
-- controle de eventos processados para idempotência;
-- TTL para dados temporários, quando aplicável.
+- indicadores recentes agregados;
+- estado de processamento por `event_id`;
+- controles de idempotência;
+- dados temporários com TTL quando aplicável.
 
-A tabela não deve armazenar PII.
+A modelagem das chaves deverá evitar concentração de escrita e leitura em uma única partição lógica. As chaves devem distribuir acesso por atributos como período, região, doença, tipo de evento ou identificador técnico, conforme o padrão de consulta.
+
+A visão oficial consolidada continuará sendo produzida pelo fluxo batch em S3, Gold e DW.
 
 ## Justificativa
 
-DynamoDB oferece baixa latência, operação gerenciada e escalabilidade automática para leituras e escritas orientadas a chave.
+DynamoDB é adequado para acesso de baixa latência, alta disponibilidade gerenciada e integração nativa com Lambda.
 
-Ele é adequado para indicadores recentes e operacionais, enquanto o S3/Gold/DW permanece como fonte oficial para análises consolidadas.
+A separação entre DynamoDB e Data Lake evita misturar visão operacional recente com histórico analítico oficial. Isso reduz o risco de duplicidade, facilita reconciliação e mantém o S3 como base consolidada para auditoria e análise histórica.
+
+O uso de `event_id` e operações condicionais, como `condition_expression`, permite implementar idempotência e evitar dupla contagem em eventos reprocessados.
 
 ## Alternativas consideradas
 
-- **Amazon RDS/PostgreSQL:** bom para SQL relacional, mas exige mais operação e escalabilidade planejada.
-- **Amazon ElastiCache/Redis:** excelente para cache, mas menos adequado como store persistente principal.
-- **Amazon OpenSearch:** bom para busca e exploração textual, mas desnecessário para agregados simples.
-- **S3/Athena diretamente:** melhor para histórico analítico, mas não para baixa latência operacional.
+- **Amazon RDS/PostgreSQL:** oferece SQL e consistência relacional, mas exige mais administração e pode ser menos eficiente para alto volume de eventos simples com baixa latência.
+- **Amazon ElastiCache/Redis:** oferece latência muito baixa, mas não é ideal como store persistente principal de indicadores e controles de idempotência.
+- **Athena direto no S3 para NRT:** simples para consulta analítica, mas inadequado para atualizações frequentes de baixa latência.
+- **Manter indicadores apenas no batch:** simplifica arquitetura, mas não atende ao requisito near real-time.
 
 ## Consequências
 
 ### Positivas
 
-- Baixa latência.
-- Baixo esforço operacional.
-- Escalabilidade gerenciada.
-- Boa integração com Lambda.
+- Baixa latência para leitura e escrita.
+- Integração nativa com Lambda.
+- Suporte a TTL para dados temporários.
+- Boa opção para controle de idempotência.
+- Redução de carga no Data Lake para consultas operacionais recentes.
+- Separação entre visão recente e visão oficial consolidada.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Modelagem depende dos padrões de consulta.
-- Consultas ad hoc são limitadas.
+- Exige modelagem cuidadosa de chaves.
+- Consultas analíticas complexas não são o ponto forte do DynamoDB.
 - Risco de hot partition se a chave for mal definida.
+- Necessidade de reconciliação com o batch oficial.
+- Pode gerar custo se houver alto volume de escrita ou leitura sem modelagem adequada.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- forem necessárias consultas relacionais complexas;
-- o padrão de acesso ficar imprevisível;
-- houver hot partitions recorrentes;
-- o dado near real-time precisar ser consultado de forma analítica ampla.
+- o volume de eventos near real-time crescer significativamente;
+- as consultas exigirem filtros analíticos complexos;
+- houver necessidade de joins ou agregações pesadas diretamente na store NRT;
+- o custo de leitura/escrita no DynamoDB crescer acima do previsto;
+- a arquitetura evoluir para streaming analítico com Kinesis, Kafka ou Flink.
 
 ## Referências
 
 - Amazon DynamoDB
-- DynamoDB single-table design
 - DynamoDB TTL
+- DynamoDB Conditional Writes
+- AWS Lambda
+- Amazon SQS

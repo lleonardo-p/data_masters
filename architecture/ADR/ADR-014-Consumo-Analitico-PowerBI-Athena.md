@@ -1,4 +1,4 @@
-# ADR-014: Consumo Analítico com Power BI e Athena
+# ADR-014: Consumo Analítico com Power BI e Amazon Athena
 
 - **Status:** Aceito
 - **Data:** 2026-07-05
@@ -8,60 +8,67 @@
 
 ## Contexto
 
-O BAIP precisa disponibilizar indicadores em dashboards para análise de arboviroses, clima, infraestrutura de saúde e eventos near real-time consolidados.
+O BAIP precisa disponibilizar indicadores analíticos para exploração e visualização em dashboards.
 
-O consumo deve ocorrer sobre dados tratados e confiáveis, evitando acesso direto às camadas brutas.
+A solução deve permitir consultas SQL sobre dados no S3, integração com ferramenta de BI e baixo custo para o MVP.
 
 ## Decisão
 
-O consumo analítico será feito por **Power BI** consultando datasets da camada **Gold/DW**, preferencialmente via **Amazon Athena**.
+O consumo analítico será feito com **Power BI** conectado ao **Amazon Athena** sobre tabelas ou views da camada **Gold/DW**.
 
-A exposição para BI deve utilizar tabelas ou views específicas, com:
+O Power BI deverá consumir apenas tabelas ou views preparadas para análise, evitando acesso direto às camadas Staging, Bronze e Silver.
 
-- dados agregados;
-- ausência de PII;
-- regras de negócio documentadas;
-- particionamento adequado;
-- controle de custo via Athena Workgroups.
+As consultas deverão ser otimizadas por formato Parquet, particionamento adequado e uso de views/tabelas específicas para consumo.
+
+Athena Workgroups deverão ser utilizados quando necessário para controle de custo, isolamento e configuração de resultados.
 
 ## Justificativa
 
-Power BI é uma ferramenta acessível para apresentação e Athena permite consulta SQL serverless sobre dados no S3.
+Athena permite consultar dados no S3 sem provisionar infraestrutura de banco dedicado, reduzindo custo e complexidade no MVP.
 
-A combinação atende ao MVP com baixo custo e sem necessidade inicial de um Data Warehouse dedicado.
+Power BI é uma ferramenta conhecida para visualização, exploração e criação de dashboards, com possibilidade de conexão a fontes SQL.
+
+Limitar o consumo à Gold/DW reduz risco de exposição de dados brutos, melhora performance e evita que regras de negócio sejam reimplementadas diretamente no dashboard.
 
 ## Alternativas consideradas
 
-- **Amazon QuickSight:** integração nativa AWS, mas Power BI pode ser mais familiar e valorizado no portfólio.
-- **Amazon Redshift:** melhor para performance previsível em alto volume, mas adiciona custo e operação.
-- **Dashboard direto no DynamoDB:** inadequado para análise histórica e consultas analíticas amplas.
+- **Amazon QuickSight:** possui integração nativa com AWS, mas Power BI foi priorizado pela familiaridade e facilidade de uso para o projeto.
+- **Amazon Redshift:** oferece performance previsível para DW, mas adiciona custo e administração fora do escopo inicial.
+- **Consulta direta na Silver:** reduz uma etapa, mas expõe dados ainda não preparados para consumo analítico.
+- **Dashboard lendo DynamoDB:** pode atender indicadores operacionais recentes, mas não é adequado para histórico analítico completo.
 
 ## Consequências
 
 ### Positivas
 
 - Baixo custo inicial.
-- Consumo SQL sobre o Data Lake.
-- Boa aderência a dashboards executivos e analíticos.
-- Evita duplicação inicial em um DW dedicado.
+- Consulta direta em dados no S3.
+- Separação entre camada analítica e camada bruta/tratada.
+- Boa integração com modelo dimensional Gold/DW.
+- Possibilidade de controlar custo por Workgroup.
+- Evita provisionamento de Data Warehouse dedicado no MVP.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Athena cobra por dados escaneados.
-- Performance depende de particionamento e formato dos arquivos.
-- Power BI pode exigir estratégias de import/cache para melhor experiência.
+- Performance pode variar conforme layout, particionamento e volume escaneado.
+- Athena cobra por dados lidos, exigindo otimização de arquivos e consultas.
+- Power BI pode exigir estratégia de importação, cache ou atualização agendada.
+- Não é ideal para alta concorrência ou dashboards de baixa latência em grande escala.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- dashboards exigirem baixa latência e alta concorrência;
-- o custo de Athena crescer muito;
-- consultas ficarem lentas mesmo com otimização;
-- for necessário um serving layer analítico dedicado.
+- os dashboards exigirem baixa latência e alta concorrência;
+- o custo de consultas Athena crescer acima do previsto;
+- houver necessidade de semântica corporativa centralizada;
+- o volume de dados exigir Data Warehouse dedicado;
+- os indicadores near real-time precisarem ser integrados diretamente ao BI.
 
 ## Referências
 
 - Amazon Athena
-- Power BI
 - Athena Workgroups
+- Power BI
+- AWS Glue Data Catalog
+- Apache Parquet

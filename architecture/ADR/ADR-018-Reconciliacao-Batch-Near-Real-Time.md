@@ -8,62 +8,79 @@
 
 ## Contexto
 
-O BAIP combina dados oficiais processados em batch com eventos near real-time simulados.
+O BAIP possui dois fluxos de dados complementares:
 
-Sem uma estratégia de reconciliação, o mesmo evento pode ser contado duas vezes ou indicadores recentes podem divergir dos dados oficiais consolidados.
+- fluxo batch, responsável pela consolidação oficial dos dados analíticos;
+- fluxo near real-time, responsável por atualizar indicadores recentes com menor latência.
+
+Sem uma regra clara de reconciliação, o mesmo evento pode ser contado duas vezes ou indicadores temporários podem divergir da visão oficial.
 
 ## Decisão
 
-A reconciliação será baseada em:
+A arquitetura adotará uma estratégia de reconciliação entre batch e near real-time.
 
-- `event_id` para idempotência;
-- `event_time` e `processing_time` para controle temporal;
-- watermark por fonte e janela de consolidação;
-- prioridade do batch oficial para dados consolidados;
-- atualização ou descarte controlado de eventos near real-time após consolidação;
-- trilha de divergências para auditoria.
+O fluxo near real-time será tratado como visão operacional recente. O fluxo batch será tratado como fonte oficial consolidada para indicadores históricos e analíticos.
 
-O near real-time deve ser tratado como visão operacional recente. A visão oficial e histórica deve vir da camada Gold/DW consolidada.
+A reconciliação deverá usar campos como:
+
+- `event_id`;
+- `event_time`;
+- `processing_time`;
+- `source_system`;
+- `schema_version`;
+- janela de referência;
+- status de processamento.
+
+Após a consolidação batch oficial de uma janela, os indicadores near real-time da mesma janela deverão ser substituídos, reconciliados ou marcados como não oficiais.
+
+O batch terá precedência sobre a visão near real-time quando houver divergência entre os dados consolidados e os indicadores temporários.
 
 ## Justificativa
 
-A separação entre visão operacional e visão oficial evita inconsistência de indicadores.
+O fluxo near real-time entrega rapidez, mas pode conter eventos atrasados, duplicados, inválidos ou ainda não reconciliados.
 
-Watermark e idempotência permitem lidar com eventos atrasados, duplicados e reprocessamentos sem comprometer a confiança analítica.
+O batch permite processar a janela completa, aplicar validações mais robustas, deduplicar, enriquecer e consolidar dados com maior confiabilidade.
+
+Definir precedência do batch evita dupla contagem e deixa claro para consumidores que a visão NRT é operacional e provisória.
 
 ## Alternativas consideradas
 
-- **Somar batch e near real-time diretamente:** rejeitado por risco de dupla contagem.
-- **Usar apenas batch:** reduz complexidade, mas perde visão recente.
-- **Usar apenas near real-time:** não substitui dados oficiais e consolidados.
-- **Reprocessar tudo sempre:** simples conceitualmente, mas caro e ineficiente.
+- **Usar apenas batch:** simplifica a arquitetura, mas não atende à necessidade de indicadores recentes.
+- **Usar apenas near real-time:** reduz latência, mas aumenta risco de inconsistência e dificulta auditoria histórica.
+- **Somar batch e near real-time sem reconciliação:** simples, mas pode gerar dupla contagem.
+- **Manter indicadores separados sem regra de precedência:** reduz acoplamento, mas cria ambiguidade para consumidores.
 
 ## Consequências
 
 ### Positivas
 
-- Evita dupla contagem.
-- Mantém visão recente e visão oficial separadas.
-- Melhora confiança nos indicadores.
-- Permite reprocessamento controlado.
+- Redução de risco de dupla contagem.
+- Separação clara entre visão operacional e visão oficial.
+- Maior confiabilidade dos indicadores consolidados.
+- Suporte a eventos atrasados e reprocessamento.
+- Melhor rastreabilidade por `event_id` e janelas de referência.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Aumenta complexidade de regras.
-- Exige controle de watermark e idempotência.
-- Pode haver divergência temporária entre painéis recentes e consolidados.
+- Aumenta complexidade de modelagem e processamento.
+- Exige controle de estado entre NRT e batch.
+- Pode haver divergência temporária entre dashboard recente e dados consolidados.
+- Requer comunicação clara sobre o significado dos indicadores provisórios.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- eventos atrasados forem frequentes;
-- o volume near real-time crescer muito;
-- houver necessidade de correção histórica em larga escala;
-- a arquitetura evoluir para tabelas transacionais como Apache Iceberg.
+- a latência do batch precisar ser reduzida significativamente;
+- a visão near real-time passar a ser considerada oficial;
+- houver necessidade de processamento streaming com garantia mais forte de consistência;
+- o volume de eventos atrasados crescer;
+- a lógica de reconciliação se tornar complexa demais para o modelo atual.
 
 ## Referências
 
-- Idempotent Data Pipelines
-- Watermarking
+- Lambda Architecture
+- Idempotent Event Processing
 - Event Time vs Processing Time
+- Amazon DynamoDB
+- Amazon S3

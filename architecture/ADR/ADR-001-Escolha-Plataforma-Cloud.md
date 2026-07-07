@@ -1,8 +1,8 @@
 # ADR-001: Escolha da Plataforma Cloud
 
-* **Status:** Aceito
-* **Data:** 2026-07-07
-* **Decisor:** Leonardo Lucas Pereira
+- **Status:** Aceito
+- **Data:** 2026-07-05
+- **Decisor:** Leonardo Lucas Pereira
 
 ---
 
@@ -18,9 +18,9 @@ Como o projeto está em fase de MVP, a arquitetura deve priorizar velocidade de 
 
 A arquitetura será implementada na **Amazon Web Services (AWS)**.
 
-Para o MVP, a solução será implantada em **uma única região AWS**, sem estratégia explícita de **Multi-AZ**, **Multi-Region** ou **Multicloud**.
+Para o MVP, a solução será implantada em **uma única região AWS**, sem desenho explícito de alta disponibilidade **Multi-AZ**, **Multi-Region** ou **Multicloud**, além da disponibilidade nativa oferecida pelos serviços gerenciados utilizados.
 
-A arquitetura utilizará serviços gerenciados da AWS sempre que possível, aproveitando a disponibilidade nativa desses serviços quando aplicável, mas sem desenhar uma camada adicional de alta disponibilidade entre zonas ou regiões neste momento.
+A arquitetura utilizará serviços gerenciados da AWS sempre que possível, reduzindo esforço operacional e acelerando a entrega inicial.
 
 ## Justificativa
 
@@ -30,47 +30,47 @@ A AWS oferece serviços gerenciados maduros para Engenharia de Dados, como Amazo
 
 O uso de uma única cloud reduz o tempo necessário para estudo, capacitação, integração entre serviços e implantação inicial. Isso permite concentrar o esforço do projeto na modelagem da arquitetura de dados, nos fluxos de ingestão, no processamento batch, na governança e na entrega dos indicadores analíticos.
 
-Não há, no escopo atual, requisito formal de alta disponibilidade Multi-AZ, operação Multi-Region ou estratégia Multicloud. Caso o projeto evolua para um cenário de alta demanda, maior criticidade, requisitos agressivos de RTO/RPO ou necessidade de maior resiliência, a arquitetura poderá ser revisada para incluir Multi-AZ, Multi-Region ou até Multicloud.
+Não há, no escopo atual, requisito formal de Multi-AZ explícito, operação Multi-Region ou estratégia Multicloud. Caso o projeto evolua para um cenário de alta demanda, maior criticidade, requisitos agressivos de RTO/RPO ou necessidade de maior resiliência, a arquitetura poderá ser revisada para incluir Multi-AZ, Multi-Region ou até Multicloud.
 
 ## Alternativas consideradas
 
-* **Microsoft Azure:** possui boa integração com ferramentas corporativas e Power BI, porém aumentaria a curva de aprendizado e o tempo de implementação do MVP. Como o objetivo atual é acelerar a entrega com ferramentas já conhecidas, Azure não foi priorizado.
-* **Google Cloud Platform:** oferece uma stack analítica forte, especialmente com BigQuery e serviços gerenciados de dados. No entanto, exigiria maior tempo de estudo e capacitação para este projeto, reduzindo a velocidade de implementação do MVP em comparação com a AWS.
-* **On-premises:** oferece maior controle sobre a infraestrutura, mas aumentaria significativamente o esforço operacional, o tempo de implantação e a complexidade de escalabilidade.
-* **Multicloud:** poderia reduzir dependência de fornecedor em cenários mais maduros, mas adicionaria complexidade de rede, segurança, governança, observabilidade, custos e operação sem benefício proporcional para o MVP.
+- **Microsoft Azure:** possui boa integração com ferramentas corporativas e Power BI, porém aumentaria a curva de aprendizado e o tempo de implementação do MVP. Como o objetivo atual é acelerar a entrega com ferramentas já conhecidas, Azure não foi priorizado.
+- **Google Cloud Platform:** oferece uma stack analítica forte, especialmente com BigQuery e serviços gerenciados de dados. No entanto, exigiria maior tempo de estudo e capacitação para este projeto, reduzindo a velocidade de implementação do MVP em comparação com a AWS.
+- **On-premises:** oferece maior controle sobre a infraestrutura, mas aumentaria significativamente o esforço operacional, o tempo de implantação e a complexidade de escalabilidade.
+- **Multicloud:** poderia reduzir dependência de fornecedor em cenários mais maduros, mas adicionaria complexidade de rede, segurança, governança, observabilidade, custos e operação sem benefício proporcional para o MVP.
 
 ## Consequências
 
 ### Positivas
 
-* Redução do tempo de desenvolvimento.
-* Menor curva de aprendizado.
-* Uso de serviços gerenciados e integrados.
-* Menor esforço operacional no MVP.
-* Boa aderência a cenários de Data Lake, processamento batch, consultas analíticas e observabilidade.
-* Possibilidade de evolução gradual para maior resiliência e escalabilidade.
+- Redução do tempo de desenvolvimento.
+- Menor curva de aprendizado.
+- Uso de serviços gerenciados e integrados.
+- Menor esforço operacional no MVP.
+- Boa aderência a cenários de Data Lake, processamento batch, consultas analíticas e observabilidade.
+- Possibilidade de evolução gradual para maior resiliência e escalabilidade.
 
 ### Negativas / Trade-offs
 
-* Dependência inicial do ecossistema AWS.
-* Menor portabilidade para outros provedores cloud.
-* Ausência de estratégia explícita de Multi-AZ e Multi-Region no MVP.
-* Necessidade de revisão arquitetural caso a solução evolua para um ambiente produtivo crítico.
+- Dependência inicial do ecossistema AWS.
+- Menor portabilidade para outros provedores cloud.
+- Ausência de desenho explícito Multi-AZ e Multi-Region no MVP.
+- Necessidade de revisão arquitetural caso a solução evolua para um ambiente produtivo crítico.
 
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:
 
-* houver exigência formal de Multicloud;
-* houver necessidade de operação Multi-Region;
-* houver requisitos mais agressivos de RTO/RPO;
-* houver necessidade de baixa latência em diferentes regiões geográficas;
-* houver requisito regulatório de residência de dados fora da região escolhida;
-* o volume de dados ou a criticidade do processamento exigir maior resiliência;
-* o projeto evoluir de MVP para uma plataforma produtiva de missão crítica.
+- houver exigência formal de Multicloud;
+- houver necessidade de operação Multi-Region;
+- houver requisitos mais agressivos de RTO/RPO;
+- houver necessidade de baixa latência em diferentes regiões geográficas;
+- houver requisito regulatório de residência de dados fora da região escolhida;
+- o volume de dados ou a criticidade do processamento exigir maior resiliência;
+- o projeto evoluir de MVP para uma plataforma produtiva de missão crítica.
 
 ## Referências
 
-* AWS Well-Architected Framework
-* AWS Architecture Center
-* AWS Free Tier
+- AWS Well-Architected Framework
+- AWS Architecture Center
+- AWS Free Tier

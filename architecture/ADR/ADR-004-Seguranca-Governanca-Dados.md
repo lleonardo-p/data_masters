@@ -8,62 +8,79 @@
 
 ## Contexto
 
-O BAIP manipula dados públicos e eventos hospitalares simulados que podem conter identificadores sensíveis em estágios iniciais do pipeline.
+O BAIP armazena e processa dados de múltiplas fontes, incluindo dados públicos, dados enriquecidos e eventos hospitalares simulados que podem representar cenários com identificadores pessoais.
 
-A arquitetura precisa evitar exposição de PII, controlar acesso por camada, registrar auditoria, proteger dados em repouso e em trânsito e manter aderência à LGPD.
+A arquitetura precisa demonstrar boas práticas de segurança, privacidade, controle de acesso, rastreabilidade e governança, mesmo em um MVP.
 
 ## Decisão
 
-A segurança será baseada em:
+A arquitetura adotará controles de segurança e governança desde a concepção.
 
-- **AWS IAM** com princípio do menor privilégio;
-- segregação de permissões por camada: Bronze, Silver, Gold e DW;
+As principais diretrizes serão:
+
 - bloqueio de acesso público nos buckets S3;
-- criptografia com **AWS KMS** quando aplicável;
-- logs e auditoria com CloudWatch e CloudTrail;
-- ausência de PII nas camadas Gold, DW, dashboards e APIs analíticas;
-- evolução para **AWS Lake Formation** para governança fina de tabelas, colunas e permissões.
+- criptografia em repouso com KMS quando aplicável;
+- criptografia em trânsito para comunicação entre serviços;
+- segregação de permissões por camada: Staging, Bronze, Silver, Gold e DW;
+- uso do princípio do menor privilégio em políticas IAM;
+- uso de Secrets Manager e/ou KMS para segredos, chaves e parâmetros sensíveis;
+- logs operacionais sem PII ou payloads sensíveis;
+- trilhas de auditoria com CloudTrail quando aplicável;
+- monitoramento operacional com CloudWatch;
+- separação clara entre dados identificáveis, dados pseudonimizados e dados analíticos;
+- ausência de CPF ou identificadores sensíveis em Gold, DW, dashboards e APIs analíticas.
 
 ## Justificativa
 
-IAM e políticas de bucket atendem ao MVP com baixa complexidade. Para produção, Lake Formation, KMS e auditoria centralizada tornam a governança mais robusta e adequada a dados sensíveis.
+A segurança precisa ser considerada desde o início para evitar propagação indevida de dados sensíveis e reduzir riscos de exposição.
 
-A proteção deve ocorrer desde a ingestão, evitando que dados pessoais sejam propagados para camadas analíticas.
+A camada Staging merece controle específico porque pode receber dados brutos temporários antes da validação e da pseudonimização. Bronze, Silver, Gold e DW também exigem níveis distintos de permissão conforme finalidade, sensibilidade e público consumidor.
+
+A adoção de IAM com menor privilégio, criptografia, logs sem PII e segregação por camada cria uma base mais adequada para evolução futura com dados reais e requisitos formais de governança.
 
 ## Alternativas consideradas
 
-- **Acesso amplo entre serviços:** rejeitado por risco elevado e baixa aderência à LGPD.
-- **Segurança apenas no bucket S3:** insuficiente para governança por tabela, coluna e consumidor.
-- **Ferramentas externas como Collibra/DataHub:** úteis para governança corporativa, mas aumentam escopo e operação no MVP.
+- **Controle de acesso amplo no MVP:** simplifica testes, mas aumenta risco de exposição e cria dívida técnica de segurança.
+- **Aplicar segurança apenas em produção:** reduz esforço inicial, mas pode exigir retrabalho significativo e permitir padrões inseguros desde o início.
+- **Manter dados sensíveis em todas as camadas:** facilita rastreabilidade, mas aumenta risco e reduz aderência a princípios de minimização e privacidade.
+- **Governança apenas documental:** insuficiente sem controles técnicos aplicados em IAM, S3, logs, catálogo e pipelines.
 
 ## Consequências
 
 ### Positivas
 
-- Redução do risco de vazamento.
-- Melhor rastreabilidade e auditoria.
-- Separação clara entre dados brutos, tratados e analíticos.
-- Evolução possível para governança granular.
+- Redução do risco de exposição de dados.
+- Melhor aderência a privacidade e minimização de dados.
+- Separação clara de responsabilidades por camada.
+- Base técnica mais adequada para evolução com dados reais.
+- Maior rastreabilidade operacional.
+- Melhor controle sobre acesso a dados brutos, tratados e analíticos.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Maior complexidade na configuração de permissões.
-- Necessidade de revisão contínua de políticas IAM.
-- Risco de má configuração se não houver automação e validação.
+- Maior esforço inicial de configuração.
+- Necessidade de manter políticas IAM, KMS, Secrets Manager e permissões atualizadas.
+- Pode aumentar complexidade para desenvolvimento e testes.
+- Erros de configuração podem bloquear pipelines ou consultas legítimas.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- novos consumidores exigirem acesso granular por coluna ou linha;
-- dados reais substituírem dados simulados;
-- houver exigência formal de auditoria e trilha regulatória;
-- o número de domínios, tabelas e consumidores crescer significativamente.
+- dados reais forem utilizados;
+- houver exigência formal de Lake Formation;
+- múltiplos usuários ou times passarem a consumir o Data Lake;
+- houver necessidade de segregação por conta AWS;
+- houver requisito formal de auditoria, compliance ou RIPD;
+- forem criadas APIs ou produtos de dados externos.
 
 ## Referências
 
-- AWS IAM Best Practices
-- AWS Lake Formation
+- AWS IAM
 - AWS KMS
+- AWS Secrets Manager
+- Amazon S3 Block Public Access
 - AWS CloudTrail
+- Amazon CloudWatch
+- AWS Lake Formation
 - LGPD

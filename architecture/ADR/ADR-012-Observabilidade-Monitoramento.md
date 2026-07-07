@@ -8,66 +8,76 @@
 
 ## Contexto
 
-O BAIP possui pipelines batch, fluxo near real-time, armazenamento em Data Lake, APIs, dashboards e componentes serverless.
+O BAIP possui pipelines batch, fluxo near real-time, filas, funções Lambda, jobs Glue, tabelas no S3, indicadores no DynamoDB e consultas analíticas no Athena.
 
-A operação precisa detectar falhas, atrasos, aumento de custo, erro de dados, mensagens presas em fila e problemas de performance.
+A arquitetura precisa permitir acompanhamento de falhas, latência, custo, freshness, volumetria, qualidade e saúde operacional dos componentes.
 
 ## Decisão
 
-A observabilidade será baseada em **Amazon CloudWatch**, complementada por serviços de auditoria e custo.
+A observabilidade será estruturada em três dimensões:
 
-Devem ser monitorados:
+- **Operacional:** falhas, duração de jobs, retries, DLQ, erros de Lambda, execuções Step Functions e status de pipelines.
+- **Dados:** freshness, volumetria, quantidade de registros, qualidade, duplicidade, registros em quarentena e variações inesperadas.
+- **Custo:** consumo de Glue DPU, dados escaneados no Athena, invocações Lambda, capacidade/uso do DynamoDB e armazenamento S3.
 
-- execução de Glue Jobs;
-- falhas em Lambda;
-- mensagens na SQS e DLQ;
-- latência e erros no fluxo near real-time;
-- custos e anomalias de consumo;
-- freshness dos datasets;
-- volume de registros por fonte;
-- logs sem PII.
+A arquitetura utilizará principalmente:
 
-Para produção, a arquitetura deve incluir CloudTrail, AWS Config, Budgets/Cost Anomaly Detection e alarmes via SNS ou integração equivalente.
+- Amazon CloudWatch para logs, métricas e alarmes;
+- CloudWatch Alarms para falhas críticas e DLQ;
+- AWS CloudTrail para auditoria de ações na conta quando aplicável;
+- AWS Budgets e Cost Anomaly Detection para controle de custo;
+- notificações via SNS ou mecanismo equivalente em cenários produtivos.
+
+Logs não devem conter CPF, PII ou payloads sensíveis.
 
 ## Justificativa
 
-CloudWatch integra nativamente com os serviços AWS usados e reduz complexidade operacional no MVP.
+Observabilidade é necessária para operar pipelines de dados com confiabilidade, identificar falhas rapidamente e evitar que problemas de qualidade ou custo passem despercebidos.
 
-A observabilidade precisa cobrir operação técnica, qualidade dos dados e custo.
+Separar observabilidade operacional, de dados e de custo facilita a priorização dos alertas e evita tratar todos os sinais como falhas técnicas.
+
+CloudWatch é a escolha natural para o MVP por ser integrado aos serviços AWS utilizados na arquitetura.
 
 ## Alternativas consideradas
 
-- **Datadog/New Relic:** ferramentas robustas, mas adicionam custo para o MVP.
-- **Logs locais:** insuficientes para operação cloud.
-- **Monitoramento apenas manual:** não atende boas práticas operacionais.
+- **Monitoramento manual:** simples no início, mas não escala e aumenta risco de falhas não percebidas.
+- **Ferramentas externas como Datadog ou New Relic:** oferecem recursos avançados, mas adicionam custo e complexidade ao MVP.
+- **Apenas logs sem métricas:** dificulta análise histórica, alertas e acompanhamento de tendências.
+- **Observabilidade apenas técnica:** ignora problemas de dados, como freshness, volumetria e qualidade.
 
 ## Consequências
 
 ### Positivas
 
-- Maior visibilidade operacional.
-- Detecção rápida de falhas.
-- Melhor controle de custo.
-- Base para melhoria contínua.
+- Melhor visibilidade operacional dos pipelines.
+- Detecção mais rápida de falhas.
+- Controle de DLQ e retries.
+- Acompanhamento de freshness e volumetria.
+- Redução de risco de aumento inesperado de custo.
+- Base para operação mais profissional em produção.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Exige configuração de métricas e alarmes.
-- Logs podem gerar custo se a retenção não for controlada.
-- Métricas mal definidas podem gerar ruído operacional.
+- Exige configuração de métricas, alarmes e retenção de logs.
+- Pode gerar ruído se alertas não forem bem calibrados.
+- Logs e métricas também geram custo.
+- Necessita manutenção conforme novos pipelines forem adicionados.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- houver múltiplos times operando a plataforma;
-- SLAs formais forem definidos;
-- logs e métricas crescerem muito em custo;
-- rastreabilidade distribuída se tornar requisito.
+- o número de pipelines crescer significativamente;
+- houver necessidade de SLO/SLA formal;
+- múltiplos times precisarem operar a plataforma;
+- o volume de alertas se tornar alto;
+- houver necessidade de dashboards operacionais dedicados;
+- a arquitetura evoluir para produção crítica.
 
 ## Referências
 
 - Amazon CloudWatch
 - AWS CloudTrail
 - AWS Budgets
-- AWS Well-Architected Operational Excellence
+- AWS Cost Anomaly Detection
+- Amazon SNS

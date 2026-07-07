@@ -8,62 +8,73 @@
 
 ## Contexto
 
-O BAIP possui um fluxo near real-time para eventos hospitalares simulados, como notificações de triagem ou suspeita de arbovirose.
+O BAIP possui um fluxo near real-time para ingestão de eventos hospitalares simulados, usado para atualizar indicadores recentes com baixa latência.
 
-Esses eventos precisam ser desacoplados do processamento consumidor, tolerantes a falhas e processados com baixo custo.
+A solução precisa desacoplar produtores e consumidores, absorver picos, permitir retentativas, controlar falhas e evitar perda de eventos.
+
+O MVP não possui requisito de ordenação estrita, streaming distribuído de alto volume ou processamento com latência de milissegundos.
 
 ## Decisão
 
-Será utilizado **Amazon SQS Standard** como fila de mensageria para o fluxo near real-time.
+O **Amazon SQS Standard** será utilizado como serviço de mensageria para o fluxo near real-time.
 
-A fila deverá possuir:
+A fila deverá utilizar:
 
-- DLQ para mensagens com falha recorrente;
-- controle de `visibility timeout`;
+- Dead Letter Queue (DLQ) para mensagens com falha recorrente;
 - política de retry e redrive;
-- idempotência baseada em `event_id`;
-- contrato mínimo de evento;
-- alarmes para idade da mensagem, mensagens na DLQ e crescimento anormal da fila.
+- configuração adequada de visibility timeout;
+- alarmes para profundidade da fila e mensagens na DLQ;
+- identificador de evento (`event_id`) para suportar idempotência no consumidor.
+
+Como o SQS Standard pode entregar mensagens mais de uma vez, a idempotência será obrigatória no processamento consumidor.
 
 ## Justificativa
 
-SQS é simples, barato, gerenciado e suficiente para o fluxo proposto. Ele desacopla produtor e consumidor sem exigir operação de clusters ou brokers.
+O SQS é simples, gerenciado, escalável e adequado para desacoplamento entre ingestão e processamento near real-time no escopo do MVP.
 
-Como o projeto não exige ordering estrito nem throughput massivo no MVP, SQS Standard é mais adequado do que alternativas mais complexas.
+A escolha reduz esforço operacional em comparação com soluções de streaming mais complexas, como Kafka ou Kinesis, e atende ao requisito de atualização recente de indicadores sem exigir ordenação global.
+
+A combinação de SQS, Lambda, DLQ e DynamoDB permite construir um fluxo resiliente, com retentativas, tratamento de falhas e controle de duplicidade.
 
 ## Alternativas consideradas
 
-- **Amazon Kinesis:** melhor para alto throughput e streaming contínuo, mas adiciona custo e complexidade.
-- **Apache Kafka/MSK:** robusto para streaming corporativo, mas excessivo para o MVP.
-- **EventBridge:** bom para eventos de integração, mas menos adequado como fila principal de processamento com retry e DLQ neste caso.
-- **SQS FIFO:** útil quando ordering estrito é necessário, mas com menor throughput e maior restrição operacional.
+- **Amazon Kinesis:** adequado para streaming de alto volume e leitura por múltiplos consumidores, mas adiciona complexidade e custo sem necessidade no MVP.
+- **Apache Kafka/MSK:** poderoso para arquiteturas orientadas a eventos, mas exige maior esforço operacional e governança de tópicos, partições e consumidores.
+- **EventBridge:** útil para eventos de integração entre sistemas, mas menos adequado para filas de processamento com controle detalhado de retry, DLQ e consumo por lote.
+- **Chamada direta para Lambda:** simples, mas acopla produtor e consumidor, reduz controle de retentativas e dificulta absorção de picos.
 
 ## Consequências
 
 ### Positivas
 
-- Baixo custo e baixa operação.
-- Desacoplamento entre produtor e processador.
-- Resiliência via retry e DLQ.
-- Escalabilidade automática para o escopo do MVP.
+- Baixo esforço operacional.
+- Desacoplamento entre produtor e consumidor.
+- Suporte a retry, DLQ e absorção de picos.
+- Integração nativa com Lambda e CloudWatch.
+- Simplicidade para o MVP.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Entrega pode ser duplicada.
-- Não garante ordem global dos eventos.
+- Não garante ordenação global das mensagens.
+- Pode entregar mensagens mais de uma vez.
 - Exige idempotência no consumidor.
+- Não é a melhor opção para streaming analítico de alto volume.
+- Pode exigir ajuste fino de visibility timeout e tamanho de lote.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- houver necessidade de ordering estrito;
-- o volume de eventos crescer muito;
-- múltiplos consumidores precisarem ler o mesmo stream independentemente;
-- houver necessidade de replay estruturado de eventos.
+- houver necessidade de ordenação por chave;
+- o volume de eventos crescer significativamente;
+- múltiplos consumidores independentes precisarem ler o mesmo stream;
+- houver necessidade de replay amplo de eventos;
+- a latência exigida for menor do que a suportada pelo modelo SQS + Lambda;
+- o fluxo evoluir para streaming analítico contínuo.
 
 ## Referências
 
 - Amazon SQS
+- Amazon SQS Dead Letter Queues
 - AWS Lambda with SQS
-- Dead-letter queues
+- Amazon CloudWatch Alarms

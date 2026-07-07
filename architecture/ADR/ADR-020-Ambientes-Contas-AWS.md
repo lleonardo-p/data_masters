@@ -1,4 +1,4 @@
-# ADR-020: Estratégia de Ambientes e Contas AWS
+# ADR-020: Ambientes e Contas AWS
 
 - **Status:** Aceito
 - **Data:** 2026-07-05
@@ -8,59 +8,78 @@
 
 ## Contexto
 
-O BAIP precisa separar desenvolvimento, testes e produção para reduzir risco de mudanças, controlar custos e proteger dados.
+O BAIP precisa separar recursos, configurações e dados por ambiente para evitar mistura entre desenvolvimento, testes e eventual produção.
 
-Em um MVP, uma única conta pode ser suficiente. Em produção, a separação por contas e ambientes melhora governança, segurança e rastreabilidade.
+No MVP, o custo e a simplicidade são fatores importantes. Em uma evolução produtiva, isolamento mais forte entre ambientes pode ser necessário.
 
 ## Decisão
 
-Para o MVP, poderá ser usada uma única conta AWS com separação lógica por ambiente, tags, prefixos e variáveis Terraform.
+No MVP, a arquitetura poderá utilizar **uma única conta AWS** com separação lógica por ambiente.
 
-Para produção, a arquitetura deverá evoluir para contas separadas, no mínimo:
+A separação lógica deverá ser feita por:
 
-- **dev:** desenvolvimento e experimentação;
-- **staging:** validação integrada;
-- **prod:** ambiente produtivo;
-- opcionalmente **security/logging:** auditoria centralizada.
+- prefixos de recursos;
+- tags padronizadas;
+- variáveis Terraform;
+- buckets, paths ou databases separados quando aplicável;
+- permissões IAM específicas por finalidade.
+
+A separação lógica por prefixos, tags e variáveis Terraform atende ao MVP, mas não oferece o mesmo nível de isolamento de contas separadas.
+
+Para evolução produtiva, deverá ser considerada uma estratégia multi-account, com contas separadas para ambientes como:
+
+- desenvolvimento;
+- staging/homologação;
+- produção;
+- segurança/logging, quando necessário.
 
 ## Justificativa
 
-Separar ambientes reduz o risco de alterações acidentais em produção e facilita controle de acesso e custo.
+Uma única conta reduz custo, complexidade e tempo de configuração no MVP.
 
-A decisão preserva simplicidade no MVP, mas define um caminho profissional de evolução.
+A separação lógica permite organizar recursos e evitar conflitos básicos entre ambientes, mantendo simplicidade operacional.
+
+Para produção, contas separadas oferecem melhor isolamento, controle de acesso, blast radius reduzido e governança mais forte.
 
 ## Alternativas consideradas
 
-- **Uma conta única para tudo:** simples, mas aumenta risco operacional e dificulta governança.
-- **Contas separadas desde o início:** mais profissional, mas pode ser excessivo para o MVP.
-- **Ambientes apenas por branch Git:** insuficiente, pois não isola recursos cloud.
+- **Multi-account desde o início:** oferece maior isolamento, mas aumenta complexidade, configuração e custo para o MVP.
+- **Sem separação de ambientes:** simplifica o início, mas aumenta risco de sobrescrita, confusão de dados e erros operacionais.
+- **Ambientes apenas por branch de código:** insuficiente para isolar recursos cloud, permissões e dados.
+- **Conta única sem tags ou prefixos:** reduz esforço inicial, mas dificulta governança e rastreabilidade.
 
 ## Consequências
 
 ### Positivas
 
-- Melhor isolamento entre ambientes.
-- Controle de custo por ambiente.
-- Menor risco de impacto em produção.
-- Aderência a práticas corporativas.
+- Menor custo e complexidade no MVP.
+- Organização mínima por ambiente.
+- Facilidade para criar e destruir recursos de teste.
+- Possibilidade de evolução para multi-account.
+- Melhor rastreabilidade por tags e prefixos.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Mais contas e permissões para gerenciar.
-- Maior complexidade no Terraform e CI/CD.
-- Necessidade de padronização de tags e naming.
+- Menor isolamento entre ambientes.
+- Maior risco de impacto cruzado em caso de erro de configuração.
+- IAM precisa ser cuidadosamente definido para evitar permissões amplas.
+- Não substitui uma estratégia multi-account produtiva.
 
 ## Critérios de evolução
 
-Adotar contas separadas quando:
+Esta decisão deve ser revisada se:
 
-- houver dados reais;
-- mais pessoas contribuírem no projeto;
-- houver CI/CD formal;
-- a arquitetura for apresentada como produção corporativa.
+- o projeto evoluir para produção;
+- múltiplos usuários ou times passarem a operar a plataforma;
+- dados reais forem processados;
+- houver exigência de isolamento formal entre ambientes;
+- houver necessidade de conta dedicada para logs, segurança ou auditoria;
+- recursos críticos exigirem redução de blast radius.
 
 ## Referências
 
 - AWS Organizations
-- AWS Control Tower
-- AWS Multi-Account Strategy
+- AWS Account Management
+- AWS IAM
+- Terraform Workspaces
+- AWS Tagging Best Practices

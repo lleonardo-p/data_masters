@@ -1,4 +1,4 @@
-# ADR-021: Formato de Tabela Lakehouse
+# ADR-021: Uso de Parquet no MVP e Evolução para Apache Iceberg
 
 - **Status:** Aceito
 - **Data:** 2026-07-05
@@ -8,60 +8,73 @@
 
 ## Contexto
 
-O BAIP armazena dados em S3 e usa Parquet nas camadas tratadas e analíticas. Essa abordagem é suficiente para o MVP, mas pode se tornar limitada quando houver necessidade de updates, deletes, time travel, schema evolution e maior controle transacional.
+O BAIP precisa armazenar dados analíticos no Data Lake em formato eficiente para consulta SQL, processamento batch e consumo por BI.
+
+No MVP, o foco é simplicidade, baixo custo e menor complexidade operacional. Porém, algumas necessidades futuras podem exigir recursos transacionais no Data Lake, como updates, deletes, schema evolution e time travel.
 
 ## Decisão
 
-Para o MVP, as tabelas Silver, Gold e DW serão armazenadas em **Parquet particionado**.
+No MVP, as camadas Silver, Gold e DW utilizarão **arquivos Parquet particionados** no Amazon S3.
 
-Para evolução produtiva, será considerada a adoção de **Apache Iceberg** nas tabelas críticas da Silver e Gold.
+Formatos transacionais de tabela, como **Apache Iceberg**, não serão adotados inicialmente.
 
-A adoção de Iceberg deve ser priorizada para tabelas que exigirem:
+O Apache Iceberg será considerado como evolução futura para tabelas críticas que precisem de:
 
-- upserts;
+- updates e deletes frequentes;
 - correções históricas;
-- late arriving data;
-- schema evolution;
 - time travel;
-- controle transacional no Data Lake.
+- evolução de schema com maior controle;
+- tratamento recorrente de late arriving data;
+- transações ACID no Data Lake;
+- melhor gerenciamento de metadados e compactação.
 
 ## Justificativa
 
-Parquet é simples, barato e suficiente para o estágio inicial. Iceberg adiciona recursos avançados de Lakehouse, mas aumenta complexidade e exige governança mais madura.
+Parquet atende bem ao MVP por ser colunar, eficiente para consultas analíticas, integrado ao Glue, Athena e Spark, e mais simples de operar.
+
+Adotar Iceberg desde o início adicionaria complexidade de catálogo, configuração, manutenção de metadados e boas práticas operacionais que ainda não são necessárias para o escopo atual.
+
+A decisão mantém a arquitetura simples no MVP, mas preserva caminho claro de evolução para um padrão Lakehouse mais robusto.
 
 ## Alternativas consideradas
 
-- **Parquet puro:** selecionado para o MVP por simplicidade.
-- **Apache Iceberg:** recomendado para evolução produtiva.
-- **Delta Lake:** forte opção Lakehouse, mas menos nativa no ecossistema AWS serverless do projeto.
-- **Apache Hudi:** bom para upserts, mas adiciona complexidade operacional.
+- **Apache Iceberg desde o início:** oferece recursos avançados, mas aumenta complexidade sem necessidade imediata.
+- **Delta Lake:** forte para Lakehouse, mas possui melhor aderência em stacks como Databricks e exigiria avaliação adicional no contexto Athena/Glue.
+- **Apache Hudi:** adequado para upserts e ingestões incrementais, mas adiciona complexidade operacional.
+- **CSV/JSON em camadas analíticas:** simples, mas menos eficiente para consulta e armazenamento analítico.
 
 ## Consequências
 
 ### Positivas
 
-- MVP simples e econômico.
-- Caminho claro para Lakehouse transacional.
-- Melhor suporte futuro a reconciliação e correção histórica.
+- Menor complexidade no MVP.
+- Boa performance analítica com Parquet.
+- Integração simples com Glue, Athena e S3.
+- Menor curva operacional.
+- Caminho claro para evolução Lakehouse.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Parquet puro exige reprocessamentos mais manuais.
-- Iceberg adiciona complexidade de catálogo, manutenção e operação.
-- A migração precisa ser planejada para evitar quebra de consumidores.
+- Updates, deletes e time travel não são suportados nativamente em arquivos Parquet simples.
+- Correções históricas podem exigir reprocessamento de partições.
+- Evolução de schema precisa ser controlada com cuidado.
+- Late arriving data pode exigir estratégias específicas de reprocessamento.
 
 ## Critérios de evolução
 
-Migrar tabelas críticas para Iceberg quando:
+Esta decisão deve ser revisada se:
 
-- houver muitas correções históricas;
-- a reconciliação batch/NRT exigir upsert frequente;
-- o custo de reprocessar partições inteiras ficar alto;
-- consumidores exigirem versionamento e time travel.
+- updates e deletes se tornarem frequentes;
+- houver necessidade de time travel;
+- correções históricas forem recorrentes;
+- late arriving data impactar significativamente as tabelas analíticas;
+- o volume de dados exigir otimização avançada de metadados;
+- a arquitetura evoluir para Lakehouse produtivo.
 
 ## Referências
 
 - Apache Parquet
 - Apache Iceberg
-- AWS Glue Data Catalog
 - Amazon Athena Iceberg Tables
+- AWS Glue Data Catalog
+- Lakehouse Architecture

@@ -8,60 +8,73 @@
 
 ## Contexto
 
-O BAIP precisa disponibilizar indicadores consolidados para análise epidemiológica, operacional e territorial.
+O BAIP precisa disponibilizar dados analíticos para consultas SQL, dashboards e indicadores de negócio relacionados a arboviroses, clima, eventos ambientais, infraestrutura de saúde e eventos hospitalares simulados.
 
-A camada Gold deve ser consumida por dashboards e consultas SQL, exigindo clareza de grão, dimensões, fatos e métricas.
+A camada de consumo precisa ser clara, performática, sem PII e orientada a perguntas analíticas.
 
 ## Decisão
 
-A camada analítica será modelada em formato dimensional, com **tabelas fato e dimensões**.
+A camada **Gold/DW** será modelada com abordagem dimensional, utilizando fatos, dimensões e indicadores agregados.
 
-Exemplos de entidades:
+As tabelas deverão ter grão explícito, nomes padronizados e campos preparados para consumo analítico.
 
-- fatos de casos, notificações, internações e indicadores climáticos;
-- dimensões de tempo, município, UF, doença, fonte de dados e infraestrutura de saúde;
-- métricas como incidência, letalidade, hospitalização, tempo de notificação e capacidade assistencial.
+Exemplos de grão:
 
-Dados pessoais não devem estar presentes no DW. Qualquer análise de paciente deve ser agregada ou pseudonimizada de forma controlada.
+- casos por município, doença e período de referência;
+- indicadores climáticos por município e mês;
+- eventos ambientais por localidade e período;
+- disponibilidade de infraestrutura de saúde por município e período;
+- eventos hospitalares simulados por região, tipo de evento e janela temporal.
+
+O DW não deverá conter CPF, identificadores sensíveis ou dados pessoais diretos. Quando necessário, poderá usar identificadores técnicos pseudonimizados ou agregações sem identificação individual.
 
 ## Justificativa
 
-Modelagem dimensional facilita consumo analítico, reduz complexidade para BI e torna os indicadores mais compreensíveis.
+A modelagem dimensional facilita consumo por BI, melhora entendimento dos dados e reduz complexidade para construção de dashboards.
 
-A definição explícita de grão e regra de cálculo evita ambiguidades nos KPIs/indicadores.
+Definir o grão de cada fato evita ambiguidade, duplicidade e erros de agregação. Também permite separar dados detalhados, dimensões de contexto e indicadores consolidados.
+
+A ausência de PII no DW reduz risco de exposição em ferramentas de consumo, consultas SQL e relatórios.
 
 ## Alternativas consideradas
 
-- **Modelo altamente normalizado:** útil para sistemas transacionais, mas menos eficiente para BI.
-- **Data Vault:** robusto para auditoria histórica, mas excessivo para o escopo atual.
-- **Tabelas flat sem modelagem:** simples no início, mas tendem a gerar duplicidade e inconsistência de métricas.
+- **Consumir diretamente a Silver:** reduz uma etapa de modelagem, mas expõe dados menos preparados e aumenta complexidade no BI.
+- **Modelo altamente normalizado:** reduz redundância, mas pode dificultar consultas analíticas e dashboards.
+- **Tabelas totalmente agregadas:** simplifica dashboards, mas reduz flexibilidade analítica.
+- **Data Warehouse dedicado no Redshift:** pode oferecer performance previsível, mas adiciona custo e complexidade fora do escopo inicial do MVP.
 
 ## Consequências
 
 ### Positivas
 
-- Consumo analítico mais simples.
-- Métricas padronizadas.
-- Melhor performance para dashboards.
-- Separação entre dado tratado e dado de negócio.
+- Melhor organização para consumo analítico.
+- Menor complexidade para dashboards.
+- Métricas e indicadores mais padronizados.
+- Redução de risco de duplicidade por definição de grão.
+- Menor exposição de dados sensíveis.
+- Base preparada para evolução para Data Mart ou Data Warehouse dedicado.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Exige manutenção de dimensões e regras de negócio.
-- Pode gerar duplicidade se o grão não for bem definido.
-- Mudanças de regra exigem versionamento e reprocessamento.
+- Exige etapa adicional de modelagem.
+- Pode gerar duplicidade controlada de dados entre Silver e Gold/DW.
+- Requer manutenção de fatos, dimensões e regras de negócio.
+- Mudanças em indicadores podem exigir reprocessamento de tabelas Gold/DW.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- houver muitas mudanças históricas em dimensões;
-- surgirem múltiplos domínios com regras complexas;
-- houver necessidade de rastreabilidade histórica mais forte;
-- o consumo analítico exigir um engine dedicado como Redshift.
+- o volume de consultas analíticas crescer significativamente;
+- dashboards exigirem baixa latência e alta concorrência;
+- houver necessidade de um Data Warehouse dedicado;
+- novos domínios exigirem modelos dimensionais específicos;
+- indicadores oficiais exigirem versionamento ou governança formal de métricas.
 
 ## Referências
 
 - Dimensional Modeling
 - Star Schema
-- Kimball Data Warehouse Toolkit
+- Amazon Athena
+- AWS Glue Data Catalog
+- Power BI

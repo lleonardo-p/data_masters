@@ -8,63 +8,75 @@
 
 ## Contexto
 
-O BAIP usa múltiplos serviços AWS e precisa de provisionamento reproduzível, versionado e seguro.
+O BAIP depende de múltiplos recursos AWS, como buckets S3, filas SQS, funções Lambda, tabelas DynamoDB, jobs Glue, Step Functions, permissões IAM, alarmes e configurações de observabilidade.
 
-Configuração manual aumenta risco de erro, dificulta replicação de ambientes e prejudica evolução da arquitetura.
+Criar e manter esses recursos manualmente aumenta risco de inconsistência, dificulta reprodutibilidade e reduz controle sobre mudanças.
 
 ## Decisão
 
-A infraestrutura será definida com **Terraform**.
+A infraestrutura será definida como código utilizando **Terraform**.
 
-A implementação deve considerar:
+O Terraform deverá ser utilizado para provisionar e versionar os principais recursos da arquitetura.
 
-- módulos por domínio ou serviço;
+As configurações devem seguir boas práticas como:
+
+- módulos reutilizáveis quando fizer sentido;
 - variáveis por ambiente;
-- backend remoto com locking em cenário produtivo;
-- tags obrigatórias para custo e ownership;
-- validação em pull request com `terraform fmt`, `validate` e `plan`;
-- análise estática com ferramentas como Checkov ou tfsec;
-- `prevent_destroy` para recursos críticos quando aplicável.
+- tags padronizadas;
+- separação entre código de infraestrutura e código de aplicação;
+- validação em pull request;
+- análise estática quando aplicável;
+- uso de `prevent_destroy` para recursos críticos quando necessário.
+
+No MVP, o estado poderá ser local durante experimentação controlada. Para ambientes compartilhados ou produtivos, o backend remoto com locking será obrigatório.
 
 ## Justificativa
 
-Terraform é amplamente usado no mercado, é cloud-agnostic e permite versionar a infraestrutura junto ao projeto.
+Terraform permite versionar a infraestrutura, revisar mudanças, reproduzir ambientes e reduzir configuração manual.
 
-Isso torna a arquitetura mais profissional e reduz o risco de drift entre documentação e ambiente real.
+A escolha também aproxima o projeto de práticas profissionais de Cloud Engineering, Data Platform e DevOps.
+
+Permitir estado local apenas em experimentação evita complexidade inicial desnecessária. Exigir backend remoto em ambientes compartilhados ou produtivos reduz risco de concorrência, perda de estado e alterações não rastreadas.
 
 ## Alternativas consideradas
 
-- **AWS CloudFormation:** integração nativa AWS, mas menos flexível para eventual evolução multicloud.
-- **AWS CDK:** produtivo para times de desenvolvimento, mas adiciona dependência de linguagem e build.
-- **Provisionamento manual:** rejeitado por risco operacional e baixa reprodutibilidade.
+- **Provisionamento manual no console AWS:** rápido para testes, mas pouco reprodutível e sujeito a erros.
+- **AWS CloudFormation:** nativo da AWS, mas menos portátil e com menor familiaridade para este projeto.
+- **AWS CDK:** poderoso e flexível, mas adiciona dependência de linguagem e abstrações adicionais.
+- **Scripts CLI:** úteis para automação simples, mas menos adequados para controle declarativo de estado.
 
 ## Consequências
 
 ### Positivas
 
-- Infraestrutura versionada e reproduzível.
-- Melhor rastreabilidade de mudanças.
-- Base para CI/CD.
+- Infraestrutura versionada e reprodutível.
 - Redução de configuração manual.
+- Melhor controle de mudanças.
+- Facilidade para recriar ambientes.
+- Base para evolução com CI/CD de infraestrutura.
+- Melhor rastreabilidade de recursos cloud.
 
-### Negativas
+### Negativas / Trade-offs
 
-- Exige disciplina de estado remoto.
+- Exige organização do código Terraform.
+- Requer cuidado com estado e locking.
 - Mudanças incorretas podem afetar recursos críticos.
-- Requer revisão e validação antes do apply.
+- Pode aumentar esforço inicial em comparação com criação manual.
 
 ## Critérios de evolução
 
-Revisar esta decisão se:
+Esta decisão deve ser revisada se:
 
-- o projeto migrar para estratégia multi-cloud com ferramentas diferentes;
-- a equipe preferir abordagem programática com CDK;
-- a gestão de estado ficar complexa;
-- houver necessidade de plataforma interna de provisionamento.
+- o projeto adotar outra ferramenta corporativa de IaC;
+- múltiplos times passarem a manter a infraestrutura;
+- houver necessidade de módulos mais avançados ou registry privado;
+- o ambiente evoluir para múltiplas contas AWS;
+- forem exigidos pipelines formais de aprovação e deploy de infraestrutura.
 
 ## Referências
 
 - Terraform
 - Terraform AWS Provider
-- Checkov
-- tfsec
+- AWS IAM
+- Terraform Remote State
+- Infrastructure as Code
