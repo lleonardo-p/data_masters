@@ -1,0 +1,79 @@
+# -------------------------
+# Terraform
+# -------------------------
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform variables with secrets
+*.tfvars
+*.tfvars.json
+
+# Keep example variable files
+!*.tfvars.example
+
+# Keep Terraform provider lock file
+!.terraform.lock.hcl
+
+# -------------------------
+# AWS / credentials
+# -------------------------
+.aws/
+*.pem
+*.key
+credentials
+config
+
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# -------------------------
+# Local data
+# -------------------------
+data/
+*.csv
+*.jsonl
+*.parquet
+*.avro
+*.orc
+
+# -------------------------
+# Logs
+# -------------------------
+*.log
+logs/
+
+# -------------------------
+# OS / IDE
+# -------------------------
+.DS_Store
+.vscode/
+.idea/
+
+# -------------------------
+# Packages / build
+# -------------------------
+dist/
+build/
+*.egg-info/
