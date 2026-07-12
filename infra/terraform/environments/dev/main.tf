@@ -30,6 +30,7 @@ module "data_lake_bucket" {
   force_destroy = true
 
   prefixes = [
+    "staging/",
     "bronze/",
     "silver/",
     "gold/",
