@@ -27,3 +27,13 @@ output "athena_workgroup_name" {
   description = "Athena workgroup used for BAIP analytical queries."
   value       = module.athena.workgroup_name
 }
+
+output "glue_execution_role_name" {
+  description = "IAM role name used by AWS Glue jobs."
+  value       = module.iam_glue_role.role_name
+}
+
+output "glue_execution_role_arn" {
+  description = "IAM role ARN used by AWS Glue jobs."
+  value       = module.iam_glue_role.role_arn
+}

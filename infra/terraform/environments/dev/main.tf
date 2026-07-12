@@ -13,6 +13,9 @@ locals {
   gold_database_name      = "${var.project_name}_${var.environment}_gold"
   warehouse_database_name = "${var.project_name}_${var.environment}_warehouse"
 
+  glue_execution_role_name = "${var.project_name}-${var.environment}-glue-execution-role"
+  glue_s3_policy_name      = "${var.project_name}-${var.environment}-glue-s3-access-policy"
+
   athena_workgroup_name = "${var.project_name}-${var.environment}-workgroup"
 }
 
@@ -122,5 +125,20 @@ module "athena" {
 
   tags = {
     purpose = "query-engine"
+  }
+}
+
+module "iam_glue_role" {
+  source = "../../modules/iam_glue_role"
+
+  role_name   = local.glue_execution_role_name
+  policy_name = local.glue_s3_policy_name
+
+  data_lake_bucket_arn = module.data_lake_bucket.bucket_arn
+  artifacts_bucket_arn = module.artifacts_bucket.bucket_arn
+  logs_bucket_arn      = module.logs_bucket.bucket_arn
+
+  tags = {
+    purpose = "glue-execution"
   }
 }
