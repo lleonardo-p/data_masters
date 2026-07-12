@@ -17,6 +17,10 @@ locals {
   glue_s3_policy_name      = "${var.project_name}-${var.environment}-glue-s3-access-policy"
 
   athena_workgroup_name = "${var.project_name}-${var.environment}-workgroup"
+
+  bronze_ingestion_job_name    = "${var.project_name}-${var.environment}-bronze-ingestion"
+  bronze_ingestion_script_key  = "glue/scripts/bronze_ingestion/bronze_ingestion.py"
+  bronze_ingestion_script_path = "${path.root}/../../../../src/glue/jobs/bronze_ingestion/bronze_ingestion.py"
 }
 
 module "data_lake_bucket" {
@@ -140,5 +144,42 @@ module "iam_glue_role" {
 
   tags = {
     purpose = "glue-execution"
+  }
+}
+
+resource "aws_s3_object" "bronze_ingestion_script" {
+  bucket = module.artifacts_bucket.bucket_name
+  key    = local.bronze_ingestion_script_key
+  source = local.bronze_ingestion_script_path
+
+  source_hash = filemd5(local.bronze_ingestion_script_path)
+
+  tags = {
+    purpose = "glue-script"
+  }
+}
+
+module "bronze_ingestion_glue_job" {
+  source = "../../modules/glue_job"
+
+  job_name        = local.bronze_ingestion_job_name
+  role_arn        = module.iam_glue_role.role_arn
+  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.bronze_ingestion_script.key}"
+
+  glue_version      = "5.0"
+  worker_type       = "G.1X"
+  number_of_workers = 2
+  timeout           = 10
+  max_retries       = 0
+
+  default_arguments = {
+    "--ENVIRONMENT"      = var.environment
+    "--DATA_LAKE_BUCKET" = module.data_lake_bucket.bucket_name
+    "--ARTIFACTS_BUCKET" = module.artifacts_bucket.bucket_name
+  }
+
+  tags = {
+    purpose = "bronze-ingestion"
+    layer   = "bronze"
   }
 }

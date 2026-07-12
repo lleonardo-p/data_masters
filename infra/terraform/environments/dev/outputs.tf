@@ -37,3 +37,13 @@ output "glue_execution_role_arn" {
   description = "IAM role ARN used by AWS Glue jobs."
   value       = module.iam_glue_role.role_arn
 }
+
+output "bronze_ingestion_glue_job_name" {
+  description = "Bronze ingestion AWS Glue job name."
+  value       = module.bronze_ingestion_glue_job.job_name
+}
+
+output "bronze_ingestion_glue_job_arn" {
+  description = "Bronze ingestion AWS Glue job ARN."
+  value       = module.bronze_ingestion_glue_job.job_arn
+}
