@@ -17,3 +17,13 @@ output "logs_bucket_name" {
   description = "Bucket used to store logs and operational evidences."
   value       = module.logs_bucket.bucket_name
 }
+
+output "glue_database_names" {
+  description = "Glue Catalog databases created for BAIP."
+  value       = module.glue_catalog.database_names
+}
+
+output "athena_workgroup_name" {
+  description = "Athena workgroup used for BAIP analytical queries."
+  value       = module.athena.workgroup_name
+}
