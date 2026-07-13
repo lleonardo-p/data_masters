@@ -21,6 +21,9 @@ locals {
   bronze_ingestion_job_name    = "${var.project_name}-${var.environment}-bronze-ingestion"
   bronze_ingestion_script_key  = "glue/scripts/bronze_ingestion/bronze_ingestion.py"
   bronze_ingestion_script_path = "${path.root}/../../../../src/glue/jobs/bronze_ingestion/bronze_ingestion.py"
+
+  bronze_staging_input_path = "s3://${module.data_lake_bucket.bucket_name}/staging/opendatasus/arboviroses/"
+  bronze_output_path        = "s3://${module.data_lake_bucket.bucket_name}/bronze/opendatasus/arboviroses/"
 }
 
 module "data_lake_bucket" {
@@ -174,9 +177,11 @@ module "bronze_ingestion_glue_job" {
   max_retries       = 0
 
   default_arguments = {
-    "--ENVIRONMENT"      = var.environment
-    "--DATA_LAKE_BUCKET" = module.data_lake_bucket.bucket_name
-    "--ARTIFACTS_BUCKET" = module.artifacts_bucket.bucket_name
+    "--ENVIRONMENT"           = var.environment
+    "--STAGING_INPUT_PATH"    = local.bronze_staging_input_path
+    "--BRONZE_OUTPUT_PATH"    = local.bronze_output_path
+    "--PARTITION_DATE_COLUMN" = "dt_notific"
+    "--WRITE_MODE"            = "overwrite"
   }
 
   tags = {
