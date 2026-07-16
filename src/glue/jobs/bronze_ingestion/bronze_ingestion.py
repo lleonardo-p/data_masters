@@ -1,53 +1,48 @@
-import re
+import logging
 import sys
-import unicodedata
+import time
 from datetime import datetime, timezone
 
 from awsglue.utils import getResolvedOptions
+from pyspark import StorageLevel
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col,
     coalesce,
-    current_date,
+    count,
     current_timestamp,
     date_format,
     input_file_name,
     lit,
     lower,
     regexp_extract,
+    sum as spark_sum,
     to_date,
+    trim,
     when,
 )
 
 
-def normalize_column_name(column_name: str) -> str:
-    normalized = unicodedata.normalize("NFKD", column_name)
-    normalized = normalized.encode("ascii", "ignore").decode("ascii")
-    normalized = normalized.strip().lower()
-    normalized = re.sub(r"[^a-z0-9_]+", "_", normalized)
-    normalized = re.sub(r"_+", "_", normalized)
-    normalized = normalized.strip("_")
+def configure_logger(job_name: str) -> logging.Logger:
+    logger = logging.getLogger(job_name)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
 
-    return normalized or "unknown_column"
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
 
+        formatter = logging.Formatter(
+            fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%SZ",
+        )
 
-def unique_column_names(columns: list[str]) -> list[str]:
-    seen = {}
-    result = []
+        # Garante que o horário exibido com "Z" esteja realmente em UTC.
+        formatter.converter = time.gmtime
 
-    for column in columns:
-        base_name = normalize_column_name(column)
-        count = seen.get(base_name, 0)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
-        if count == 0:
-            final_name = base_name
-        else:
-            final_name = f"{base_name}_{count + 1}"
-
-        seen[base_name] = count + 1
-        result.append(final_name)
-
-    return result
+    return logger
 
 
 args = getResolvedOptions(
@@ -67,7 +62,17 @@ environment = args["ENVIRONMENT"]
 staging_input_path = args["STAGING_INPUT_PATH"]
 bronze_output_path = args["BRONZE_OUTPUT_PATH"]
 partition_date_column = args["PARTITION_DATE_COLUMN"]
-write_mode = args["WRITE_MODE"]
+write_mode = args["WRITE_MODE"].lower()
+
+valid_write_modes = {"append", "overwrite"}
+
+if write_mode not in valid_write_modes:
+    raise ValueError(
+        f"Invalid WRITE_MODE: {write_mode}. "
+        f"Expected one of: {sorted(valid_write_modes)}"
+    )
+
+logger = configure_logger(job_name)
 
 spark = SparkSession.builder.appName(job_name).getOrCreate()
 
@@ -75,7 +80,7 @@ spark.conf.set("spark.sql.parquet.compression.codec", "snappy")
 spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
 spark.conf.set("spark.sql.shuffle.partitions", "8")
 
-print(
+logger.info(
     {
         "event": "bronze_ingestion_started",
         "job_name": job_name,
@@ -88,85 +93,197 @@ print(
     }
 )
 
-df_raw = spark.read.json(staging_input_path)
-
-if not df_raw.columns:
-    raise ValueError(f"No columns found in input path: {staging_input_path}")
-
-original_columns = df_raw.columns
-normalized_columns = unique_column_names(original_columns)
-
-df = df_raw.select(
-    [
-        col(original).alias(normalized)
-        for original, normalized in zip(original_columns, normalized_columns)
-    ]
+# JSONL corresponde a um objeto JSON por linha.
+df = (
+    spark.read
+    .option("multiLine", "false")
+    .json(staging_input_path)
 )
+
+if not df.columns:
+    raise ValueError(
+        f"No columns found in input path: {staging_input_path}"
+    )
+
+# ------------------------------------------------------------------
+# Metadados técnicos da Bronze
+# ------------------------------------------------------------------
 
 df = df.withColumn("_source_file", input_file_name())
 
 df = df.withColumn(
     "_staging_extract_date",
-    regexp_extract(col("_source_file"), r"extract_date=([0-9]{4}-[0-9]{2}-[0-9]{2})", 1),
+    to_date(
+        regexp_extract(
+            col("_source_file"),
+            r"extract_date=([0-9]{4}-[0-9]{2}-[0-9]{2})",
+            1,
+        )
+    ),
 )
 
-source_expr = lower(col("_source")) if "_source" in df.columns else lit("")
+# ------------------------------------------------------------------
+# Identificação da doença
+#
+# A doença é identificada pelo metadado da extração.
+# ------------------------------------------------------------------
 
-df = df.withColumn(
-    "disease",
-    when(source_expr.contains("dengue"), lit("dengue"))
-    .when(source_expr.contains("zika"), lit("zika"))
-    .when(source_expr.contains("chikungunya"), lit("chikungunya"))
-    .otherwise(lit("unknown")),
-)
+if "_source" not in df.columns:
+    logger.warning(
+        {
+            "event": "source_column_not_found",
+            "job_name": job_name,
+            "source_column": "_source",
+            "action": (
+                "records_will_be_written_to_unknown_disease_partition"
+            ),
+        }
+    )
 
-if partition_date_column in df.columns:
-    notification_date_expr = to_date(col(partition_date_column))
+    df = df.withColumn("disease", lit("unknown"))
+
 else:
-    notification_date_expr = lit(None).cast("date")
+    source_normalized = lower(
+        trim(col("_source").cast("string"))
+    )
 
-if "_extraction_datetime_utc" in df.columns:
-    extraction_date_expr = to_date(col("_extraction_datetime_utc").substr(1, 10))
+    df = df.withColumn(
+        "disease",
+        when(
+            source_normalized.contains("dengue"),
+            lit("dengue"),
+        )
+        .when(
+            source_normalized.contains("zika"),
+            lit("zika"),
+        )
+        .when(
+            source_normalized.contains("chikungunya"),
+            lit("chikungunya"),
+        )
+        .otherwise(lit("unknown")),
+    )
+
+# ------------------------------------------------------------------
+# Particionamento mensal pela data de notificação
+#
+# Valores ausentes ou inválidos são preservados em:
+# year=unknown/month=unknown
+# ------------------------------------------------------------------
+
+if partition_date_column not in df.columns:
+    logger.warning(
+        {
+            "event": "partition_date_column_not_found",
+            "job_name": job_name,
+            "partition_date_column": partition_date_column,
+            "action": (
+                "records_will_be_written_to_unknown_date_partition"
+            ),
+        }
+    )
+
+    df = (
+        df.withColumn(
+            "_partition_date",
+            lit(None).cast("date"),
+        )
+        .withColumn("year", lit("unknown"))
+        .withColumn("month", lit("unknown"))
+    )
+
 else:
-    extraction_date_expr = lit(None).cast("date")
+    df = df.withColumn(
+        "_partition_date",
+        to_date(
+            trim(col(partition_date_column).cast("string"))
+        ),
+    )
 
-df = df.withColumn(
-    "_partition_date",
-    coalesce(notification_date_expr, extraction_date_expr, current_date()),
-)
+    df = (
+        df.withColumn(
+            "year",
+            when(
+                col("_partition_date").isNotNull(),
+                date_format(col("_partition_date"), "yyyy"),
+            ).otherwise(lit("unknown")),
+        )
+        .withColumn(
+            "month",
+            when(
+                col("_partition_date").isNotNull(),
+                date_format(col("_partition_date"), "MM"),
+            ).otherwise(lit("unknown")),
+        )
+    )
 
 df = (
-    df.withColumn("year", date_format(col("_partition_date"), "yyyy"))
-    .withColumn("month", date_format(col("_partition_date"), "MM"))
-    .withColumn("day", date_format(col("_partition_date"), "dd"))
-    .withColumn("_bronze_loaded_at", current_timestamp())
+    df.withColumn("_bronze_loaded_at", current_timestamp())
     .withColumn("_environment", lit(environment))
 )
 
-record_count = df.count()
+# Evita que o count e a escrita releiam todo o JSONL separadamente.
+df = df.persist(StorageLevel.MEMORY_AND_DISK)
 
-print(
-    {
-        "event": "bronze_ingestion_record_count",
-        "job_name": job_name,
-        "record_count": record_count,
-    }
-)
+try:
+    ingestion_stats = (
+        df.agg(
+            count(lit(1)).alias("record_count"),
+            coalesce(
+                spark_sum(
+                    when(
+                        col("disease") == "unknown",
+                        lit(1),
+                    ).otherwise(lit(0))
+                ),
+                lit(0),
+            ).alias("unknown_disease_count"),
+            coalesce(
+                spark_sum(
+                    when(
+                        col("_partition_date").isNull(),
+                        lit(1),
+                    ).otherwise(lit(0))
+                ),
+                lit(0),
+            ).alias("unknown_partition_date_count"),
+        )
+        .first()
+        .asDict()
+    )
 
-(
-    df.repartition("disease", "year", "month", "day")
-    .write.mode(write_mode)
-    .option("compression", "snappy")
-    .partitionBy("disease", "year", "month", "day")
-    .parquet(bronze_output_path)
-)
+    logger.info(
+        {
+            "event": "bronze_ingestion_statistics",
+            "job_name": job_name,
+            **ingestion_stats,
+        }
+    )
 
-print(
-    {
-        "event": "bronze_ingestion_finished",
-        "job_name": job_name,
-        "record_count": record_count,
-        "bronze_output_path": bronze_output_path,
-        "finished_at": datetime.now(timezone.utc).isoformat(),
-    }
-)
+    (
+        df.repartition("disease", "year", "month")
+        .write
+        .mode(write_mode)
+        .option("compression", "snappy")
+        .partitionBy("disease", "year", "month")
+        .parquet(bronze_output_path)
+    )
+
+    logger.info(
+        {
+            "event": "bronze_ingestion_finished",
+            "job_name": job_name,
+            "record_count": ingestion_stats["record_count"],
+            "unknown_disease_count": (
+                ingestion_stats["unknown_disease_count"]
+            ),
+            "unknown_partition_date_count": (
+                ingestion_stats["unknown_partition_date_count"]
+            ),
+            "bronze_output_path": bronze_output_path,
+            "finished_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+finally:
+    df.unpersist()
