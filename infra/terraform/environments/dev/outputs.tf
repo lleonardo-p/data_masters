@@ -47,3 +47,48 @@ output "bronze_ingestion_glue_job_arn" {
   description = "Bronze ingestion AWS Glue job ARN."
   value       = module.bronze_ingestion_glue_job.job_arn
 }
+
+output "ibge_municipalities_reference_path" {
+  description = "S3 path used by Glue for the IBGE municipalities reference."
+  value       = local.ibge_municipalities_reference_path
+}
+
+output "silver_arbovirus_cases_output_path" {
+  description = "S3 output path for curated arbovirus cases."
+  value       = local.silver_arbovirus_cases_output_path
+}
+
+output "silver_arbovirus_quarantine_path" {
+  description = "S3 quarantine path for invalid Silver arbovirus records."
+  value       = local.silver_arbovirus_quarantine_path
+}
+
+output "silver_arbovirus_cases_glue_job_name" {
+  description = "Silver arbovirus cases AWS Glue job name."
+  value       = module.silver_arbovirus_cases_glue_job.job_name
+}
+
+output "silver_arbovirus_cases_glue_job_arn" {
+  description = "Silver arbovirus cases AWS Glue job ARN."
+  value       = module.silver_arbovirus_cases_glue_job.job_arn
+}
+
+output "gold_arbovirus_output_path" {
+  description = "S3 root path for the arbovirus dimensional model."
+  value       = local.gold_arbovirus_output_path
+}
+
+output "gold_arbovirus_glue_job_name" {
+  description = "Gold arbovirus star schema AWS Glue job name."
+  value       = module.gold_arbovirus_glue_job.job_name
+}
+
+output "gold_arbovirus_glue_job_arn" {
+  description = "Gold arbovirus star schema AWS Glue job ARN."
+  value       = module.gold_arbovirus_glue_job.job_arn
+}
+
+output "gold_arbovirus_crawler_name" {
+  description = "Glue crawler that registers Gold arbovirus tables."
+  value       = aws_glue_crawler.gold_arbovirus.name
+}

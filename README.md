@@ -478,3 +478,4 @@ A quarentena deve armazenar:
 - Arquitetura do projeto: https://github.com/lleonardo-p/data_masters/tree/architecture/architecture
 - ADRs: https://github.com/lleonardo-p/data_masters/tree/architecture/architecture/ADR
 - Diagramas C4: https://github.com/lleonardo-p/data_masters/tree/architecture/architecture/c4
+- Contrato de dados de arboviroses: [docs/data/arbovirus/README.md](docs/data/arbovirus/README.md)
