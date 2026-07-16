@@ -22,8 +22,16 @@ locals {
   bronze_ingestion_script_key  = "glue/scripts/bronze_ingestion/bronze_ingestion.py"
   bronze_ingestion_script_path = "${path.root}/../../../../src/glue/jobs/bronze_ingestion/bronze_ingestion.py"
 
+  silver_arbovirus_cases_job_name    = "${var.project_name}-${var.environment}-silver-arbovirus-cases"
+  silver_arbovirus_cases_script_key  = "glue/scripts/silver_arbovirus_cases/silver_arbovirus_cases.py"
+  silver_arbovirus_cases_script_path = "${path.root}/../../../../src/glue/jobs/silver_arbovirus_cases/silver_arbovirus_cases.py"
+
   bronze_staging_input_path = "s3://${module.data_lake_bucket.bucket_name}/staging/opendatasus/arboviroses/"
   bronze_output_path        = "s3://${module.data_lake_bucket.bucket_name}/bronze/opendatasus/arboviroses/"
+
+  ibge_municipalities_reference_path = "s3://${module.data_lake_bucket.bucket_name}/reference/ibge/municipalities/municipios_ufs_ibge.json"
+  silver_arbovirus_cases_output_path = "s3://${module.data_lake_bucket.bucket_name}/silver/opendatasus/arboviroses/"
+  silver_arbovirus_quarantine_path   = "s3://${module.data_lake_bucket.bucket_name}/quarantine/opendatasus/arboviroses/silver_cases/"
 }
 
 module "data_lake_bucket" {
@@ -38,7 +46,8 @@ module "data_lake_bucket" {
     "silver/",
     "gold/",
     "warehouse/",
-    "quarantine/"
+    "quarantine/",
+    "reference/"
   ]
 
   tags = {
@@ -187,5 +196,45 @@ module "bronze_ingestion_glue_job" {
   tags = {
     purpose = "bronze-ingestion"
     layer   = "bronze"
+  }
+}
+
+resource "aws_s3_object" "silver_arbovirus_cases_script" {
+  bucket = module.artifacts_bucket.bucket_name
+  key    = local.silver_arbovirus_cases_script_key
+  source = local.silver_arbovirus_cases_script_path
+
+  source_hash = filemd5(local.silver_arbovirus_cases_script_path)
+
+  tags = {
+    purpose = "glue-script"
+  }
+}
+
+module "silver_arbovirus_cases_glue_job" {
+  source = "../../modules/glue_job"
+
+  job_name        = local.silver_arbovirus_cases_job_name
+  role_arn        = module.iam_glue_role.role_arn
+  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.silver_arbovirus_cases_script.key}"
+
+  glue_version      = "5.0"
+  worker_type       = "G.1X"
+  number_of_workers = 2
+  timeout           = 15
+  max_retries       = 0
+
+  default_arguments = {
+    "--ENVIRONMENT"            = var.environment
+    "--BRONZE_INPUT_PATH"      = local.bronze_output_path
+    "--IBGE_REFERENCE_PATH"    = local.ibge_municipalities_reference_path
+    "--SILVER_OUTPUT_PATH"     = local.silver_arbovirus_cases_output_path
+    "--QUARANTINE_OUTPUT_PATH" = local.silver_arbovirus_quarantine_path
+    "--WRITE_MODE"             = "overwrite"
+  }
+
+  tags = {
+    purpose = "silver-arbovirus-cases"
+    layer   = "silver"
   }
 }
