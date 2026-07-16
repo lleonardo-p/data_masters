@@ -131,7 +131,7 @@ possui chaves diferentes para data de notificação, sintomas, investigação,
 digitação, internação, encerramento e óbito, além de residência, local
 notificante e local provável de infecção.
 
-Métricas planejadas:
+Métricas implementadas:
 
 ```text
 notification_count
@@ -167,6 +167,30 @@ gold/opendatasus/arboviroses/
 
 Após o job, o crawler cadastra as tabelas no banco Gold do Glue Catalog para
 consulta pelo Athena.
+
+### Validação no Athena
+
+A consulta abaixo agrega notificações, confirmações, hospitalizações e óbitos
+por ano e mês de notificação:
+
+```sql
+SELECT
+    notification_year,
+    notification_month,
+    SUM(notification_count) AS notifications,
+    SUM(confirmed_case_count) AS confirmed_cases,
+    SUM(hospitalized_case_count) AS hospitalized_cases,
+    SUM(death_by_disease_count) AS deaths
+FROM "AwsDataCatalog"."baip_dev_gold"."arbovirus_fact_arbovirus_cases"
+GROUP BY
+    notification_year,
+    notification_month
+ORDER BY
+    notification_year,
+    notification_month;
+```
+
+![Consulta da fato Gold de arboviroses no Amazon Athena](assets/athena_gold_query_results.png)
 
 ## Paths de referência
 
