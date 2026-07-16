@@ -106,15 +106,18 @@ quarantine/opendatasus/arboviroses/silver_cases/
 
 ## Gold/DW
 
-> A Gold ainda será implementada. O modelo abaixo representa o contrato
-> planejado.
+A Gold implementa um modelo estrela sem dados de identificação pessoal. A fato
+tem grão de **uma linha por notificação Silver**; suas métricas inteiras podem
+ser somadas com segurança no Athena e no Power BI.
 
-Dimensões:
+Dimensões implementadas:
 
 ```text
 dim_date
 dim_disease
 dim_location
+dim_demographic
+dim_clinical
 ```
 
 Fato:
@@ -123,7 +126,10 @@ Fato:
 fact_arbovirus_cases
 ```
 
-Grão: uma linha por data de notificação, município de residência e doença.
+`dim_date` e `dim_location` são dimensões de papéis. Uma mesma linha da fato
+possui chaves diferentes para data de notificação, sintomas, investigação,
+digitação, internação, encerramento e óbito, além de residência, local
+notificante e local provável de infecção.
 
 Métricas planejadas:
 
@@ -136,10 +142,31 @@ severe_case_count
 hospitalized_case_count
 death_by_disease_count
 death_other_cause_count
+under_investigation_count
+autochthonous_case_count
+quality_warning_count
 ```
 
 `notification_count` não representa apenas casos confirmados, pois também pode
 incluir notificações em investigação ou posteriormente descartadas.
+
+A Gold recebe registros Silver com status `valid` e `warning`. Registros de
+quarentena não são lidos. Chaves `-1` representam atributos desconhecidos. As
+chaves das dimensões são determinísticas, permitindo reprocessamentos sem
+alterar relacionamentos.
+
+```text
+gold/opendatasus/arboviroses/
+├── dim_date/
+├── dim_location/
+├── dim_disease/
+├── dim_demographic/
+├── dim_clinical/
+└── fact_arbovirus_cases/notification_year=<YYYY>/notification_month=<MM>/
+```
+
+Após o job, o crawler cadastra as tabelas no banco Gold do Glue Catalog para
+consulta pelo Athena.
 
 ## Paths de referência
 
@@ -147,6 +174,7 @@ incluir notificações em investigação ou posteriormente descartadas.
 reference/ibge/municipalities/municipios_ufs_ibge.json
 bronze/opendatasus/arboviroses/
 silver/opendatasus/arboviroses/
+gold/opendatasus/arboviroses/
 quarantine/opendatasus/arboviroses/silver_cases/
 ```
 
