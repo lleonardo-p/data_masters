@@ -21,6 +21,7 @@ Use os documentos nesta ordem:
 3. [Contrato técnico](data/dengue/README.md): campos, regras e modelo Gold.
 4. [Runbook operacional](operations/dengue-batch-end-to-end.md): comandos de deploy, execução e diagnóstico.
 5. [Execução validada](batch-dengue/validated-run.md): contagens e verificações reproduzíveis.
+6. [Dashboard QuickSight](operations/quicksight-dengue-dashboard.md).
 
 ## Segurança
 
@@ -33,4 +34,3 @@ Use os documentos nesta ordem:
 As decisões e seus trade-offs estão em [`architecture/ADR`](../architecture/ADR/).
 Os diagramas editáveis e suas exportações estão em
 [`architecture/c4`](../architecture/c4/).
-

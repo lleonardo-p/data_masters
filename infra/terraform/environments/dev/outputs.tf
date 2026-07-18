@@ -127,3 +127,13 @@ output "dengue_batch_alerts_topic_arn" {
   description = "SNS topic that receives dengue batch failure alarms."
   value       = aws_sns_topic.dengue_batch_alerts.arn
 }
+
+output "quicksight_dengue_data_source_id" {
+  description = "Optional QuickSight Athena data source used by the dengue dashboard."
+  value       = try(aws_quicksight_data_source.dengue_athena[0].data_source_id, null)
+}
+
+output "quicksight_dengue_data_set_id" {
+  description = "Optional QuickSight SPICE dataset ID used by the dengue dashboard."
+  value       = try(aws_quicksight_data_set.dengue_dashboard[0].data_set_id, null)
+}

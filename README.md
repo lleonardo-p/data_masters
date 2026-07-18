@@ -225,7 +225,8 @@ As próximas implementações são independentes e terão documentação própri
 
 1. triagem hospitalar NRT com idempotência, DLQ, indicadores e API;
 2. ingestão diária de Open-Meteo até a Silver;
-3. consumidor visual das views do Athena, sem alterar o contrato do batch.
+3. ativação e publicação opcional do dashboard QuickSight preparado para as
+   views Athena, sem alterar o contrato do batch.
 
 Veja o [índice da documentação](docs/README.md).
 

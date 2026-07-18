@@ -246,6 +246,10 @@ ou quando algum SQL de `src/athena/dengue/views` mudar:
 ./scripts/deploy_athena_dengue_views.sh
 ```
 
+O arquivo `06_vw_dengue_dashboard.sql` cria a view agregada usada pelo
+consumidor QuickSight. A ativação do datasource, do dataset SPICE e do
+painel está no [runbook do dashboard](quicksight-dengue-dashboard.md).
+
 O script aguarda o término das cinco consultas DDL e falha se o Athena rejeitar
 qualquer uma delas.
 

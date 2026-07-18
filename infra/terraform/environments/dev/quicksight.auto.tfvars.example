@@ -1,0 +1,2 @@
+enable_quicksight_dengue = true
+quicksight_author_arn     = "arn:aws:quicksight:us-east-1:<account-id>:user/default/<user>"
