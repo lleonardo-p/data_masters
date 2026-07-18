@@ -11,7 +11,7 @@ SELECT
         / NULLIF(SUM(confirmed_case_count), 0),
         2
     ) AS hospitalization_percentage_among_confirmed
-FROM "AwsDataCatalog"."baip_dev_gold"."vw_arbovirus_monthly_age_group"
+FROM "AwsDataCatalog"."baip_dev_gold"."vw_dengue_monthly_age_group"
 GROUP BY
     notification_year,
     notification_month,
