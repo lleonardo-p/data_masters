@@ -15,32 +15,135 @@ O nome da execução da Step Functions é o `batch_id`. Ele é propagado para as
 camadas, mas não participa do `record_hash` ou `record_id`, preservando a
 identidade determinística do registro.
 
-## Implantação
+## Operação recomendada
+
+Na raiz do repositório:
 
 ```bash
-cd infra/terraform/environments/dev
+chmod +x scripts/dengue_batch.sh
 
-terraform fmt -recursive
-terraform validate
-terraform plan -out=dengue-batch.tfplan
-terraform apply dengue-batch.tfplan
+./scripts/dengue_batch.sh start
+./scripts/dengue_batch.sh status
+./scripts/dengue_batch.sh manifest
+./scripts/dengue_batch.sh validate
+./scripts/dengue_batch.sh history
 ```
 
-O plan esperado adiciona o job de reconciliação, o script no bucket de
-artefatos, a role/policy da Step Functions, log group, state machine, SNS topic
-e alarme. Os três jobs existentes são atualizados por causa do argumento
-`BATCH_ID` e das novas versões dos scripts.
+O script sempre consulta a execução mais recente para recuperar o nome real do
+lote. Isso evita procurar um manifesto com uma variável `BATCH_ID` diferente da
+utilizada pela Step Functions.
+
+## Implantação
+
+Execute da raiz do repositório:
+
+```bash
+TF_DIR="infra/terraform/environments/dev"
+
+terraform -chdir="${TF_DIR}" fmt -recursive
+terraform -chdir="${TF_DIR}" validate
+terraform -chdir="${TF_DIR}" plan -out=dengue-batch.tfplan
+terraform -chdir="${TF_DIR}" apply dengue-batch.tfplan
+```
+
+Na primeira implantação, o plan adiciona o job de reconciliação, o script no
+bucket de artefatos, a role/policy da Step Functions, log group, state machine,
+SNS topic e três alarmes. Os jobs existentes recebem o argumento `BATCH_ID`.
+Em implantações posteriores, o plan deve refletir apenas mudanças reais do
+código ou da infraestrutura.
 
 Não aplique se o plan indicar destruição inesperada de buckets, databases ou
 dados.
 
-## Iniciar o pipeline
+## Preparar a entrada
+
+A implementação Bronze atual lê arquivos com extensão `.csv`. Descompacte os
+ZIPs antes do upload; não envie `.zip` ou `.csv.gz` sem antes adaptar o
+`pathGlobFilter` e validar a leitura.
+
+Defina os caminhos locais:
+
+```bash
+SOURCE_DIR="/caminho/para/os/csv"
+IBGE_FILE="/caminho/para/municipios_ufs_ibge.json"
+TF_DIR="infra/terraform/environments/dev"
+
+LAKE_BUCKET="$(
+  terraform -chdir="${TF_DIR}" output -raw data_lake_bucket_name
+)"
+```
+
+Confira os arquivos antes de enviar:
+
+```bash
+ls -lh \
+  "${SOURCE_DIR}/DENGBR24.csv" \
+  "${SOURCE_DIR}/DENGBR25.csv" \
+  "${SOURCE_DIR}/DENGBR26.csv" \
+  "${IBGE_FILE}"
+
+shasum -a 256 \
+  "${SOURCE_DIR}/DENGBR24.csv" \
+  "${SOURCE_DIR}/DENGBR25.csv" \
+  "${SOURCE_DIR}/DENGBR26.csv"
+```
+
+Upload para a Staging e reference:
+
+```bash
+aws s3 cp \
+  "${SOURCE_DIR}/DENGBR24.csv" \
+  "s3://${LAKE_BUCKET}/staging/opendatasus/dengue/reference_year=2024/DENGBR24.csv" \
+  --profile baip-dev \
+  --region us-east-1
+
+aws s3 cp \
+  "${SOURCE_DIR}/DENGBR25.csv" \
+  "s3://${LAKE_BUCKET}/staging/opendatasus/dengue/reference_year=2025/DENGBR25.csv" \
+  --profile baip-dev \
+  --region us-east-1
+
+aws s3 cp \
+  "${SOURCE_DIR}/DENGBR26.csv" \
+  "s3://${LAKE_BUCKET}/staging/opendatasus/dengue/reference_year=2026/DENGBR26.csv" \
+  --profile baip-dev \
+  --region us-east-1
+
+aws s3 cp \
+  "${IBGE_FILE}" \
+  "s3://${LAKE_BUCKET}/reference/ibge/municipalities/municipios_ufs_ibge.json" \
+  --profile baip-dev \
+  --region us-east-1
+```
+
+Confirme os objetos:
+
+```bash
+aws s3 ls \
+  "s3://${LAKE_BUCKET}/staging/opendatasus/dengue/" \
+  --recursive \
+  --profile baip-dev \
+  --region us-east-1
+
+aws s3 ls \
+  "s3://${LAKE_BUCKET}/reference/ibge/municipalities/" \
+  --profile baip-dev \
+  --region us-east-1
+```
+
+Se os mesmos objetos já estiverem corretos na Staging, não é necessário
+reenviá-los em toda execução.
+
+## Execução manual equivalente
 
 Use um nome único; Step Functions não permite reutilizar imediatamente o mesmo
 nome de execução.
 
 ```bash
-STATE_MACHINE_ARN="$(terraform output -raw dengue_batch_state_machine_arn)"
+TF_DIR="infra/terraform/environments/dev"
+STATE_MACHINE_ARN="$(
+  terraform -chdir="${TF_DIR}" output -raw dengue_batch_state_machine_arn
+)"
 BATCH_ID="dengue-$(date -u +%Y%m%dT%H%M%SZ)"
 
 RUNNING_EXECUTIONS="$(
@@ -80,6 +183,14 @@ condicional no DynamoDB ou por escrita imutável por lote com promoção atômic
 do snapshot aprovado.
 
 ## Consultar a execução
+
+Forma recomendada:
+
+```bash
+./scripts/dengue_batch.sh status
+```
+
+Forma manual:
 
 ```bash
 aws stepfunctions describe-execution \
@@ -126,24 +237,39 @@ s3://<logs-bucket>/pipeline-runs/dengue-batch/reconciliation/batch_id=<batch_id>
 Se uma regra falhar, o manifesto é escrito com `status=FAILED`, o job falha e o
 crawler não é iniciado.
 
+## Implantar as views Athena
+
+As views não são recriadas em toda execução. Implante-as na criação do ambiente
+ou quando algum SQL de `src/athena/dengue/views` mudar:
+
+```bash
+./scripts/deploy_athena_dengue_views.sh
+```
+
+O script aguarda o término das cinco consultas DDL e falha se o Athena rejeitar
+qualquer uma delas.
+
 ## Aceitação no Athena
 
 Após a Step Functions concluir:
 
 ```bash
-chmod +x scripts/run_athena_dengue_acceptance.sh
-./scripts/run_athena_dengue_acceptance.sh
+./scripts/dengue_batch.sh validate
 ```
 
-O script executa todos os SQLs em `src/athena/dengue/validation` e retorna erro
-se qualquer check produzir `passed=false`.
+Esse comando chama `scripts/run_athena_dengue_acceptance.sh`, executa todos os
+SQLs em `src/athena/dengue/validation` e retorna erro se qualquer check produzir
+`passed=false`.
 
 ## Alertas
 
-Falhas da state machine acionam o tópico SNS exibido por:
+Execuções com status `FAILED`, `TIMED_OUT` ou `ABORTED` acionam alarmes que
+publicam no tópico SNS exibido por:
 
 ```bash
-terraform output -raw dengue_batch_alerts_topic_arn
+terraform \
+  -chdir="infra/terraform/environments/dev" \
+  output -raw dengue_batch_alerts_topic_arn
 ```
 
 O tópico não possui assinatura por padrão. A assinatura deve ser criada com um
@@ -165,3 +291,6 @@ Preserve, sem dados pessoais ou secrets:
 - resultado dos cinco checks Athena;
 - status da última execução do crawler;
 - histórico do alarme em um teste controlado de falha.
+
+Uma execução sanitizada já validada está documentada em
+[Batch de dengue — execução validada](../batch-dengue/validated-run.md).

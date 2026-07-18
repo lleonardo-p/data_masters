@@ -1,5 +1,8 @@
 # Contrato técnico — Dengue
 
+> Documento de contrato e regras de dados. Para a sequência completa do fluxo,
+> consulte [Batch de dengue — visão ponta a ponta](../../batch-dengue/README.md).
+
 ## Identificação
 
 | Campo | Valor |

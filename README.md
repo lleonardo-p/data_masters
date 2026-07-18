@@ -16,7 +16,7 @@ A plataforma responde a três necessidades de negócio complementares:
 
 | Frente | Necessidade simulada | Resultado | Estado |
 |---|---|---|---|
-| Batch de dengue | Receber arquivos oficiais ou fornecidos por um parceiro, tratá-los e disponibilizar indicadores confiáveis | Modelo dimensional no S3, catálogo, views Athena e dashboard | Implementado até Athena; dashboard pendente |
+| Batch de dengue | Receber arquivos oficiais ou fornecidos por um parceiro, tratá-los e disponibilizar indicadores confiáveis | Modelo dimensional no S3, catálogo e views Athena | Implementado e validado até o Athena |
 | Triagem hospitalar NRT | Disponibilizar indicadores operacionais recentes sem expor PII | API de indicadores com freshness-alvo de até 2 minutos | Planejado |
 | API externa diária | Ingerir contexto climático diariamente e disponibilizar dados padronizados | Dataset Silver para exploração e futuros cruzamentos | Planejado |
 
@@ -27,24 +27,14 @@ que o MVP ainda não possui.
 
 ## Arquitetura em uma visão
 
-```text
-                                  BAIP
-                                    |
-                +-------------------+-------------------+
-                |                   |                   |
-          Batch de dengue      Triagem NRT       API externa diária
-          arquivo -> S3       evento -> fila      agenda -> extrator
-                |                   |                   |
-        Staging -> Bronze     SQS -> Lambda       Staging -> Silver
-                |                   |                   |
-          Glue Silver       DynamoDB + API         para na Silver
-      valid/warning | quarantine
-                |
-         Glue Gold/DW
-                |
-      Crawler -> Athena views
-                |
-             Dashboard
+```mermaid
+flowchart TD
+    P["BAIP"] --> B["Batch de dengue"]
+    P --> N["Triagem NRT"]
+    P --> A["API externa diária"]
+    B --> BA["Step Functions, Medallion e Athena"]
+    N --> NA["SQS, Lambda, DynamoDB e API"]
+    A --> AA["Scheduler, extração e Silver"]
 ```
 
 O Data Lake utiliza Amazon S3 e arquitetura Medallion. Staging é uma zona de
@@ -72,11 +62,10 @@ staging/opendatasus/dengue/reference_year=2026/DENGBR26.csv
 O fluxo implementado é:
 
 ```text
-CSV oficial -> S3 Staging -> Glue Bronze -> Parquet/Snappy
-             -> Glue Silver -> Silver + Quarantine
-             -> Glue Gold -> fatos e dimensões
-             -> Glue Crawler -> Glue Data Catalog
-             -> Athena views -> dashboard
+CSV oficial -> S3 Staging -> Step Functions
+             -> Glue Bronze -> Glue Silver + Quarantine
+             -> Glue Gold -> Reconciliação bloqueante
+             -> Glue Crawler -> Glue Data Catalog -> Athena
 ```
 
 Principais conceitos demonstrados:
@@ -92,8 +81,11 @@ Principais conceitos demonstrados:
 - catálogo técnico, consultas SQL e views de consumo;
 - infraestrutura AWS versionada em Terraform.
 
-Detalhes: [Caso batch de dengue](docs/cases/01-batch-dengue.md) e
-[contrato técnico de dengue](docs/data/dengue/README.md).
+Comece pela [visão ponta a ponta do batch](docs/batch-dengue/README.md). O
+[cenário de negócio](docs/cases/01-batch-dengue.md), o
+[contrato técnico](docs/data/dengue/README.md) e o
+[runbook](docs/operations/dengue-batch-end-to-end.md) detalham responsabilidades
+específicas.
 
 ## Frente 2 — Triagem hospitalar near real-time
 
@@ -177,7 +169,8 @@ parecer maior. A documentação registra limites e gatilhos mensuráveis:
   controle por linha, coluna ou domínio;
 - Multi-Region somente após definição de RTO, RPO, residência e orçamento.
 
-Detalhes: [Escalabilidade e limites operacionais](docs/architecture/scalability.md).
+Detalhes: [ADR de processamento batch](architecture/ADR/ADR-003-Processamento-Batch-Glue.md)
+e [ADR de formato e particionamento](architecture/ADR/ADR-015-Particionamento-Formato-Arquivos.md).
 
 ## Modelo Gold implementado
 
@@ -209,10 +202,9 @@ architecture/
 └── c4/
 
 docs/
-├── architecture/
+├── batch-dengue/
 ├── cases/
 ├── data/dengue/
-├── evaluation/
 ├── operations/
 └── security/
 
@@ -222,23 +214,20 @@ src/athena/
 src/glue/jobs/
 ```
 
-## Evidência e próximos incrementos
+## Estado atual e próximos fluxos
 
-O fluxo batch de dengue possui código executado em AWS até as views Athena. A
-orquestração, reconciliação e aceitação automatizada já estão no repositório,
-mas ainda precisam ser aplicadas e evidenciadas na AWS. Os dois outros fluxos
-estão documentados para implementação incremental. A ordem recomendada para
-atingir uma demonstração Expert é:
+O batch de dengue foi executado de ponta a ponta com Step Functions. A
+reconciliação fechou Bronze, Silver, quarentena e Gold; o crawler atualizou o
+catálogo; e os cinco checks Athena foram aprovados. O resultado sanitizado está
+em [Execução validada](docs/batch-dengue/validated-run.md).
 
-1. aplicar e exercitar o batch orquestrado, incluindo falha controlada e
-   manifesto de reconciliação;
-2. implementar um fluxo NRT vertical com idempotência, DLQ, métricas e API;
-3. implementar a ingestão diária de Open-Meteo até a Silver;
-4. adicionar testes de dados, código e Terraform em CI;
-5. produzir dashboard e um pacote de evidências operacionais.
+As próximas implementações são independentes e terão documentação própria:
 
-Consulte a [avaliação simulada de banca](docs/evaluation/expert-readiness.md) e
-a [matriz de evidências](docs/evaluation/evidence-matrix.md).
+1. triagem hospitalar NRT com idempotência, DLQ, indicadores e API;
+2. ingestão diária de Open-Meteo até a Silver;
+3. consumidor visual das views do Athena, sem alterar o contrato do batch.
+
+Veja o [índice da documentação](docs/README.md).
 
 ## Referências
 
