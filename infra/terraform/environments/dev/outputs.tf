@@ -39,12 +39,12 @@ output "glue_execution_role_arn" {
 }
 
 output "bronze_ingestion_glue_job_name" {
-  description = "Bronze ingestion AWS Glue job name."
+  description = "Bronze dengue ingestion AWS Glue job name."
   value       = module.bronze_ingestion_glue_job.job_name
 }
 
 output "bronze_ingestion_glue_job_arn" {
-  description = "Bronze ingestion AWS Glue job ARN."
+  description = "Bronze dengue ingestion AWS Glue job ARN."
   value       = module.bronze_ingestion_glue_job.job_arn
 }
 
@@ -53,22 +53,32 @@ output "ibge_municipalities_reference_path" {
   value       = local.ibge_municipalities_reference_path
 }
 
-output "silver_arbovirus_cases_output_path" {
-  description = "S3 output path for curated arbovirus cases."
-  value       = local.silver_arbovirus_cases_output_path
+output "bronze_dengue_staging_input_path" {
+  description = "S3 input path containing the official dengue CSV files."
+  value       = local.bronze_dengue_staging_input_path
 }
 
-output "silver_arbovirus_quarantine_path" {
-  description = "S3 quarantine path for invalid Silver arbovirus records."
-  value       = local.silver_arbovirus_quarantine_path
+output "bronze_dengue_output_path" {
+  description = "S3 output path for dengue Bronze data."
+  value       = local.bronze_dengue_output_path
 }
 
-output "silver_arbovirus_cases_glue_job_name" {
-  description = "Silver arbovirus cases AWS Glue job name."
-  value       = module.silver_arbovirus_cases_glue_job.job_name
+output "silver_dengue_cases_output_path" {
+  description = "S3 output path for curated dengue cases."
+  value       = local.silver_dengue_cases_output_path
 }
 
-output "silver_arbovirus_cases_glue_job_arn" {
-  description = "Silver arbovirus cases AWS Glue job ARN."
-  value       = module.silver_arbovirus_cases_glue_job.job_arn
+output "silver_dengue_quarantine_path" {
+  description = "S3 quarantine path for invalid Silver dengue records."
+  value       = local.silver_dengue_quarantine_path
+}
+
+output "silver_dengue_cases_glue_job_name" {
+  description = "Silver dengue cases AWS Glue job name."
+  value       = module.silver_dengue_cases_glue_job.job_name
+}
+
+output "silver_dengue_cases_glue_job_arn" {
+  description = "Silver dengue cases AWS Glue job ARN."
+  value       = module.silver_dengue_cases_glue_job.job_arn
 }

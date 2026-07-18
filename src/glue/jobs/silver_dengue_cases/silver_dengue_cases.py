@@ -39,7 +39,7 @@ NULL_TEXT_VALUES = ["", "nan", "null", "none"]
 
 CLASSIFICATION_MAPPING = {
     "5": "Descartado",
-    "8": "Descartado (cÃ³digo legado)",
+    "8": "Descartado (código legado)",
     "10": "Dengue",
     "11": "Dengue com sinais de alarme",
     "12": "Dengue grave",
@@ -48,15 +48,15 @@ CLASSIFICATION_MAPPING = {
 
 CONFIRMATION_CRITERION_MAPPING = {
     "1": "Laboratorial",
-    "2": "ClÃ­nico-epidemiolÃ³gico",
-    "3": "Em investigaÃ§Ã£o",
+    "2": "Clínico-epidemiológico",
+    "3": "Em investigação",
 }
 
 CASE_OUTCOME_MAPPING = {
     "1": "Cura",
-    "2": "Ã“bito pelo agravo",
-    "3": "Ã“bito por outras causas",
-    "4": "Ã“bito em investigaÃ§Ã£o",
+    "2": "Óbito pelo agravo",
+    "3": "Óbito por outras causas",
+    "4": "Óbito em investigação",
     "9": "Ignorado",
 }
 
@@ -67,12 +67,12 @@ SEX_MAPPING = {
 }
 
 PREGNANCY_MAPPING = {
-    "1": "1Âº trimestre",
-    "2": "2Âº trimestre",
-    "3": "3Âº trimestre",
+    "1": "1º trimestre",
+    "2": "2º trimestre",
+    "3": "3º trimestre",
     "4": "Idade gestacional ignorada",
-    "5": "NÃ£o",
-    "6": "NÃ£o se aplica",
+    "5": "Não",
+    "6": "Não se aplica",
     "9": "Ignorado",
 }
 
@@ -81,40 +81,40 @@ RACE_MAPPING = {
     "2": "Preta",
     "3": "Amarela",
     "4": "Parda",
-    "5": "IndÃ­gena",
+    "5": "Indígena",
     "9": "Ignorado",
 }
 
 EDUCATION_MAPPING = {
     "0": "Analfabeto",
-    "1": "1Âª a 4Âª sÃ©rie incompleta do ensino fundamental",
-    "2": "4Âª sÃ©rie completa do ensino fundamental",
-    "3": "5Âª a 8Âª sÃ©rie incompleta do ensino fundamental",
+    "1": "1ª a 4ª série incompleta do ensino fundamental",
+    "2": "4ª série completa do ensino fundamental",
+    "3": "5ª a 8ª série incompleta do ensino fundamental",
     "4": "Ensino fundamental completo",
-    "5": "Ensino mÃ©dio incompleto",
-    "6": "Ensino mÃ©dio completo",
-    "7": "EducaÃ§Ã£o superior incompleta",
-    "8": "EducaÃ§Ã£o superior completa",
+    "5": "Ensino médio incompleto",
+    "6": "Ensino médio completo",
+    "7": "Educação superior incompleta",
+    "8": "Educação superior completa",
     "9": "Ignorado",
-    "10": "NÃ£o se aplica",
+    "10": "Não se aplica",
 }
 
 AGE_UNIT_MAPPING = {
     "1": "Hora",
     "2": "Dia",
-    "3": "MÃªs",
+    "3": "Mês",
     "4": "Ano",
 }
 
 HOSPITALIZATION_MAPPING = {
     "1": "Sim",
-    "2": "NÃ£o",
+    "2": "Não",
     "9": "Ignorado",
 }
 
 AUTOCHTHONOUS_MAPPING = {
     "1": "Sim",
-    "2": "NÃ£o",
+    "2": "Não",
     "3": "Indeterminado",
 }
 
@@ -165,7 +165,7 @@ def map_code(column_name: str, mapping: dict[str, str]) -> Column:
             lit(description),
         )
 
-    return expression.otherwise(lit("NÃ£o mapeado"))
+    return expression.otherwise(lit("Não mapeado"))
 
 
 def location_projection(
@@ -218,13 +218,14 @@ if write_mode not in {"append", "overwrite"}:
 logger = configure_logger(job_name)
 spark = SparkSession.builder.appName(job_name).getOrCreate()
 
+spark.conf.set("spark.sql.adaptive.enabled", "true")
 spark.conf.set("spark.sql.parquet.compression.codec", "snappy")
 spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
-spark.conf.set("spark.sql.shuffle.partitions", "8")
+spark.conf.set("spark.sql.shuffle.partitions", "48")
 
 logger.info(
     {
-        "event": "silver_arbovirus_cases_started",
+        "event": "silver_dengue_cases_started",
         "job_name": job_name,
         "environment": environment,
         "bronze_input_path": bronze_input_path,
@@ -239,13 +240,14 @@ logger.info(
 df_bronze = spark.read.parquet(bronze_input_path)
 
 required_bronze_columns = {
-    "_source",
-    "_api_offset_page",
-    "_api_row_number",
+    "_bronze_loaded_at",
+    "_source_file",
+    "_source_system",
     "disease",
     "id_agravo",
     "dt_notific",
     "id_mn_resi",
+    "reference_year",
 }
 
 missing_bronze_columns = sorted(
@@ -258,7 +260,37 @@ if missing_bronze_columns:
         f"{', '.join(missing_bronze_columns)}"
     )
 
-# O arquivo do IBGE Ã© um Ãºnico array JSON, por isso multiLine=true.
+# O arquivo anual nao possui uma chave publica de notificacao confiavel.
+# O hash usa as 121 colunas de negocio da fonte e nao inclui metadados de carga
+# nem colunas derivadas de particionamento.
+hash_source_columns = sorted(
+    column_name
+    for column_name in df_bronze.columns
+    if not column_name.startswith("_")
+    and column_name
+    not in {
+        "disease",
+        "reference_year",
+        "notification_year",
+        "notification_month",
+    }
+)
+
+df_bronze = df_bronze.withColumn(
+    "_source_record_hash",
+    sha2(
+        concat_ws(
+            "||",
+            *[
+                coalesce(col(name).cast("string"), lit("<null>"))
+                for name in hash_source_columns
+            ],
+        ),
+        256,
+    ),
+)
+
+# O arquivo do IBGE é um único array JSON, por isso multiLine=true.
 df_ibge_raw = (
     spark.read.option("multiLine", "true").json(ibge_reference_path)
 )
@@ -301,26 +333,18 @@ df_ibge = (
     .dropDuplicates(["municipality_code_sinan"])
 )
 
-# SeleÃ§Ã£o e tipagem do contrato Silver. Colunas nÃ£o usadas pela Gold continuam
-# preservadas na Bronze e podem ser adicionadas em versÃµes futuras do contrato.
+# Seleção e tipagem do contrato Silver. Colunas não usadas pela Gold continuam
+# preservadas na Bronze e podem ser adicionadas em versões futuras do contrato.
 df_cases = df_bronze.select(
-    source_string(df_bronze, "_source").alias("source_system"),
-    source_string(df_bronze, "_nu_ano_param")
+    source_string(df_bronze, "_source_system").alias("source_system"),
+    source_string(df_bronze, "reference_year")
     .cast("int")
     .alias("source_reference_year"),
-    source_string(df_bronze, "_api_offset_page")
-    .cast("long")
-    .alias("source_offset"),
-    source_string(df_bronze, "_api_row_number")
-    .cast("int")
-    .alias("source_row_number"),
-    to_timestamp(
-        source_string(df_bronze, "_extraction_datetime_utc")
-    ).alias("extracted_at"),
     source_string(df_bronze, "_source_file").alias("source_file"),
     to_timestamp(source_string(df_bronze, "_bronze_loaded_at")).alias(
         "bronze_loaded_at"
     ),
+    source_string(df_bronze, "_source_record_hash").alias("record_hash"),
     lower(source_string(df_bronze, "disease")).alias("disease_name"),
     upper(source_string(df_bronze, "id_agravo")).alias("disease_code"),
     source_string(df_bronze, "nu_ano")
@@ -391,7 +415,7 @@ df_cases = df_bronze.select(
     source_string(df_bronze, "sorotipo").alias("serotype_code"),
 )
 
-# CÃ³digo zero nÃ£o representa um municÃ­pio IBGE vÃ¡lido.
+# Código zero não representa um município IBGE válido.
 df_cases = df_cases.withColumn(
     "infection_municipality_code_sinan",
     when(
@@ -436,9 +460,25 @@ df_cases = (
     .withColumn("age_unit_name", map_code("age_unit_code", AGE_UNIT_MAPPING))
     .withColumn(
         "age_years",
-        when(col("age_unit_code") == lit("4"), col("age_value")).otherwise(
-            lit(None).cast("int")
-        ),
+        when(col("age_unit_code") == lit("4"), col("age_value"))
+        .when(col("age_unit_code").isin("1", "2", "3"), lit(0))
+        .otherwise(lit(None).cast("int")),
+    )
+    .withColumn(
+        "age_group_name",
+        when(col("age_years") == 0, lit("Menor de 1 ano"))
+        .when(col("age_years").between(1, 4), lit("1 a 4 anos"))
+        .when(col("age_years").between(5, 9), lit("5 a 9 anos"))
+        .when(col("age_years").between(10, 14), lit("10 a 14 anos"))
+        .when(col("age_years").between(15, 19), lit("15 a 19 anos"))
+        .when(col("age_years").between(20, 29), lit("20 a 29 anos"))
+        .when(col("age_years").between(30, 39), lit("30 a 39 anos"))
+        .when(col("age_years").between(40, 49), lit("40 a 49 anos"))
+        .when(col("age_years").between(50, 59), lit("50 a 59 anos"))
+        .when(col("age_years").between(60, 69), lit("60 a 69 anos"))
+        .when(col("age_years").between(70, 79), lit("70 a 79 anos"))
+        .when(col("age_years") >= 80, lit("80 anos ou mais"))
+        .otherwise(lit("Ignorada")),
     )
     .withColumn("sex_name", map_code("sex_code", SEX_MAPPING))
     .withColumn(
@@ -542,61 +582,28 @@ df_cases = (
     )
 )
 
-record_id_columns = [
-    "source_system",
-    "source_reference_year",
-    "source_offset",
-    "source_row_number",
-]
-
-record_hash_columns = [
-    "disease_name",
-    "disease_code",
-    "notification_date",
-    "symptoms_start_date",
-    "residence_municipality_code_sinan",
-    "notification_municipality_code_sinan",
-    "health_unit_code",
-    "birth_year",
-    "age_encoded",
-    "sex_code",
-    "classification_code",
-    "confirmation_criterion_code",
-    "case_outcome_code",
-    "hospitalization_code",
-]
-
 df_cases = (
     df_cases.withColumn(
         "record_id",
         sha2(
             concat_ws(
                 "||",
-                *[
-                    coalesce(col(name).cast("string"), lit("<null>"))
-                    for name in record_id_columns
-                ],
-            ),
-            256,
-        ),
-    )
-    .withColumn(
-        "record_hash",
-        sha2(
-            concat_ws(
-                "||",
-                *[
-                    coalesce(col(name).cast("string"), lit("<null>"))
-                    for name in record_hash_columns
-                ],
+                coalesce(col("source_system"), lit("<null>")),
+                coalesce(
+                    col("source_reference_year").cast("string"),
+                    lit("<null>"),
+                ),
+                coalesce(col("record_hash"), lit("<null>")),
             ),
             256,
         ),
     )
     .withColumn("silver_loaded_at", current_timestamp())
     .withColumn("environment", lit(environment))
-    .withColumn("year", date_format(col("notification_date"), "yyyy"))
-    .withColumn("month", date_format(col("notification_date"), "MM"))
+    .withColumn(
+        "notification_month",
+        date_format(col("notification_date"), "MM"),
+    )
 )
 
 df_cases = df_cases.withColumn(
@@ -617,6 +624,11 @@ df_cases = df_cases.withColumn(
                 lit("FUTURE_NOTIFICATION_DATE"),
             ),
             when(
+                col("notification_date")
+                < lit("2000-01-01").cast("date"),
+                lit("IMPLAUSIBLE_NOTIFICATION_DATE"),
+            ),
+            when(
                 col("residence_municipality_code_sinan").isNull(),
                 lit("MISSING_RESIDENCE_MUNICIPALITY"),
             ),
@@ -627,8 +639,9 @@ df_cases = df_cases.withColumn(
             ),
             when(
                 col("source_system").isNull()
-                | col("source_offset").isNull()
-                | col("source_row_number").isNull(),
+                | col("source_reference_year").isNull()
+                | col("source_file").isNull()
+                | col("record_hash").isNull(),
                 lit("MISSING_SOURCE_IDENTITY"),
             ),
             when(
@@ -656,6 +669,46 @@ df_cases = df_cases.withColumn(
                 lit("DEATH_BEFORE_SYMPTOMS"),
             ),
             when(
+                col("investigation_date").isNotNull()
+                & (
+                    (col("investigation_date") < lit("2000-01-01").cast("date"))
+                    | (col("investigation_date") > current_date())
+                ),
+                lit("IMPLAUSIBLE_INVESTIGATION_DATE"),
+            ),
+            when(
+                col("digitization_date").isNotNull()
+                & (
+                    (col("digitization_date") < lit("2000-01-01").cast("date"))
+                    | (col("digitization_date") > current_date())
+                ),
+                lit("IMPLAUSIBLE_DIGITIZATION_DATE"),
+            ),
+            when(
+                col("closure_date").isNotNull()
+                & (
+                    (col("closure_date") < lit("2000-01-01").cast("date"))
+                    | (col("closure_date") > current_date())
+                ),
+                lit("IMPLAUSIBLE_CLOSURE_DATE"),
+            ),
+            when(
+                col("hospitalization_date").isNotNull()
+                & (
+                    (col("hospitalization_date") < lit("2000-01-01").cast("date"))
+                    | (col("hospitalization_date") > current_date())
+                ),
+                lit("IMPLAUSIBLE_HOSPITALIZATION_DATE"),
+            ),
+            when(
+                col("death_date").isNotNull()
+                & (
+                    (col("death_date") < lit("2000-01-01").cast("date"))
+                    | (col("death_date") > current_date())
+                ),
+                lit("IMPLAUSIBLE_DEATH_DATE"),
+            ),
+            when(
                 col("notification_year").isNotNull()
                 & col("notification_date").isNotNull()
                 & (
@@ -678,7 +731,7 @@ df_cases = df_cases.withColumn(
                 lit("MISSING_CLASSIFICATION"),
             ),
             when(
-                col("classification_name") == lit("NÃ£o mapeado"),
+                col("classification_name") == lit("Não mapeado"),
                 lit("UNMAPPED_CLASSIFICATION"),
             ),
             when(
@@ -709,17 +762,25 @@ df_cases = df_cases.withColumn(
                 & ~col("age_unit_code").isin("1", "2", "3", "4"),
                 lit("INVALID_AGE_UNIT"),
             ),
+            when(
+                col("source_reference_year").isNotNull()
+                & col("notification_year").isNotNull()
+                & (
+                    col("source_reference_year")
+                    != col("notification_year")
+                ),
+                lit("REFERENCE_YEAR_DIFFERS_FROM_NOTIFICATION_YEAR"),
+            ),
         ),
         lambda warning_code: warning_code.isNotNull(),
     ),
 )
 
-# A deduplicaÃ§Ã£o usa a identidade tÃ©cnica da paginaÃ§Ã£o. O hash de conteÃºdo nÃ£o
-# Ã© usado como chave porque dois pacientes distintos podem ter atributos iguais.
+# Como a fonte nao publica um identificador estavel, somente duplicatas exatas
+# das 121 colunas recebem a mesma identidade tecnica.
 deduplication_window = Window.partitionBy("record_id").orderBy(
-    col("extracted_at").desc_nulls_last(),
-    col("source_offset").desc_nulls_last(),
-    col("source_row_number").desc_nulls_last(),
+    col("bronze_loaded_at").desc_nulls_last(),
+    col("source_file").desc_nulls_last(),
 )
 
 df_cases = df_cases.withColumn(
@@ -777,7 +838,7 @@ try:
 
     logger.info(
         {
-            "event": "silver_arbovirus_cases_statistics",
+            "event": "silver_dengue_cases_statistics",
             "job_name": job_name,
             **processing_stats,
         }
@@ -792,10 +853,20 @@ try:
     )
 
     (
-        df_silver.repartition("disease_name", "year", "month")
+        df_silver.repartition(
+            "disease_name",
+            "source_reference_year",
+            "notification_year",
+            "notification_month",
+        )
         .write.mode(write_mode)
         .option("compression", "snappy")
-        .partitionBy("disease_name", "year", "month")
+        .partitionBy(
+            "disease_name",
+            "source_reference_year",
+            "notification_year",
+            "notification_month",
+        )
         .parquet(silver_output_path)
     )
 
@@ -821,6 +892,7 @@ try:
         (
             df_quarantine.repartition(
                 "primary_error_code",
+                "source_reference_year",
                 "quarantine_year",
                 "quarantine_month",
             )
@@ -828,6 +900,7 @@ try:
             .option("compression", "snappy")
             .partitionBy(
                 "primary_error_code",
+                "source_reference_year",
                 "quarantine_year",
                 "quarantine_month",
             )
@@ -836,7 +909,7 @@ try:
 
     logger.info(
         {
-            "event": "silver_arbovirus_cases_finished",
+            "event": "silver_dengue_cases_finished",
             "job_name": job_name,
             **processing_stats,
             "silver_output_path": silver_output_path,
