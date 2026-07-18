@@ -11,7 +11,7 @@ SELECT
     SUM(severe_case_count) AS severe_cases,
     SUM(under_investigation_count) AS under_investigation,
     SUM(death_by_disease_count) AS deaths
-FROM "AwsDataCatalog"."baip_dev_gold"."vw_arbovirus_monthly_classification"
+FROM "AwsDataCatalog"."baip_dev_gold"."vw_dengue_monthly_classification"
 GROUP BY
     notification_year,
     notification_month,

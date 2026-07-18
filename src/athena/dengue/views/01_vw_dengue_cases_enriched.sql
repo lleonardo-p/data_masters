@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW "baip_dev_gold"."vw_arbovirus_cases_enriched" AS
+CREATE OR REPLACE VIEW "baip_dev_gold"."vw_dengue_cases_enriched" AS
 SELECT
     fact.case_id,
     fact.environment,
@@ -55,14 +55,14 @@ SELECT
     fact.data_quality_status,
     fact.quality_warning_codes,
     fact.gold_loaded_at
-FROM "AwsDataCatalog"."baip_dev_gold"."arbovirus_fact_arbovirus_cases" AS fact
-INNER JOIN "AwsDataCatalog"."baip_dev_gold"."arbovirus_dim_date" AS notification_date
+FROM "AwsDataCatalog"."baip_dev_gold"."dengue_fact_dengue_cases" AS fact
+INNER JOIN "AwsDataCatalog"."baip_dev_gold"."dengue_dim_date" AS notification_date
     ON fact.notification_date_key = notification_date.date_key
-INNER JOIN "AwsDataCatalog"."baip_dev_gold"."arbovirus_dim_location" AS location
+INNER JOIN "AwsDataCatalog"."baip_dev_gold"."dengue_dim_location" AS location
     ON fact.residence_location_key = location.location_key
-INNER JOIN "AwsDataCatalog"."baip_dev_gold"."arbovirus_dim_disease" AS disease
+INNER JOIN "AwsDataCatalog"."baip_dev_gold"."dengue_dim_disease" AS disease
     ON fact.disease_key = disease.disease_key
-INNER JOIN "AwsDataCatalog"."baip_dev_gold"."arbovirus_dim_demographic" AS demographic
+INNER JOIN "AwsDataCatalog"."baip_dev_gold"."dengue_dim_demographic" AS demographic
     ON fact.demographic_key = demographic.demographic_key
-INNER JOIN "AwsDataCatalog"."baip_dev_gold"."arbovirus_dim_clinical" AS clinical
+INNER JOIN "AwsDataCatalog"."baip_dev_gold"."dengue_dim_clinical" AS clinical
     ON fact.clinical_key = clinical.clinical_key;

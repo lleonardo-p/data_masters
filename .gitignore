@@ -77,3 +77,4 @@ logs/
 dist/
 build/
 *.egg-info/
+*.tfplan

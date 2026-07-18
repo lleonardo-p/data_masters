@@ -22,22 +22,23 @@ locals {
   bronze_ingestion_script_key  = "glue/scripts/bronze_ingestion/bronze_ingestion.py"
   bronze_ingestion_script_path = "${path.root}/../../../../src/glue/jobs/bronze_ingestion/bronze_ingestion.py"
 
-  silver_arbovirus_cases_job_name    = "${var.project_name}-${var.environment}-silver-arbovirus-cases"
-  silver_arbovirus_cases_script_key  = "glue/scripts/silver_arbovirus_cases/silver_arbovirus_cases.py"
-  silver_arbovirus_cases_script_path = "${path.root}/../../../../src/glue/jobs/silver_arbovirus_cases/silver_arbovirus_cases.py"
+  silver_dengue_cases_job_name    = "${var.project_name}-${var.environment}-silver-dengue-cases"
+  silver_dengue_cases_script_key  = "glue/scripts/silver_dengue_cases/silver_dengue_cases.py"
+  silver_dengue_cases_script_path = "${path.root}/../../../../src/glue/jobs/silver_dengue_cases/silver_dengue_cases.py"
 
-  gold_arbovirus_job_name     = "${var.project_name}-${var.environment}-gold-arbovirus-star-schema"
-  gold_arbovirus_script_key   = "glue/scripts/gold_arbovirus_star_schema/gold_arbovirus_star_schema.py"
-  gold_arbovirus_script_path  = "${path.root}/../../../../src/glue/jobs/gold_arbovirus_star_schema/gold_arbovirus_star_schema.py"
-  gold_arbovirus_crawler_name = "${var.project_name}-${var.environment}-gold-arbovirus"
+  gold_dengue_job_name     = "${var.project_name}-${var.environment}-gold-dengue-star-schema"
+  gold_dengue_script_key   = "glue/scripts/gold_dengue_star_schema/gold_dengue_star_schema.py"
+  gold_dengue_script_path  = "${path.root}/../../../../src/glue/jobs/gold_dengue_star_schema/gold_dengue_star_schema.py"
+  gold_dengue_crawler_name = "${var.project_name}-${var.environment}-gold-dengue"
 
-  bronze_staging_input_path = "s3://${module.data_lake_bucket.bucket_name}/staging/opendatasus/arboviroses/"
-  bronze_output_path        = "s3://${module.data_lake_bucket.bucket_name}/bronze/opendatasus/arboviroses/"
+  bronze_dengue_staging_input_path = "s3://${module.data_lake_bucket.bucket_name}/staging/opendatasus/dengue/"
+  bronze_dengue_output_path        = "s3://${module.data_lake_bucket.bucket_name}/bronze/opendatasus/dengue/"
 
   ibge_municipalities_reference_path = "s3://${module.data_lake_bucket.bucket_name}/reference/ibge/municipalities/municipios_ufs_ibge.json"
-  silver_arbovirus_cases_output_path = "s3://${module.data_lake_bucket.bucket_name}/silver/opendatasus/arboviroses/"
-  silver_arbovirus_quarantine_path   = "s3://${module.data_lake_bucket.bucket_name}/quarantine/opendatasus/arboviroses/silver_cases/"
-  gold_arbovirus_output_path         = "s3://${module.data_lake_bucket.bucket_name}/gold/opendatasus/arboviroses/"
+
+  silver_dengue_cases_output_path = "s3://${module.data_lake_bucket.bucket_name}/silver/opendatasus/dengue/cases/"
+  silver_dengue_quarantine_path   = "s3://${module.data_lake_bucket.bucket_name}/quarantine/opendatasus/dengue/silver_cases/"
+  gold_dengue_output_path         = "s3://${module.data_lake_bucket.bucket_name}/gold/opendatasus/dengue/"
 }
 
 module "data_lake_bucket" {
@@ -188,15 +189,14 @@ module "bronze_ingestion_glue_job" {
   glue_version      = "5.0"
   worker_type       = "G.1X"
   number_of_workers = 2
-  timeout           = 10
+  timeout           = 60
   max_retries       = 0
 
   default_arguments = {
-    "--ENVIRONMENT"           = var.environment
-    "--STAGING_INPUT_PATH"    = local.bronze_staging_input_path
-    "--BRONZE_OUTPUT_PATH"    = local.bronze_output_path
-    "--PARTITION_DATE_COLUMN" = "dt_notific"
-    "--WRITE_MODE"            = "overwrite"
+    "--ENVIRONMENT"        = var.environment
+    "--STAGING_INPUT_PATH" = local.bronze_dengue_staging_input_path
+    "--BRONZE_OUTPUT_PATH" = local.bronze_dengue_output_path
+    "--WRITE_MODE"         = "overwrite"
   }
 
   tags = {
@@ -205,96 +205,96 @@ module "bronze_ingestion_glue_job" {
   }
 }
 
-resource "aws_s3_object" "silver_arbovirus_cases_script" {
+resource "aws_s3_object" "silver_dengue_cases_script" {
   bucket = module.artifacts_bucket.bucket_name
-  key    = local.silver_arbovirus_cases_script_key
-  source = local.silver_arbovirus_cases_script_path
+  key    = local.silver_dengue_cases_script_key
+  source = local.silver_dengue_cases_script_path
 
-  source_hash = filemd5(local.silver_arbovirus_cases_script_path)
+  source_hash = filemd5(local.silver_dengue_cases_script_path)
 
   tags = {
     purpose = "glue-script"
   }
 }
 
-module "silver_arbovirus_cases_glue_job" {
+module "silver_dengue_cases_glue_job" {
   source = "../../modules/glue_job"
 
-  job_name        = local.silver_arbovirus_cases_job_name
+  job_name        = local.silver_dengue_cases_job_name
   role_arn        = module.iam_glue_role.role_arn
-  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.silver_arbovirus_cases_script.key}"
+  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.silver_dengue_cases_script.key}"
 
   glue_version      = "5.0"
   worker_type       = "G.1X"
   number_of_workers = 2
-  timeout           = 15
+  timeout           = 60
   max_retries       = 0
 
   default_arguments = {
     "--ENVIRONMENT"            = var.environment
-    "--BRONZE_INPUT_PATH"      = local.bronze_output_path
+    "--BRONZE_INPUT_PATH"      = local.bronze_dengue_output_path
     "--IBGE_REFERENCE_PATH"    = local.ibge_municipalities_reference_path
-    "--SILVER_OUTPUT_PATH"     = local.silver_arbovirus_cases_output_path
-    "--QUARANTINE_OUTPUT_PATH" = local.silver_arbovirus_quarantine_path
+    "--SILVER_OUTPUT_PATH"     = local.silver_dengue_cases_output_path
+    "--QUARANTINE_OUTPUT_PATH" = local.silver_dengue_quarantine_path
     "--WRITE_MODE"             = "overwrite"
   }
 
   tags = {
-    purpose = "silver-arbovirus-cases"
+    purpose = "silver-dengue-cases"
     layer   = "silver"
   }
 }
 
-resource "aws_s3_object" "gold_arbovirus_script" {
+resource "aws_s3_object" "gold_dengue_script" {
   bucket = module.artifacts_bucket.bucket_name
-  key    = local.gold_arbovirus_script_key
-  source = local.gold_arbovirus_script_path
+  key    = local.gold_dengue_script_key
+  source = local.gold_dengue_script_path
 
-  source_hash = filemd5(local.gold_arbovirus_script_path)
+  source_hash = filemd5(local.gold_dengue_script_path)
 
   tags = {
     purpose = "glue-script"
   }
 }
 
-module "gold_arbovirus_glue_job" {
+module "gold_dengue_glue_job" {
   source = "../../modules/glue_job"
 
-  job_name        = local.gold_arbovirus_job_name
+  job_name        = local.gold_dengue_job_name
   role_arn        = module.iam_glue_role.role_arn
-  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.gold_arbovirus_script.key}"
+  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.gold_dengue_script.key}"
 
   glue_version      = "5.0"
   worker_type       = "G.1X"
   number_of_workers = 2
-  timeout           = 15
+  timeout           = 60
   max_retries       = 0
 
   default_arguments = {
     "--ENVIRONMENT"       = var.environment
-    "--SILVER_INPUT_PATH" = local.silver_arbovirus_cases_output_path
-    "--GOLD_OUTPUT_PATH"  = local.gold_arbovirus_output_path
+    "--SILVER_INPUT_PATH" = local.silver_dengue_cases_output_path
+    "--GOLD_OUTPUT_PATH"  = local.gold_dengue_output_path
     "--WRITE_MODE"        = "overwrite"
   }
 
   tags = {
-    purpose = "gold-arbovirus-star-schema"
+    purpose = "gold-dengue-star-schema"
     layer   = "gold"
   }
 }
 
-resource "aws_glue_crawler" "gold_arbovirus" {
-  name          = local.gold_arbovirus_crawler_name
+resource "aws_glue_crawler" "gold_dengue" {
+  name          = local.gold_dengue_crawler_name
   database_name = local.gold_database_name
   role          = module.iam_glue_role.role_arn
-  table_prefix  = "arbovirus_"
+  table_prefix  = "dengue_"
 
   s3_target {
-    path = local.gold_arbovirus_output_path
+    path = local.gold_dengue_output_path
   }
 
   schema_change_policy {
-    delete_behavior = "LOG"
+    delete_behavior = "DELETE_FROM_DATABASE"
     update_behavior = "UPDATE_IN_DATABASE"
   }
 
@@ -313,7 +313,7 @@ resource "aws_glue_crawler" "gold_arbovirus" {
   depends_on = [module.glue_catalog]
 
   tags = {
-    purpose = "gold-arbovirus-catalog"
+    purpose = "gold-dengue-catalog"
     layer   = "gold"
   }
 }

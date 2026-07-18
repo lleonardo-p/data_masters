@@ -10,7 +10,7 @@ SELECT
     SUM(severe_case_count) AS severe_cases,
     SUM(hospitalized_case_count) AS hospitalized_cases,
     SUM(death_by_disease_count) AS deaths
-FROM "AwsDataCatalog"."baip_dev_gold"."vw_arbovirus_monthly_uf"
+FROM "AwsDataCatalog"."baip_dev_gold"."vw_dengue_monthly_uf"
 GROUP BY
     notification_year,
     notification_month,

@@ -10,7 +10,8 @@ ATHENA_WORKGROUP="${ATHENA_WORKGROUP:-baip-dev-workgroup}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-VIEWS_DIR="${REPOSITORY_ROOT}/src/athena/arbovirus/views"
+VIEWS_DIR="${REPOSITORY_ROOT}/src/athena/dengue/views"
+echo VIEWS_DIR
 
 for sql_file in "${VIEWS_DIR}"/*.sql; do
     echo "Deploying $(basename "${sql_file}")..."
@@ -61,4 +62,4 @@ for sql_file in "${VIEWS_DIR}"/*.sql; do
     done
 done
 
-echo "All arbovirus analytical views were deployed successfully."
+echo "All dengue analytical views were deployed successfully."

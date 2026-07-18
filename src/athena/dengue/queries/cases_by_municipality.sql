@@ -13,7 +13,7 @@ SELECT
         / NULLIF(SUM(notification_count), 0),
         2
     ) AS confirmation_percentage
-FROM "AwsDataCatalog"."baip_dev_gold"."vw_arbovirus_monthly_municipality"
+FROM "AwsDataCatalog"."baip_dev_gold"."vw_dengue_monthly_municipality"
 GROUP BY
     notification_year,
     notification_month,
