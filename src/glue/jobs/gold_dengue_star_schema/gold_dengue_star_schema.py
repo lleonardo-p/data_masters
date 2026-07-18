@@ -59,8 +59,8 @@ REQUIRED_SILVER_COLUMNS = {
     "environment",
     "source_system",
     "source_reference_year",
-    "source_offset",
-    "source_row_number",
+    "source_file",
+    "bronze_loaded_at",
     "disease_code",
     "disease_name",
     "notification_date",
@@ -79,6 +79,7 @@ REQUIRED_SILVER_COLUMNS = {
     "age_unit_name",
     "age_value",
     "age_years",
+    "age_group_name",
     "sex_code",
     "sex_name",
     "pregnancy_code",
@@ -170,20 +171,6 @@ def location_key(prefix: str) -> Column:
 
 def integer_measure(column_name: str) -> Column:
     return when(col(column_name) == lit(True), lit(1)).otherwise(lit(0))
-
-
-def add_age_group(df: DataFrame) -> DataFrame:
-    return df.withColumn(
-        "age_group_name",
-        when(col("age_unit_code").isin("1", "2", "3"), lit("Menor de 1 ano"))
-        .when(col("age_years").between(0, 4), lit("0 a 4 anos"))
-        .when(col("age_years").between(5, 9), lit("5 a 9 anos"))
-        .when(col("age_years").between(10, 19), lit("10 a 19 anos"))
-        .when(col("age_years").between(20, 39), lit("20 a 39 anos"))
-        .when(col("age_years").between(40, 59), lit("40 a 59 anos"))
-        .when(col("age_years") >= lit(60), lit("60 anos ou mais"))
-        .otherwise(lit("Desconhecido")),
-    )
 
 
 def build_date_dimension(spark: SparkSession, df: DataFrame) -> DataFrame:
@@ -449,8 +436,8 @@ def build_fact(df: DataFrame) -> DataFrame:
         "quality_warning_codes",
         "source_system",
         "source_reference_year",
-        "source_offset",
-        "source_row_number",
+        "source_file",
+        "bronze_loaded_at",
         "silver_loaded_at",
         current_timestamp().alias("gold_loaded_at"),
         year("notification_date").alias("notification_year"),
@@ -483,13 +470,14 @@ if write_mode != "overwrite":
 logger = configure_logger(job_name)
 spark = SparkSession.builder.appName(job_name).getOrCreate()
 
+spark.conf.set("spark.sql.adaptive.enabled", "true")
 spark.conf.set("spark.sql.parquet.compression.codec", "snappy")
 spark.conf.set("spark.sql.sources.partitionOverwriteMode", "static")
-spark.conf.set("spark.sql.shuffle.partitions", "8")
+spark.conf.set("spark.sql.shuffle.partitions", "48")
 
 logger.info(
     {
-        "event": "gold_arbovirus_star_schema_started",
+        "event": "gold_dengue_star_schema_started",
         "job_name": job_name,
         "environment": environment,
         "silver_input_path": silver_input_path,
@@ -509,8 +497,8 @@ if missing_columns:
 
 # A Gold aceita registros Silver válidos e com warning. Registros em quarentena
 # não estão no path Silver e, portanto, não entram no modelo dimensional.
-df_cases = add_age_group(
-    df_silver.filter(col("data_quality_status").isin("valid", "warning"))
+df_cases = df_silver.filter(
+    col("data_quality_status").isin("valid", "warning")
 ).persist(StorageLevel.MEMORY_AND_DISK)
 
 try:
@@ -552,17 +540,17 @@ try:
         .write.mode(write_mode)
         .option("compression", "snappy")
         .partitionBy("notification_year", "notification_month")
-        .parquet(f"{gold_output_path}/fact_arbovirus_cases/")
+        .parquet(f"{gold_output_path}/fact_dengue_cases/")
     )
 
     logger.info(
         {
-            "event": "gold_arbovirus_star_schema_finished",
+            "event": "gold_dengue_star_schema_finished",
             "job_name": job_name,
             "environment": environment,
             "record_count": record_count,
             "duplicate_case_count": duplicate_case_count,
-            "tables": [*dimensions.keys(), "fact_arbovirus_cases"],
+            "tables": [*dimensions.keys(), "fact_dengue_cases"],
             "gold_output_path": gold_output_path,
             "finished_at": datetime.now(timezone.utc).isoformat(),
         }

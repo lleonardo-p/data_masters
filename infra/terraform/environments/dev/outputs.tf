@@ -82,3 +82,23 @@ output "silver_dengue_cases_glue_job_arn" {
   description = "Silver dengue cases AWS Glue job ARN."
   value       = module.silver_dengue_cases_glue_job.job_arn
 }
+
+output "gold_dengue_output_path" {
+  description = "S3 root path for the dengue dimensional model."
+  value       = local.gold_dengue_output_path
+}
+
+output "gold_dengue_glue_job_name" {
+  description = "Gold dengue star schema AWS Glue job name."
+  value       = module.gold_dengue_glue_job.job_name
+}
+
+output "gold_dengue_glue_job_arn" {
+  description = "Gold dengue star schema AWS Glue job ARN."
+  value       = module.gold_dengue_glue_job.job_arn
+}
+
+output "gold_dengue_crawler_name" {
+  description = "Glue crawler that registers Gold dengue tables."
+  value       = aws_glue_crawler.gold_dengue.name
+}

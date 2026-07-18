@@ -26,6 +26,11 @@ locals {
   silver_dengue_cases_script_key  = "glue/scripts/silver_dengue_cases/silver_dengue_cases.py"
   silver_dengue_cases_script_path = "${path.root}/../../../../src/glue/jobs/silver_dengue_cases/silver_dengue_cases.py"
 
+  gold_dengue_job_name     = "${var.project_name}-${var.environment}-gold-dengue-star-schema"
+  gold_dengue_script_key   = "glue/scripts/gold_dengue_star_schema/gold_dengue_star_schema.py"
+  gold_dengue_script_path  = "${path.root}/../../../../src/glue/jobs/gold_dengue_star_schema/gold_dengue_star_schema.py"
+  gold_dengue_crawler_name = "${var.project_name}-${var.environment}-gold-dengue"
+
   bronze_dengue_staging_input_path = "s3://${module.data_lake_bucket.bucket_name}/staging/opendatasus/dengue/"
   bronze_dengue_output_path        = "s3://${module.data_lake_bucket.bucket_name}/bronze/opendatasus/dengue/"
 
@@ -33,6 +38,7 @@ locals {
 
   silver_dengue_cases_output_path = "s3://${module.data_lake_bucket.bucket_name}/silver/opendatasus/dengue/cases/"
   silver_dengue_quarantine_path   = "s3://${module.data_lake_bucket.bucket_name}/quarantine/opendatasus/dengue/silver_cases/"
+  gold_dengue_output_path         = "s3://${module.data_lake_bucket.bucket_name}/gold/opendatasus/dengue/"
 }
 
 module "data_lake_bucket" {
@@ -236,5 +242,78 @@ module "silver_dengue_cases_glue_job" {
   tags = {
     purpose = "silver-dengue-cases"
     layer   = "silver"
+  }
+}
+
+resource "aws_s3_object" "gold_dengue_script" {
+  bucket = module.artifacts_bucket.bucket_name
+  key    = local.gold_dengue_script_key
+  source = local.gold_dengue_script_path
+
+  source_hash = filemd5(local.gold_dengue_script_path)
+
+  tags = {
+    purpose = "glue-script"
+  }
+}
+
+module "gold_dengue_glue_job" {
+  source = "../../modules/glue_job"
+
+  job_name        = local.gold_dengue_job_name
+  role_arn        = module.iam_glue_role.role_arn
+  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.gold_dengue_script.key}"
+
+  glue_version      = "5.0"
+  worker_type       = "G.1X"
+  number_of_workers = 2
+  timeout           = 60
+  max_retries       = 0
+
+  default_arguments = {
+    "--ENVIRONMENT"       = var.environment
+    "--SILVER_INPUT_PATH" = local.silver_dengue_cases_output_path
+    "--GOLD_OUTPUT_PATH"  = local.gold_dengue_output_path
+    "--WRITE_MODE"        = "overwrite"
+  }
+
+  tags = {
+    purpose = "gold-dengue-star-schema"
+    layer   = "gold"
+  }
+}
+
+resource "aws_glue_crawler" "gold_dengue" {
+  name          = local.gold_dengue_crawler_name
+  database_name = local.gold_database_name
+  role          = module.iam_glue_role.role_arn
+  table_prefix  = "dengue_"
+
+  s3_target {
+    path = local.gold_dengue_output_path
+  }
+
+  schema_change_policy {
+    delete_behavior = "DELETE_FROM_DATABASE"
+    update_behavior = "UPDATE_IN_DATABASE"
+  }
+
+  configuration = jsonencode({
+    Version = 1.0
+    CrawlerOutput = {
+      Partitions = {
+        AddOrUpdateBehavior = "InheritFromTable"
+      }
+      Tables = {
+        AddOrUpdateBehavior = "MergeNewColumns"
+      }
+    }
+  })
+
+  depends_on = [module.glue_catalog]
+
+  tags = {
+    purpose = "gold-dengue-catalog"
+    layer   = "gold"
   }
 }
