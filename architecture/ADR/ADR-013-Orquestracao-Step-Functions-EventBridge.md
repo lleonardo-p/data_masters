@@ -8,32 +8,41 @@
 
 ## Contexto
 
-O BAIP possui pipelines batch diários, cargas históricas, validações, transformações, publicação de dados analíticos e possíveis execuções parametrizadas de backfill.
+O BAIP possui cargas por arquivos, planeja ingestões diárias, executa validações,
+transformações, publicação de dados analíticos e possíveis backfills
+parametrizados.
 
 A arquitetura precisa coordenar etapas, controlar dependências, tratar falhas e permitir agendamento sem administrar infraestrutura de orquestração.
 
 ## Decisão
 
-A orquestração do MVP será feita com **AWS Step Functions** e **Amazon EventBridge Scheduler**.
+A orquestração será feita com **AWS Step Functions**. O **Amazon EventBridge
+Scheduler** será utilizado apenas nos fluxos que possuírem recorrência definida.
 
-O EventBridge Scheduler será utilizado para disparar execuções agendadas.
+O batch de dengue atual começa após a entrega manual governada do arquivo e,
+portanto, é iniciado sob demanda. Não existe recorrência automática nesse fluxo.
+O caso de API externa diária poderá usar EventBridge Scheduler quando for
+implementado.
 
 O Step Functions será utilizado para coordenar etapas do pipeline, incluindo:
 
-- extração;
+- extração, quando fizer parte do fluxo;
 - validação;
 - processamento Glue;
 - atualização de catálogo;
 - publicação de camadas Silver/Gold/DW;
 - notificações e tratamento de falhas.
 
-Backfills deverão ser modelados como execuções parametrizadas, evitando alterar o fluxo diário padrão.
+Backfills deverão ser modelados como execuções parametrizadas, evitando alterar
+o fluxo operacional padrão.
 
 A arquitetura deve evitar uma DAG única e excessivamente acoplada. Os fluxos deverão ser separados por domínio, fonte ou responsabilidade quando fizer sentido.
 
 ## Justificativa
 
-Step Functions permite orquestrar fluxos serverless com controle de estados, retries, tratamento de erro e rastreabilidade visual.
+Step Functions permite orquestrar fluxos serverless com controle de estados,
+tratamento de erro e rastreabilidade visual. Retry automático deve ser aplicado
+somente quando a etapa for idempotente e o erro for transitório.
 
 EventBridge Scheduler atende ao agendamento de execuções recorrentes sem necessidade de manter um scheduler próprio.
 
@@ -52,7 +61,7 @@ A combinação é adequada ao MVP por ser gerenciada, integrada à AWS e suficie
 
 - Orquestração gerenciada.
 - Boa integração com Glue, Lambda, SNS e CloudWatch.
-- Suporte a retries e tratamento de erro.
+- Suporte a tratamento de erro e retries explicitamente configurados.
 - Execuções rastreáveis e parametrizadas.
 - Simplicidade para agendamento de pipelines batch.
 - Possibilidade de separar fluxo diário e backfill.
@@ -63,6 +72,13 @@ A combinação é adequada ao MVP por ser gerenciada, integrada à AWS e suficie
 - Fluxos grandes podem se tornar difíceis de manter.
 - Exige modelagem adequada de estados e exceções.
 - Pode gerar custo por transição de estado em cenários de alta frequência.
+
+## Estado implementado no batch de dengue
+
+A state machine executa Bronze, Silver, Gold, reconciliação e crawler. Ela usa
+o nome da execução como `batch_id`, possui timeout global e falha quando uma
+etapa falha. O retry atual é uma nova execução completa com nome único; não há
+retry automático de jobs de dados para evitar reprocessamento implícito.
 
 ## Escalabilidade e alternativas
 

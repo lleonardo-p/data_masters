@@ -11,9 +11,21 @@ ATHENA_WORKGROUP="${ATHENA_WORKGROUP:-baip-dev-workgroup}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VIEWS_DIR="${REPOSITORY_ROOT}/src/athena/dengue/views"
-echo VIEWS_DIR
 
-for sql_file in "${VIEWS_DIR}"/*.sql; do
+if [[ ! -d "${VIEWS_DIR}" ]]; then
+    echo "Views directory not found: ${VIEWS_DIR}" >&2
+    exit 1
+fi
+
+shopt -s nullglob
+sql_files=("${VIEWS_DIR}"/*.sql)
+
+if (( ${#sql_files[@]} == 0 )); then
+    echo "No view SQL files found in: ${VIEWS_DIR}" >&2
+    exit 1
+fi
+
+for sql_file in "${sql_files[@]}"; do
     echo "Deploying $(basename "${sql_file}")..."
 
     query_execution_id="$(

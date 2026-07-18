@@ -1,5 +1,8 @@
 # Caso 1 — Pipeline batch de dengue
 
+> Documento de contexto de negócio. Para arquitetura, componentes e operação,
+> consulte a [visão ponta a ponta](../batch-dengue/README.md).
+
 ## Objetivo
 
 Demonstrar o ciclo completo de um dado recebido por arquivo: entrada governada,
@@ -142,7 +145,6 @@ mantém os resultados em bucket separado.
 O job de reconciliação implementado registra por execução:
 
 ```text
-staging_rows
 bronze_rows
 silver_valid_rows
 silver_warning_rows
@@ -185,16 +187,18 @@ configuração.
 - jobs Bronze, Silver e Gold executados na AWS;
 - arquivos Parquet nas camadas;
 - quarentena produzida;
+- Step Functions executada de ponta a ponta;
+- manifesto de reconciliação com todos os checks aprovados;
 - crawler concluído;
 - seis tabelas e cinco views no Athena;
-- consulta mensal validada.
-- Step Functions, reconciliação, alarme e queries de aceitação implementados no
-  repositório, ainda sem evidência de execução na AWS.
+- cinco queries automatizadas de aceitação aprovadas no Athena.
 
-## Pendências
+As contagens sanitizadas estão em
+[Execução validada](../batch-dengue/validated-run.md).
 
-- aplicar e exercitar a cadeia automatizada e a reconciliação;
-- preservar manifesto, resultado dos checks e teste controlado do alarme;
+## Evoluções independentes
+
 - criar testes de schema e regras críticas;
-- configurar alarmes e runbook;
-- construir e publicar o dashboard.
+- adicionar validações estáticas ao CI;
+- testar a entrega do alerta SNS em um destino configurado;
+- conectar um dashboard às views sem alterar o pipeline batch.
