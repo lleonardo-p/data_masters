@@ -63,6 +63,17 @@ Permitir estado local apenas em experimentação evita complexidade inicial desn
 - Mudanças incorretas podem afetar recursos críticos.
 - Pode aumentar esforço inicial em comparação com criação manual.
 
+## Escalabilidade e alternativas
+
+Com mais ambientes, o estado deve usar backend remoto com locking, criptografia
+e acesso separado. Módulos precisam de versões e testes; um módulo genérico
+demais pode aumentar blast radius. Planos binários, state e secrets não devem
+ser versionados.
+
+Multi-account e Multi-Region exigem providers/roles explícitos e pipelines com
+aprovação. Atlantis, Terraform Cloud ou CI corporativo serão avaliados quando
+concorrência de mudanças e segregação de funções justificarem um control plane.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

@@ -78,6 +78,17 @@ Essa decisão melhora a aderência aos princípios de minimização, segurança,
 - Rotação de segredo exige estratégia de versionamento e possível reprocessamento de tokens.
 - Uso de dados reais pode exigir avaliação jurídica, RIPD e controles adicionais de governança.
 
+## Escalabilidade e alternativas
+
+O serviço de identidade deve distribuir chaves e evitar hot partition. Chamadas
+KMS ou Secrets Manager por evento podem virar gargalo; o segredo pode ser
+reutilizado em memória pelo tempo permitido, sem ser registrado. Rotação exige
+`hash_version` e estratégia de transição.
+
+Multi-Region requer decidir se o identity store será regional ou replicado,
+como evitar tokens divergentes e onde PII pode ser processada. Global Tables não
+substitui análise de residência, consistência e conflito.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

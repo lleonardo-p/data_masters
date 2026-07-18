@@ -60,6 +60,16 @@ Ao mesmo tempo, manter infraestrutura como código e dados organizados no S3 per
 - Recuperação pode depender de reexecução de pipelines e reconstrução de recursos.
 - Sem replicação cross-region ativa no escopo inicial.
 
+## Escalabilidade e alternativas
+
+S3 Standard, SQS e DynamoDB já são Multi-AZ dentro da região; a decisão atual
+aceita falha regional. O primeiro passo de DR é comprovar reconstrução por IaC,
+restauração de metadados e reprocessamento a partir da Bronze.
+
+Com RTO/RPO formais, comparar backup/restore, pilot light, warm standby e
+active/active. Multi-Region exige CRR, catálogo, artefatos, KMS, API/roteamento,
+checkpoint e prevenção de execução dupla. O plano só é válido quando testado.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

@@ -54,6 +54,17 @@ Evitar catalogar a Staging por padrão reduz ruído no catálogo e reforça que 
 - Catálogo técnico não substitui catálogo de negócio.
 - Pode haver inconsistência se o layout no S3 e o catálogo não forem atualizados corretamente.
 
+## Escalabilidade e alternativas
+
+Crawlers recursivos em grandes lakes aumentam duração, custo e risco de
+inferência. Schemas críticos devem ser definidos por contrato; partições podem
+usar APIs ou partition projection. Crawler é descoberta controlada, não
+substituto de contrato.
+
+Lake Formation adiciona autorização fina. DataZone/DataHub passa a ser
+considerado quando ownership, glossário, linhagem e descoberta por múltiplas
+equipes forem requisitos.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

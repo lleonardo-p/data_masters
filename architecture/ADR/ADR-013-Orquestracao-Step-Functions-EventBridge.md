@@ -64,6 +64,18 @@ A combinação é adequada ao MVP por ser gerenciada, integrada à AWS e suficie
 - Exige modelagem adequada de estados e exceções.
 - Pode gerar custo por transição de estado em cenários de alta frequência.
 
+## Escalabilidade e alternativas
+
+Pipelines serão separados por produto e usarão parâmetros como `run_date`,
+`batch_id` e `is_backfill`. Concorrência de backfill deve ser limitada para não
+esgotar quotas do Glue ou pressionar S3 e APIs. Distributed Map é alternativa
+para fan-out controlado, com checkpoint e idempotência.
+
+MWAA/Airflow passa a ser avaliado quando dependências entre muitos domínios,
+calendários, sensores, SLA e operação por múltiplas equipes superarem state
+machines independentes. Transições de estado e histórico também possuem custo e
+quotas que devem ser monitorados.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

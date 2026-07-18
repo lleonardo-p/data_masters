@@ -75,6 +75,17 @@ A definição de versionamento permite evoluir os schemas sem interromper consum
 - Regras muito rígidas podem bloquear dados válidos em evolução.
 - Requer validação técnica nos pipelines.
 
+## Escalabilidade e alternativas
+
+Contratos devem ter owner, versão, compatibilidade e testes automatizados no CI.
+Com múltiplos produtores, Glue Schema Registry ou registry equivalente passa a
+ser considerado para validação e descoberta centralizada.
+
+Versionar todo evento sem política gera fragmentação. Compatibilidade backward,
+forward ou full deve ser definida por tópico/produto. Mudança incompatível usa
+nova versão e janela de migração; consumidor desconhecido não pode aceitar
+silenciosamente campos críticos.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

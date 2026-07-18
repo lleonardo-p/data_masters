@@ -68,6 +68,17 @@ A política de exclusão da Staging após 7 dias evita acúmulo de arquivos temp
 - Exige definição cuidadosa de políticas de retenção, expurgo e lifecycle.
 - Dados armazenados em S3 não oferecem, por padrão, controle transacional como um banco relacional.
 
+## Escalabilidade e alternativas
+
+S3 Standard escala sem provisionar capacidade e mantém redundância entre pelo
+menos três AZs da região. O risco operacional está no layout: objetos pequenos,
+partições mal escolhidas e listagens elevam custo e latência. Compactação,
+lifecycle e partições orientadas a consulta devem preceder a troca de storage.
+
+Cross-Region Replication é evolução para requisito formal de DR ou residência.
+Ela não reconstrói sozinha Glue Catalog, KMS, IAM, jobs ou orquestração. Iceberg
+é alternativa para transações e evolução de metadados, não substituto do S3.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

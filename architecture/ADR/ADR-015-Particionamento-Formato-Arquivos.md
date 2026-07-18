@@ -18,16 +18,17 @@ Como o projeto está em fase de MVP, o particionamento deve ser simples, previs�
 
 A arquitetura adotará:
 
-- **JSON ou formato original** na camada Bronze, quando necessário para preservar auditoria e rastreabilidade da fonte;
-- **Parquet** nas camadas Silver, Gold e DW;
-- **particionamento mensal** como padrão para tabelas analíticas e tratadas;
+- **formato de entrega** na Staging, como CSV anual no caso dengue;
+- **Parquet/Snappy** nas camadas Bronze, Silver, Gold e DW;
+- **particionamento mensal por data de notificação** nas tabelas de dengue,
+  combinado com ano de referência quando necessário à linhagem;
 - compactação periódica para evitar excesso de pequenos arquivos;
 - nomes de pastas padronizados por camada, domínio, fonte e período;
 - particionamento orientado pelos padrões de consulta, e não apenas pela estrutura original da fonte.
 
 O particionamento mensal será utilizado para reduzir a quantidade de partições e manter boa eficiência em consultas por período.
 
-O padrão sugerido para partições será:
+O padrão base para partições analíticas será:
 
 ```text
 year=YYYY/month=MM
@@ -36,13 +37,15 @@ year=YYYY/month=MM
 Exemplo:
 
 ```text
-s3://baip-data-lake/silver/health/dengue/year=2026/month=07/
-s3://baip-data-lake/gold/indicators/arbovirus_cases/year=2026/month=07/
+s3://baip-data-lake/silver/opendatasus/dengue/cases/source_reference_year=2026/notification_year=2026/notification_month=07/
+s3://baip-data-lake/gold/opendatasus/dengue/fact_dengue_cases/notification_year=2026/notification_month=07/
 ```
 
 Campos como domínio, fonte e camada poderão ser usados na organização dos prefixos do S3, mas não necessariamente como partições formais das tabelas.
 
-Não será adotado particionamento diário no MVP, pois o volume inicial não justifica esse nível de granularidade e poderia gerar excesso de partições e pequenos arquivos.
+Não será adotado particionamento diário no batch de dengue no MVP, pois o volume
+e os filtros atuais não justificam esse nível e poderiam gerar excesso de
+partições e pequenos arquivos.
 
 ## Justificativa
 
@@ -80,6 +83,17 @@ A compactação periódica é necessária para manter arquivos em tamanhos mais 
 - Pode ser necessário evoluir o particionamento se o volume crescer significativamente.
 - Exige rotina de compactação para evitar pequenos arquivos.
 - Particionamento incorreto ou desalinhado com os filtros das consultas pode reduzir os ganhos de performance.
+
+## Escalabilidade e alternativas
+
+O layout deve ser revisto por métricas de bytes escaneados, quantidade e tamanho
+de arquivos, planejamento e filtros reais. Athena sofre com muitos objetos
+pequenos; jobs de compactação e arquivos maiores devem preceder novas partições.
+
+Partition projection reduz manutenção quando o padrão é previsível. Iceberg
+passa a ser considerado para late data, evolução de schema, upserts e grande
+volume de metadados. Particionar por alta cardinalidade, como município, exige
+benchmark e normalmente não é a primeira escolha.
 
 ## Critérios de evolução
 

@@ -68,6 +68,17 @@ A adoção de lifecycle reduz custo, melhora governança e evita retenção inde
 - Regras incorretas de lifecycle podem excluir dados ainda necessários.
 - Pode exigir revisão caso dados reais ou sensíveis sejam utilizados.
 
+## Escalabilidade e alternativas
+
+Lifecycle deve ser definido por classe e acesso, não apenas por idade. Em alto
+volume, S3 Storage Lens/Inventory ajudam a acompanhar objetos, versões e small
+files. Expirar dados físicos sem remover metadados do catálogo cria partições
+vazias e overhead de planejamento.
+
+Em Multi-Region, replicação e lifecycle precisam ser compatíveis nos buckets de
+destino. Para PII, retenção e expurgo prevalecem sobre conveniência de replay;
+backups e réplicas também entram no escopo de exclusão.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

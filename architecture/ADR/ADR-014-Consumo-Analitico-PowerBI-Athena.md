@@ -55,6 +55,17 @@ Limitar o consumo à Gold/DW reduz risco de exposição de dados brutos, melhora
 - Power BI pode exigir estratégia de importação, cache ou atualização agendada.
 - Não é ideal para alta concorrência ou dashboards de baixa latência em grande escala.
 
+## Escalabilidade e alternativas
+
+Workgroups por consumidor limitam bytes, isolam resultados e permitem atribuir
+custo. O dashboard deve usar import/cache e atualização coerente com a cadência
+batch, evitando polling frequente do Athena. Views protegem o contrato, mas
+consultas precisam continuar filtrando partições.
+
+Redshift será avaliado para alta concorrência e latência previsível. A API NRT
+não deve consultar Athena a cada dois minutos; usa store de serving e mantém a
+Gold como visão consolidada.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:
