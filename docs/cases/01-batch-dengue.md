@@ -201,5 +201,4 @@ As contagens sanitizadas estão em
 - criar testes de schema e regras críticas;
 - adicionar validações estáticas ao CI;
 - testar a entrega do alerta SNS em um destino configurado;
-- ativar e publicar o dashboard QuickSight preparado para as views sem alterar
-  o pipeline batch.
+- conectar um dashboard às views sem alterar o pipeline batch.

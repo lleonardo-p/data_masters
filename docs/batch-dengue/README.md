@@ -160,16 +160,12 @@ vw_dengue_monthly_municipality
 vw_dengue_monthly_uf
 vw_dengue_monthly_age_group
 vw_dengue_monthly_classification
-vw_dengue_dashboard
 ```
 
 As views são assets SQL versionados e são implantadas fora da Step Functions
 por `scripts/deploy_athena_dengue_views.sh`. Elas devem ser executadas na criação
 do ambiente ou quando o SQL de uma view mudar; não precisam ser recriadas a cada
 batch.
-
-`vw_dengue_dashboard` possui um grão agregado próprio para o QuickSight.
-[runbook do dashboard](../operations/quicksight-dengue-dashboard.md).
 
 ## 10. Reconciliação
 
@@ -282,7 +278,7 @@ O backend analítico do batch é considerado completo quando:
 - [x] a Step Functions conclui Bronze, Silver e Gold;
 - [x] a reconciliação fecha as camadas e publica manifesto `SUCCEEDED`;
 - [x] o crawler atualiza as seis tabelas do Glue Catalog;
-- [x] as cinco views analíticas base estão implantadas no Athena;
+- [x] as cinco views estão implantadas no Athena;
 - [x] os cinco checks de aceitação retornam `PASS`;
 - [x] código, contratos, operação e evidência estão documentados.
 
