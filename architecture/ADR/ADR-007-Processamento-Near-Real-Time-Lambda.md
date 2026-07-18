@@ -61,6 +61,16 @@ Evitar escrita evento a evento no S3 reduz risco de pequenos arquivos e preserva
 - Não é ideal para processamento streaming complexo ou de alto volume.
 - Falhas parciais precisam ser tratadas corretamente para evitar reprocessamento desnecessário.
 
+## Escalabilidade e alternativas
+
+Reserved concurrency e maximum concurrency do event source mapping protegem o
+downstream. O SLO mede `event_time` até `available_at`, não só duração da função.
+O limite máximo de uma execução Lambda é 15 minutos.
+
+Fargate é alternativa para processamento longo, dependências pesadas ou workers
+persistentes. Glue Streaming ou Flink atende janelas, estado e agregações
+contínuas, com custo e operação maiores.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

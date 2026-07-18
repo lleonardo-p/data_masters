@@ -57,6 +57,19 @@ Não há, no escopo atual, requisito formal de Multi-AZ explícito, operação M
 - Ausência de desenho explícito Multi-AZ e Multi-Region no MVP.
 - Necessidade de revisão arquitetural caso a solução evolua para um ambiente produtivo crítico.
 
+## Escalabilidade e alternativas
+
+S3, SQS e DynamoDB são serviços regionais com resiliência nativa entre
+Availability Zones; o MVP não precisa duplicá-los manualmente por AZ.
+Componentes zonais futuros, como subnets, NAT Gateway e tasks Fargate, deverão
+ser distribuídos explicitamente. Multi-Region só será aprovado após definição
+de RTO, RPO, residência, consistência e orçamento, pois exige replicar dados,
+catálogo, chaves, APIs, observabilidade e procedimentos de failover.
+
+Multicloud permanece alternativa de risco estratégico, não de escala
+automática. Portabilidade deve ser preservada principalmente em dados Parquet,
+SQL, contratos e código Spark.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

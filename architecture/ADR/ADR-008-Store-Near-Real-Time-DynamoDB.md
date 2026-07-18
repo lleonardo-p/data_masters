@@ -63,6 +63,17 @@ O uso de `event_id` e operações condicionais, como `condition_expression`, per
 - Necessidade de reconciliação com o batch oficial.
 - Pode gerar custo se houver alto volume de escrita ou leitura sem modelagem adequada.
 
+## Escalabilidade e alternativas
+
+On-demand e adaptive capacity absorvem variação, mas não corrigem uma chave que
+concentra todo o tráfego. O modelo deve distribuir writes por período,
+localidade ou shard. Throttling, consumed capacity, latência e tamanho de item
+validam a escala.
+
+Global Tables é alternativa para serving Multi-Region após definir roteamento e
+consistência. OpenSearch atende exploração; Redis atende cache. Nenhum substitui
+automaticamente o store de idempotência.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

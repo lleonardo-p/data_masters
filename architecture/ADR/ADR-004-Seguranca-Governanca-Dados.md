@@ -63,6 +63,16 @@ A adoção de IAM com menor privilégio, criptografia, logs sem PII e segregaç�
 - Pode aumentar complexidade para desenvolvimento e testes.
 - Erros de configuração podem bloquear pipelines ou consultas legítimas.
 
+## Escalabilidade e alternativas
+
+IAM por recurso/prefixo atende uma equipe no MVP. Com múltiplos times, dados
+reais ou compartilhamento, Lake Formation deve centralizar permissões de
+catálogo e filtros por linha/coluna, e AWS Organizations deve separar ambientes.
+
+CloudTrail data events em todos os objetos pode gerar custo e ruído; selecionar
+buckets sensíveis e retenção. KMS também possui quotas e custo por request; S3
+Bucket Keys, cache seguro e chaves por sensibilidade devem ser avaliados.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

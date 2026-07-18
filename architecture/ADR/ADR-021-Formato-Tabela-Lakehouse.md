@@ -60,6 +60,17 @@ A decisão mantém a arquitetura simples no MVP, mas preserva caminho claro de e
 - Evolução de schema precisa ser controlada com cuidado.
 - Late arriving data pode exigir estratégias específicas de reprocessamento.
 
+## Escalabilidade e alternativas
+
+Antes de Iceberg, medir frequência de overwrite, late data, schema changes,
+tempo de crawler e custo de compactação. Iceberg adiciona snapshots e metadados
+que também precisam de manutenção e expiração.
+
+Athena e Glue podem operar Iceberg no caminho serverless. EMR é alternativa
+quando houver Spark em maior escala ou controle de runtime; o motor e o formato
+de tabela são decisões independentes. A migração deve incluir benchmark,
+compatibilidade do catálogo e estratégia de rollback.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

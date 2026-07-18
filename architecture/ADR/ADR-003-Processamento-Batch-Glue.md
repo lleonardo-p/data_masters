@@ -63,6 +63,19 @@ Separar extrações simples do processamento distribuído evita uso excessivo de
 - Jobs Spark podem demandar tuning de memória, paralelismo e shuffle.
 - Não é a melhor opção para eventos de baixa latência ou processamento evento a evento.
 
+## Escalabilidade e alternativas
+
+A primeira ação será habilitar Glue Auto Scaling com máximo controlado e medir
+`DPUSeconds`, duração, skew, shuffle, spill e tamanho dos arquivos. Jobs e
+backfills devem receber partições como parâmetro para evitar reprocessamento
+integral.
+
+EMR será avaliado por benchmark para workloads longos/contínuos, runtime ou
+bibliotecas específicas, cluster persistente, tuning indisponível no Glue ou
+economia comprovada. EMR amplia controle e responsabilidade operacional. Para
+APIs, Lambda atende extrações curtas; Fargate atende duração superior a 15
+minutos, dependências pesadas e fan-out limitado pelo fornecedor.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

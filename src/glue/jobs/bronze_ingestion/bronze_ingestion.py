@@ -185,6 +185,7 @@ args = getResolvedOptions(
     sys.argv,
     [
         "JOB_NAME",
+        "BATCH_ID",
         "ENVIRONMENT",
         "STAGING_INPUT_PATH",
         "BRONZE_OUTPUT_PATH",
@@ -193,6 +194,7 @@ args = getResolvedOptions(
 )
 
 job_name = args["JOB_NAME"]
+batch_id = args["BATCH_ID"]
 environment = args["ENVIRONMENT"]
 staging_input_path = args["STAGING_INPUT_PATH"]
 bronze_output_path = args["BRONZE_OUTPUT_PATH"]
@@ -215,6 +217,7 @@ logger.info(
     {
         "event": "bronze_ingestion_started",
         "job_name": job_name,
+        "batch_id": batch_id,
         "environment": environment,
         "staging_input_path": staging_input_path,
         "bronze_output_path": bronze_output_path,
@@ -306,7 +309,8 @@ df = df.withColumn(
 )
 
 df = (
-    df.withColumn("_source_system", lit("opendatasus_sinan"))
+    df.withColumn("_batch_id", lit(batch_id))
+    .withColumn("_source_system", lit("opendatasus_sinan"))
     .withColumn("_source_format", lit("csv"))
     .withColumn("_bronze_loaded_at", current_timestamp())
     .withColumn("_environment", lit(environment))
@@ -346,6 +350,7 @@ try:
         {
             "event": "bronze_ingestion_statistics",
             "job_name": job_name,
+            "batch_id": batch_id,
             **ingestion_stats,
         }
     )
@@ -373,6 +378,7 @@ try:
         {
             "event": "bronze_ingestion_finished",
             "job_name": job_name,
+            "batch_id": batch_id,
             **ingestion_stats,
             "bronze_output_path": bronze_output_path,
             "finished_at": datetime.now(timezone.utc).isoformat(),

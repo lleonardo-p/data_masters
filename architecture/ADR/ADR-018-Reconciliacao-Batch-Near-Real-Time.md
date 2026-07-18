@@ -1,86 +1,94 @@
-# ADR-018: Reconciliação entre Batch e Near Real-Time
+# ADR-018: Separação e Reconciliação entre Batch e Near Real-Time
 
 - **Status:** Aceito
-- **Data:** 2026-07-05
+- **Data:** 2026-07-18
 - **Decisor:** Leonardo Lucas Pereira
 
 ---
 
 ## Contexto
 
-O BAIP possui dois fluxos de dados complementares:
+O BAIP possui um batch baseado em notificações oficiais do SINAN/OpenDataSUS e
+planeja um NRT baseado em eventos sintéticos de triagem hospitalar.
 
-- fluxo batch, responsável pela consolidação oficial dos dados analíticos;
-- fluxo near real-time, responsável por atualizar indicadores recentes com menor latência.
-
-Sem uma regra clara de reconciliação, o mesmo evento pode ser contado duas vezes ou indicadores temporários podem divergir da visão oficial.
+Esses eventos não possuem o mesmo grão nem representam necessariamente a mesma
+população. Somá-los criaria uma falsa consolidação: triagem ou suspeita
+hospitalar não equivale a notificação oficial confirmada.
 
 ## Decisão
 
-A arquitetura adotará uma estratégia de reconciliação entre batch e near real-time.
+O batch e o NRT serão produtos separados:
 
-O fluxo near real-time será tratado como visão operacional recente. O fluxo batch será tratado como fonte oficial consolidada para indicadores históricos e analíticos.
+- **Batch dengue:** fonte oficial consolidada para análise histórica no
+  `fact_dengue_cases`.
+- **NRT hospitalar:** visão operacional sintética de eventos recentes servida
+  por API/DynamoDB.
 
-A reconciliação deverá usar campos como:
+O dashboard deve rotular origem, atualização e caráter oficial/provisório de
+cada métrica. Não será criado `official_total + nrt_delta` entre fontes sem
+correspondência semântica comprovada.
 
-- `event_id`;
-- `event_time`;
-- `processing_time`;
-- `source_system`;
-- `schema_version`;
-- janela de referência;
-- status de processamento.
+A reconciliação atual ocorre dentro de cada fluxo:
 
-Após a consolidação batch oficial de uma janela, os indicadores near real-time da mesma janela deverão ser substituídos, reconciliados ou marcados como não oficiais.
+- batch: Staging → Bronze → Silver/quarentena → Gold;
+- NRT: recebidos → válidos/invalidados → processados/idempotentes → indicador.
 
-O batch terá precedência sobre a visão near real-time quando houver divergência entre os dados consolidados e os indicadores temporários.
+Se futuramente eventos NRT forem formalmente incorporados ao sistema oficial,
+um novo contrato deverá definir chave de correlação, estados, fonte de verdade,
+janela, late events e precedência antes de combinar métricas.
 
 ## Justificativa
 
-O fluxo near real-time entrega rapidez, mas pode conter eventos atrasados, duplicados, inválidos ou ainda não reconciliados.
-
-O batch permite processar a janela completa, aplicar validações mais robustas, deduplicar, enriquecer e consolidar dados com maior confiabilidade.
-
-Definir precedência do batch evita dupla contagem e deixa claro para consumidores que a visão NRT é operacional e provisória.
+Separar os produtos evita dupla contagem e impede que uma métrica operacional
+seja apresentada como estatística epidemiológica oficial. Também permite que
+cada fonte mantenha qualidade, latência e finalidade apropriadas.
 
 ## Alternativas consideradas
 
-- **Usar apenas batch:** simplifica a arquitetura, mas não atende à necessidade de indicadores recentes.
-- **Usar apenas near real-time:** reduz latência, mas aumenta risco de inconsistência e dificulta auditoria histórica.
-- **Somar batch e near real-time sem reconciliação:** simples, mas pode gerar dupla contagem.
-- **Manter indicadores separados sem regra de precedência:** reduz acoplamento, mas cria ambiguidade para consumidores.
+- **Somar NRT ao batch:** rejeitado porque os grãos e processos de negócio são
+  distintos.
+- **Substituir o batch pelo NRT:** rejeitado porque o simulador não é fonte
+  oficial.
+- **Ocultar a divergência no dashboard:** rejeitado por comprometer semântica e
+  governança.
+- **Manter produtos separados e rotulados:** escolhido para o MVP.
 
 ## Consequências
 
 ### Positivas
 
-- Redução de risco de dupla contagem.
-- Separação clara entre visão operacional e visão oficial.
-- Maior confiabilidade dos indicadores consolidados.
-- Suporte a eventos atrasados e reprocessamento.
-- Melhor rastreabilidade por `event_id` e janelas de referência.
+- semântica clara;
+- menor risco de dupla contagem;
+- preserva a fonte oficial;
+- SLO NRT pode evoluir sem alterar o batch;
+- consumidores entendem atualização e finalidade.
 
 ### Negativas / Trade-offs
 
-- Aumenta complexidade de modelagem e processamento.
-- Exige controle de estado entre NRT e batch.
-- Pode haver divergência temporária entre dashboard recente e dados consolidados.
-- Requer comunicação clara sobre o significado dos indicadores provisórios.
+- o dashboard possui métricas separadas;
+- não existe um “total em tempo real” oficial;
+- correlação futura exigirá contrato e governança adicionais.
+
+## Escalabilidade e alternativas
+
+Reconciliações devem operar por `batch_id`, janela e partição. No NRT,
+`event_id` e escrita condicional evitam efeito duplicado. Se surgir uma fonte
+comum entre batch e stream, watermarks e tabela transacional podem controlar
+late data e correção, mas isso altera a fonte de verdade e exige novo ADR.
 
 ## Critérios de evolução
 
-Esta decisão deve ser revisada se:
+Revisar se:
 
-- a latência do batch precisar ser reduzida significativamente;
-- a visão near real-time passar a ser considerada oficial;
-- houver necessidade de processamento streaming com garantia mais forte de consistência;
-- o volume de eventos atrasados crescer;
-- a lógica de reconciliação se tornar complexa demais para o modelo atual.
+- hospitais enviarem eventos reais ao processo oficial;
+- existir identificador de correlação autorizado;
+- a visão NRT se tornar oficial;
+- uma regulamentação definir consolidação e precedência;
+- for adotado streaming stateful com correção histórica.
 
 ## Referências
 
-- Lambda Architecture
 - Idempotent Event Processing
 - Event Time vs Processing Time
-- Amazon DynamoDB
-- Amazon S3
+- [Lambda com SQS](https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html)
+- [DynamoDB conditional operations](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html)

@@ -63,6 +63,16 @@ CloudWatch é a escolha natural para o MVP por ser integrado aos serviços AWS u
 - Logs e métricas também geram custo.
 - Necessita manutenção conforme novos pipelines forem adicionados.
 
+## Escalabilidade e alternativas
+
+Métricas devem ter dimensões controladas; usar `event_id` como dimensão gera
+alta cardinalidade e custo. Logs estruturados precisam de retenção por ambiente
+e sampling quando volume crescer, sem perder erros e auditoria.
+
+Com mais domínios, SLOs, painéis e alarmes devem ser definidos por produto de
+dados. OpenTelemetry e plataformas externas serão avaliados quando correlação
+entre contas/regiões e volume operacional superarem o CloudWatch do MVP.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

@@ -61,6 +61,17 @@ A combinação de SQS, Lambda, DLQ e DynamoDB permite construir um fluxo resilie
 - Não é a melhor opção para streaming analítico de alto volume.
 - Pode exigir ajuste fino de visibility timeout e tamanho de lote.
 
+## Escalabilidade e alternativas
+
+A escala acompanha idade da mensagem, profundidade, mensagens em voo, erro e
+DLQ. Aumentar consumidores sem limitar concorrência pode pressionar DynamoDB,
+KMS e APIs. Visibility timeout, batch size, maximum concurrency e resposta
+parcial devem ser testados juntos.
+
+Kinesis será avaliado para retenção/replay, ordenação por chave e múltiplos
+consumidores. MSK entra quando compatibilidade Kafka for requisito. Nenhuma
+alternativa elimina idempotência e backpressure.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

@@ -87,6 +87,16 @@ A quarentena aumenta rastreabilidade e permite correção sem contaminar as cama
 - Regras muito rígidas podem bloquear dados úteis.
 - Regras muito flexíveis podem permitir propagação de problemas.
 
+## Escalabilidade e alternativas
+
+Regras por registro devem ser combinadas com controles agregados: volumetria,
+nulos, percentual de match, freshness e distribuição. Quarentena precisa de
+lifecycle, métricas por código e procedimento de reprocessamento.
+
+Glue Data Quality, Deequ ou Great Expectations serão avaliados quando volume e
+reutilização de regras superarem a manutenção em código. Nem toda fonte precisa
+da mesma implementação; severidade depende do impacto no consumidor.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:

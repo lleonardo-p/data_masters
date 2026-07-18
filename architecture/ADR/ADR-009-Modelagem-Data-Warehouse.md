@@ -18,13 +18,19 @@ A camada **Gold/DW** será modelada com abordagem dimensional, utilizando fatos,
 
 As tabelas deverão ter grão explícito, nomes padronizados e campos preparados para consumo analítico.
 
-Exemplos de grão:
+No produto de dengue implementado, `fact_dengue_cases` possui grão de **uma
+linha por notificação Silver válida ou com warning**. Medidas 0/1, como
+`notification_count`, `confirmed_case_count` e `hospitalized_case_count`, são
+aditivas e permitem que Athena ou BI agreguem por data, localidade, demografia e
+atributos clínicos sem perder o detalhe.
 
-- casos por município, doença e período de referência;
-- indicadores climáticos por município e mês;
-- eventos ambientais por localidade e período;
-- disponibilidade de infraestrutura de saúde por município e período;
-- eventos hospitalares simulados por região, tipo de evento e janela temporal.
+As dimensões atuais são `dim_date`, `dim_location`, `dim_disease`,
+`dim_demographic` e `dim_clinical`. Data e localização exercem múltiplos papéis
+na fato.
+
+Novos produtos poderão ter outro grão, desde que ele seja declarado e testado.
+O dataset climático diário, por exemplo, termina na Silver enquanto não houver
+um consumidor e uma métrica Gold definidos.
 
 O DW não deverá conter CPF, identificadores sensíveis ou dados pessoais diretos. Quando necessário, poderá usar identificadores técnicos pseudonimizados ou agregações sem identificação individual.
 
@@ -60,6 +66,16 @@ A ausência de PII no DW reduz risco de exposição em ferramentas de consumo, c
 - Pode gerar duplicidade controlada de dados entre Silver e Gold/DW.
 - Requer manutenção de fatos, dimensões e regras de negócio.
 - Mudanças em indicadores podem exigir reprocessamento de tabelas Gold/DW.
+
+## Escalabilidade e alternativas
+
+No Athena, escala depende de Parquet, pruning, compactação, views e controle de
+bytes por Workgroup. Agregados adicionais só serão criados para consultas
+comprovadamente caras ou frequentes.
+
+Redshift será avaliado quando concorrência, latência previsível e workload de BI
+justificarem warehouse dedicado. Iceberg resolve necessidades de tabela como
+upsert e histórico; não substitui modelagem dimensional nem serving concorrente.
 
 ## Critérios de evolução
 

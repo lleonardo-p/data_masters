@@ -65,6 +65,16 @@ Para produção, contas separadas oferecem melhor isolamento, controle de acesso
 - IAM precisa ser cuidadosamente definido para evitar permissões amplas.
 - Não substitui uma estratégia multi-account produtiva.
 
+## Escalabilidade e alternativas
+
+Mais equipes e dados reais exigem contas separadas por ambiente e, conforme
+risco, contas de segurança/log archive. AWS Organizations e SCPs reduzem blast
+radius; roles cross-account substituem credenciais persistentes.
+
+Compartilhamento de dados pode usar Lake Formation cross-account em vez de
+copiar todos os datasets. Custos, quotas e observabilidade devem receber tags e
+budgets por conta/produto.
+
 ## Critérios de evolução
 
 Esta decisão deve ser revisada se:
