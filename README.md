@@ -224,11 +224,14 @@ src/glue/jobs/
 
 ## Evidência e próximos incrementos
 
-O fluxo batch de dengue possui código executado em AWS até as views Athena. Os
-dois outros fluxos estão documentados para implementação incremental. A ordem
-recomendada para atingir uma demonstração Expert é:
+O fluxo batch de dengue possui código executado em AWS até as views Athena. A
+orquestração, reconciliação e aceitação automatizada já estão no repositório,
+mas ainda precisam ser aplicadas e evidenciadas na AWS. Os dois outros fluxos
+estão documentados para implementação incremental. A ordem recomendada para
+atingir uma demonstração Expert é:
 
-1. automatizar o batch com Step Functions e publicar reconciliação por etapa;
+1. aplicar e exercitar o batch orquestrado, incluindo falha controlada e
+   manifesto de reconciliação;
 2. implementar um fluxo NRT vertical com idempotência, DLQ, métricas e API;
 3. implementar a ingestão diária de Open-Meteo até a Silver;
 4. adicionar testes de dados, código e Terraform em CI;
