@@ -72,23 +72,3 @@ output "silver_arbovirus_cases_glue_job_arn" {
   description = "Silver arbovirus cases AWS Glue job ARN."
   value       = module.silver_arbovirus_cases_glue_job.job_arn
 }
-
-output "gold_arbovirus_output_path" {
-  description = "S3 root path for the arbovirus dimensional model."
-  value       = local.gold_arbovirus_output_path
-}
-
-output "gold_arbovirus_glue_job_name" {
-  description = "Gold arbovirus star schema AWS Glue job name."
-  value       = module.gold_arbovirus_glue_job.job_name
-}
-
-output "gold_arbovirus_glue_job_arn" {
-  description = "Gold arbovirus star schema AWS Glue job ARN."
-  value       = module.gold_arbovirus_glue_job.job_arn
-}
-
-output "gold_arbovirus_crawler_name" {
-  description = "Glue crawler that registers Gold arbovirus tables."
-  value       = aws_glue_crawler.gold_arbovirus.name
-}
