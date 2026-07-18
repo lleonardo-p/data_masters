@@ -102,3 +102,28 @@ output "gold_dengue_crawler_name" {
   description = "Glue crawler that registers Gold dengue tables."
   value       = aws_glue_crawler.gold_dengue.name
 }
+
+output "dengue_batch_reconciliation_glue_job_name" {
+  description = "Glue job that reconciles Bronze, Silver, quarantine and Gold."
+  value       = module.dengue_batch_reconciliation_glue_job.job_name
+}
+
+output "dengue_batch_reconciliation_output_path" {
+  description = "S3 path containing dengue batch reconciliation manifests."
+  value       = local.dengue_batch_reconciliation_output_path
+}
+
+output "dengue_batch_state_machine_name" {
+  description = "Step Functions state machine for the complete dengue batch."
+  value       = aws_sfn_state_machine.dengue_batch.name
+}
+
+output "dengue_batch_state_machine_arn" {
+  description = "ARN of the complete dengue batch state machine."
+  value       = aws_sfn_state_machine.dengue_batch.arn
+}
+
+output "dengue_batch_alerts_topic_arn" {
+  description = "SNS topic that receives dengue batch failure alarms."
+  value       = aws_sns_topic.dengue_batch_alerts.arn
+}

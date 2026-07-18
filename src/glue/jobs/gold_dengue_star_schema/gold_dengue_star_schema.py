@@ -54,6 +54,7 @@ LOCATION_ATTRIBUTES = [
 ]
 
 REQUIRED_SILVER_COLUMNS = {
+    "source_batch_id",
     "record_id",
     "record_hash",
     "environment",
@@ -397,6 +398,7 @@ def build_fact(df: DataFrame) -> DataFrame:
     return df.select(
         col("record_id").alias("case_id"),
         "record_hash",
+        "source_batch_id",
         "environment",
         hash_key("disease_code", "disease_name").alias("disease_key"),
         date_key("notification_date").alias("notification_date_key"),
@@ -449,6 +451,7 @@ args = getResolvedOptions(
     sys.argv,
     [
         "JOB_NAME",
+        "BATCH_ID",
         "ENVIRONMENT",
         "SILVER_INPUT_PATH",
         "GOLD_OUTPUT_PATH",
@@ -457,6 +460,7 @@ args = getResolvedOptions(
 )
 
 job_name = args["JOB_NAME"]
+batch_id = args["BATCH_ID"]
 environment = args["ENVIRONMENT"]
 silver_input_path = args["SILVER_INPUT_PATH"]
 gold_output_path = args["GOLD_OUTPUT_PATH"].rstrip("/")
@@ -479,6 +483,7 @@ logger.info(
     {
         "event": "gold_dengue_star_schema_started",
         "job_name": job_name,
+        "batch_id": batch_id,
         "environment": environment,
         "silver_input_path": silver_input_path,
         "gold_output_path": gold_output_path,
@@ -493,6 +498,17 @@ missing_columns = sorted(REQUIRED_SILVER_COLUMNS.difference(df_silver.columns))
 if missing_columns:
     raise ValueError(
         "Missing required Silver columns: " + ", ".join(missing_columns)
+    )
+
+batch_id_mismatch_count = df_silver.filter(
+    col("source_batch_id").isNull()
+    | (col("source_batch_id") != lit(batch_id))
+).count()
+
+if batch_id_mismatch_count > 0:
+    raise ValueError(
+        "Silver batch identity mismatch: "
+        f"{batch_id_mismatch_count} records do not belong to {batch_id}."
     )
 
 # A Gold aceita registros Silver válidos e com warning. Registros em quarentena
@@ -547,6 +563,7 @@ try:
         {
             "event": "gold_dengue_star_schema_finished",
             "job_name": job_name,
+            "batch_id": batch_id,
             "environment": environment,
             "record_count": record_count,
             "duplicate_case_count": duplicate_case_count,

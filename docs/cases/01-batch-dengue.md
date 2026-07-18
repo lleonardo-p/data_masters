@@ -137,9 +137,9 @@ consumo por município, UF, faixa etária e classificação.
 O Athena Workgroup limita cada consulta a 1 GiB escaneado no ambiente dev e
 mantém os resultados em bucket separado.
 
-## Controles de reconciliação esperados
+## Controles de reconciliação
 
-Para uma defesa Expert, cada execução deve registrar:
+O job de reconciliação implementado registra por execução:
 
 ```text
 staging_rows
@@ -150,8 +150,6 @@ quarantine_rows
 gold_rows
 duplicate_rows
 batch_id
-source_checksum
-job_run_ids
 ```
 
 Relação principal esperada:
@@ -161,8 +159,10 @@ bronze_rows = silver_valid_rows + silver_warning_rows + quarantine_rows
 gold_rows = silver_valid_rows + silver_warning_rows
 ```
 
-Diferenças precisam ser explicadas por regra e registradas, não apenas
-observadas manualmente.
+Também verifica lote, grão, chaves dimensionais, integridade referencial e
+medidas binárias. Diferenças são materializadas no manifesto e interrompem o
+fluxo antes do crawler. Checksum da fonte e IDs individuais dos jobs são
+extensões recomendadas para o pacote de evidências.
 
 ## Escalabilidade
 
@@ -188,12 +188,13 @@ configuração.
 - crawler concluído;
 - seis tabelas e cinco views no Athena;
 - consulta mensal validada.
+- Step Functions, reconciliação, alarme e queries de aceitação implementados no
+  repositório, ainda sem evidência de execução na AWS.
 
 ## Pendências
 
-- automatizar a cadeia e o crawler;
-- materializar reconciliação por `batch_id`;
+- aplicar e exercitar a cadeia automatizada e a reconciliação;
+- preservar manifesto, resultado dos checks e teste controlado do alarme;
 - criar testes de schema e regras críticas;
 - configurar alarmes e runbook;
 - construir e publicar o dashboard.
-

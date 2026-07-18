@@ -193,6 +193,7 @@ args = getResolvedOptions(
     sys.argv,
     [
         "JOB_NAME",
+        "BATCH_ID",
         "ENVIRONMENT",
         "BRONZE_INPUT_PATH",
         "IBGE_REFERENCE_PATH",
@@ -203,6 +204,7 @@ args = getResolvedOptions(
 )
 
 job_name = args["JOB_NAME"]
+batch_id = args["BATCH_ID"]
 environment = args["ENVIRONMENT"]
 bronze_input_path = args["BRONZE_INPUT_PATH"]
 ibge_reference_path = args["IBGE_REFERENCE_PATH"]
@@ -227,6 +229,7 @@ logger.info(
     {
         "event": "silver_dengue_cases_started",
         "job_name": job_name,
+        "batch_id": batch_id,
         "environment": environment,
         "bronze_input_path": bronze_input_path,
         "ibge_reference_path": ibge_reference_path,
@@ -240,6 +243,7 @@ logger.info(
 df_bronze = spark.read.parquet(bronze_input_path)
 
 required_bronze_columns = {
+    "_batch_id",
     "_bronze_loaded_at",
     "_source_file",
     "_source_system",
@@ -336,6 +340,7 @@ df_ibge = (
 # Seleção e tipagem do contrato Silver. Colunas não usadas pela Gold continuam
 # preservadas na Bronze e podem ser adicionadas em versões futuras do contrato.
 df_cases = df_bronze.select(
+    source_string(df_bronze, "_batch_id").alias("source_batch_id"),
     source_string(df_bronze, "_source_system").alias("source_system"),
     source_string(df_bronze, "reference_year")
     .cast("int")
@@ -639,10 +644,16 @@ df_cases = df_cases.withColumn(
             ),
             when(
                 col("source_system").isNull()
+                | col("source_batch_id").isNull()
                 | col("source_reference_year").isNull()
                 | col("source_file").isNull()
                 | col("record_hash").isNull(),
                 lit("MISSING_SOURCE_IDENTITY"),
+            ),
+            when(
+                col("source_batch_id").isNotNull()
+                & (col("source_batch_id") != lit(batch_id)),
+                lit("BATCH_ID_MISMATCH"),
             ),
             when(
                 col("symptoms_start_date").isNotNull()
@@ -840,6 +851,7 @@ try:
         {
             "event": "silver_dengue_cases_statistics",
             "job_name": job_name,
+            "batch_id": batch_id,
             **processing_stats,
         }
     )

@@ -193,6 +193,7 @@ module "bronze_ingestion_glue_job" {
   max_retries       = 0
 
   default_arguments = {
+    "--BATCH_ID"           = "manual"
     "--ENVIRONMENT"        = var.environment
     "--STAGING_INPUT_PATH" = local.bronze_dengue_staging_input_path
     "--BRONZE_OUTPUT_PATH" = local.bronze_dengue_output_path
@@ -231,6 +232,7 @@ module "silver_dengue_cases_glue_job" {
   max_retries       = 0
 
   default_arguments = {
+    "--BATCH_ID"               = "manual"
     "--ENVIRONMENT"            = var.environment
     "--BRONZE_INPUT_PATH"      = local.bronze_dengue_output_path
     "--IBGE_REFERENCE_PATH"    = local.ibge_municipalities_reference_path
@@ -271,6 +273,7 @@ module "gold_dengue_glue_job" {
   max_retries       = 0
 
   default_arguments = {
+    "--BATCH_ID"          = "manual"
     "--ENVIRONMENT"       = var.environment
     "--SILVER_INPUT_PATH" = local.silver_dengue_cases_output_path
     "--GOLD_OUTPUT_PATH"  = local.gold_dengue_output_path
