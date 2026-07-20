@@ -33,12 +33,41 @@ Toda a solução foi projetada para execução na AWS. As decisões arquiteturai
 
 - [Decisões arquiteturais — ADRs](architecture/ADR/)
 
-A plataforma é composta por dois fluxos:
+### 2.1 Estrutura da solução
 
-| Fluxo | Dados | Processamento | Resultado |
-|---|---|---|---|
-| Batch | Arquivos públicos de notificações de dengue | Processamento em lote seguindo a arquitetura Medallion | Views consolidadas com indicadores por período, estado, município, faixa etária e classificação |
-| NRT — Near Real Time | Eventos sintéticos de triagem hospitalar, incluindo dados pessoais igualmente sintéticos | Publicação em mensageria, tratamento de PII e processamento orientado a eventos | Indicadores operacionais atualizados e disponibilizados por uma API |
+A plataforma é composta por dois fluxos de processamento.
+
+#### Fluxo Batch
+
+O fluxo Batch processa arquivos públicos de notificações de dengue. Os dados percorrem um pipeline distribuído em lote, organizado segundo a arquitetura Medallion, passando pelas etapas de recebimento, preservação, tratamento, qualidade e modelagem analítica.
+
+O resultado é disponibilizado por meio de views consolidadas com indicadores por período, estado, município, faixa etária, classificação e outras perspectivas analíticas.
+
+- [Documentação do fluxo Batch](docs/batch/README.md)
+
+> **Diagrama da arquitetura Batch:** em desenvolvimento.
+
+<!--
+![Arquitetura do fluxo Batch](architecture/c4/batch/batch-flow.png)
+-->
+
+---
+
+#### Fluxo NRT — Near Real Time
+
+O fluxo NRT simulará eventos de triagem hospitalar relacionados a casos suspeitos de dengue. Os eventos incluirão dados pessoais exclusivamente sintéticos e serão publicados em um serviço de mensageria.
+
+Durante o processamento, serão aplicados controles de validação, idempotência e proteção de PII. O resultado será composto por indicadores operacionais atualizados em Near Real Time e disponibilizados para consumo por meio de uma API.
+
+- [Documentação do fluxo NRT — em desenvolvimento](docs/nrt/README.md)
+
+> **Diagrama da arquitetura NRT:** em desenvolvimento.
+
+<!--
+![Arquitetura do fluxo NRT](architecture/c4/nrt/nrt-flow.png)
+-->
+
+---
 
 O fluxo Batch utiliza exclusivamente dados públicos. O fluxo NRT utilizará somente dados sintéticos e não processará informações reais de pacientes.
 
