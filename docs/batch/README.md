@@ -6,9 +6,7 @@ julho de 2026.
 
 ## Diagrama do processo Batch
 
-<!--
 ![Arquitetura completa do fluxo Batch](../../architecture/c4/batch/fluxo_batch.drawio.svg)
--->
 
 ## 1. Fonte de dados externa
 
