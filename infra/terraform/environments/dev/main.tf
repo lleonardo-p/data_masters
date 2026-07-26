@@ -195,7 +195,6 @@ module "bronze_ingestion_glue_job" {
   default_arguments = {
     "--BATCH_ID"           = "manual"
     "--ENVIRONMENT"        = var.environment
-    "--STAGING_INPUT_PATH" = local.bronze_dengue_staging_input_path
     "--BRONZE_OUTPUT_PATH" = local.bronze_dengue_output_path
     "--WRITE_MODE"         = "overwrite"
   }

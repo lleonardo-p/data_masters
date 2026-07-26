@@ -161,7 +161,8 @@ resource "aws_sfn_state_machine" "dengue_batch" {
         Parameters = {
           JobName = module.bronze_ingestion_glue_job.job_name
           Arguments = {
-            "--BATCH_ID.$" = "$$.Execution.Name"
+            "--BATCH_ID.$"           = "$$.Execution.Name"
+            "--STAGING_INPUT_PATH.$" = "$.staging_input_path"
           }
         }
         ResultPath = "$.bronze"
