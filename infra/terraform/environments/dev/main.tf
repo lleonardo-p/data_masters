@@ -8,9 +8,9 @@ locals {
   athena_results_bucket_name = "${var.project_name}-${var.environment}-athena-results-${local.account_id}"
   logs_bucket_name           = "${var.project_name}-${var.environment}-logs-${local.account_id}"
 
-  bronze_database_name = "${var.project_name}_${var.environment}_bronze"
-  silver_database_name = "${var.project_name}_${var.environment}_silver"
-  gold_database_name   = "${var.project_name}_${var.environment}_gold"
+  bronze_database_name    = "${var.project_name}_${var.environment}_bronze"
+  silver_database_name    = "${var.project_name}_${var.environment}_silver"
+  gold_database_name      = "${var.project_name}_${var.environment}_gold"
 
   glue_execution_role_name = "${var.project_name}-${var.environment}-glue-execution-role"
   glue_s3_policy_name      = "${var.project_name}-${var.environment}-glue-s3-access-policy"
@@ -35,8 +35,8 @@ locals {
 
   ibge_municipalities_reference_path = "s3://${module.data_lake_bucket.bucket_name}/reference/ibge/municipalities/municipios_ufs_ibge.json"
 
-  silver_dengue_cases_output_path = "s3://${module.data_lake_bucket.bucket_name}/silver/opendatasus/dengue/cases/"
-  silver_dengue_quarantine_path   = "s3://${module.data_lake_bucket.bucket_name}/quarantine/opendatasus/dengue/silver_cases/"
+  silver_dengue_cases_output_path = "s3://${module.data_lake_bucket.bucket_name}/silver/opendatasus/dengue/"
+  silver_dengue_quarantine_path   = "s3://${module.data_lake_bucket.bucket_name}/quarantine/opendatasus/dengue/"
   gold_dengue_output_path         = "s3://${module.data_lake_bucket.bucket_name}/gold/opendatasus/dengue/"
 }
 
