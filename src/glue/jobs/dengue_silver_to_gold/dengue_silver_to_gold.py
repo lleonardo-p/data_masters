@@ -551,7 +551,7 @@ spark.conf.set("spark.sql.shuffle.partitions", "48")
 
 logger.info(
     {
-        "event": "gold_dengue_star_schema_started",
+        "event": "dengue_silver_to_gold_started",
         "job_name": job_name,
         "batch_id": batch_id,
         "environment": environment,
@@ -653,7 +653,7 @@ try:
 
     logger.info(
         {
-            "event": "gold_dengue_star_schema_finished",
+            "event": "dengue_silver_to_gold_finished",
             "job_name": job_name,
             "batch_id": batch_id,
             "environment": environment,

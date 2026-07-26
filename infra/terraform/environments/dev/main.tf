@@ -8,27 +8,27 @@ locals {
   athena_results_bucket_name = "${var.project_name}-${var.environment}-athena-results-${local.account_id}"
   logs_bucket_name           = "${var.project_name}-${var.environment}-logs-${local.account_id}"
 
-  bronze_database_name    = "${var.project_name}_${var.environment}_bronze"
-  silver_database_name    = "${var.project_name}_${var.environment}_silver"
-  gold_database_name      = "${var.project_name}_${var.environment}_gold"
+  bronze_database_name = "${var.project_name}_${var.environment}_bronze"
+  silver_database_name = "${var.project_name}_${var.environment}_silver"
+  gold_database_name   = "${var.project_name}_${var.environment}_gold"
 
   glue_execution_role_name = "${var.project_name}-${var.environment}-glue-execution-role"
   glue_s3_policy_name      = "${var.project_name}-${var.environment}-glue-s3-access-policy"
 
   athena_workgroup_name = "${var.project_name}-${var.environment}-workgroup"
 
-  bronze_ingestion_job_name    = "${var.project_name}-${var.environment}-bronze-ingestion"
-  bronze_ingestion_script_key  = "glue/scripts/bronze_ingestion/bronze_ingestion.py"
-  bronze_ingestion_script_path = "${path.root}/../../../../src/glue/jobs/bronze_ingestion/bronze_ingestion.py"
+  dengue_staging_to_bronze_job_name    = "${var.project_name}-${var.environment}-dengue-staging-to-bronze"
+  dengue_staging_to_bronze_script_key  = "glue/scripts/dengue_staging_to_bronze/dengue_staging_to_bronze.py"
+  dengue_staging_to_bronze_script_path = "${path.root}/../../../../src/glue/jobs/dengue_staging_to_bronze/dengue_staging_to_bronze.py"
 
-  silver_dengue_cases_job_name    = "${var.project_name}-${var.environment}-silver-dengue-cases"
-  silver_dengue_cases_script_key  = "glue/scripts/silver_dengue_cases/silver_dengue_cases.py"
-  silver_dengue_cases_script_path = "${path.root}/../../../../src/glue/jobs/silver_dengue_cases/silver_dengue_cases.py"
+  dengue_bronze_to_silver_job_name    = "${var.project_name}-${var.environment}-dengue-bronze-to-silver"
+  dengue_bronze_to_silver_script_key  = "glue/scripts/dengue_bronze_to_silver/dengue_bronze_to_silver.py"
+  dengue_bronze_to_silver_script_path = "${path.root}/../../../../src/glue/jobs/dengue_bronze_to_silver/dengue_bronze_to_silver.py"
 
-  gold_dengue_job_name     = "${var.project_name}-${var.environment}-gold-dengue-star-schema"
-  gold_dengue_script_key   = "glue/scripts/gold_dengue_star_schema/gold_dengue_star_schema.py"
-  gold_dengue_script_path  = "${path.root}/../../../../src/glue/jobs/gold_dengue_star_schema/gold_dengue_star_schema.py"
-  gold_dengue_crawler_name = "${var.project_name}-${var.environment}-gold-dengue"
+  dengue_silver_to_gold_job_name    = "${var.project_name}-${var.environment}-dengue-silver-to-gold"
+  dengue_silver_to_gold_script_key  = "glue/scripts/dengue_silver_to_gold/dengue_silver_to_gold.py"
+  dengue_silver_to_gold_script_path = "${path.root}/../../../../src/glue/jobs/dengue_silver_to_gold/dengue_silver_to_gold.py"
+  gold_dengue_crawler_name          = "${var.project_name}-${var.environment}-gold-dengue"
 
   bronze_dengue_staging_input_path = "s3://${module.data_lake_bucket.bucket_name}/staging/opendatasus/dengue/"
   bronze_dengue_output_path        = "s3://${module.data_lake_bucket.bucket_name}/bronze/opendatasus/dengue/"
@@ -161,24 +161,24 @@ module "iam_glue_role" {
   }
 }
 
-resource "aws_s3_object" "bronze_ingestion_script" {
+resource "aws_s3_object" "dengue_staging_to_bronze_script" {
   bucket = module.artifacts_bucket.bucket_name
-  key    = local.bronze_ingestion_script_key
-  source = local.bronze_ingestion_script_path
+  key    = local.dengue_staging_to_bronze_script_key
+  source = local.dengue_staging_to_bronze_script_path
 
-  source_hash = filemd5(local.bronze_ingestion_script_path)
+  source_hash = filemd5(local.dengue_staging_to_bronze_script_path)
 
   tags = {
     purpose = "glue-script"
   }
 }
 
-module "bronze_ingestion_glue_job" {
+module "dengue_staging_to_bronze_glue_job" {
   source = "../../modules/glue_job"
 
-  job_name        = local.bronze_ingestion_job_name
+  job_name        = local.dengue_staging_to_bronze_job_name
   role_arn        = module.iam_glue_role.role_arn
-  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.bronze_ingestion_script.key}"
+  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.dengue_staging_to_bronze_script.key}"
 
   glue_version      = "5.0"
   worker_type       = "G.1X"
@@ -194,29 +194,29 @@ module "bronze_ingestion_glue_job" {
   }
 
   tags = {
-    purpose = "bronze-ingestion"
+    purpose = "dengue-staging-to-bronze"
     layer   = "bronze"
   }
 }
 
-resource "aws_s3_object" "silver_dengue_cases_script" {
+resource "aws_s3_object" "dengue_bronze_to_silver_script" {
   bucket = module.artifacts_bucket.bucket_name
-  key    = local.silver_dengue_cases_script_key
-  source = local.silver_dengue_cases_script_path
+  key    = local.dengue_bronze_to_silver_script_key
+  source = local.dengue_bronze_to_silver_script_path
 
-  source_hash = filemd5(local.silver_dengue_cases_script_path)
+  source_hash = filemd5(local.dengue_bronze_to_silver_script_path)
 
   tags = {
     purpose = "glue-script"
   }
 }
 
-module "silver_dengue_cases_glue_job" {
+module "dengue_bronze_to_silver_glue_job" {
   source = "../../modules/glue_job"
 
-  job_name        = local.silver_dengue_cases_job_name
+  job_name        = local.dengue_bronze_to_silver_job_name
   role_arn        = module.iam_glue_role.role_arn
-  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.silver_dengue_cases_script.key}"
+  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.dengue_bronze_to_silver_script.key}"
 
   glue_version      = "5.0"
   worker_type       = "G.1X"
@@ -234,29 +234,29 @@ module "silver_dengue_cases_glue_job" {
   }
 
   tags = {
-    purpose = "silver-dengue-cases"
+    purpose = "dengue-bronze-to-silver"
     layer   = "silver"
   }
 }
 
-resource "aws_s3_object" "gold_dengue_script" {
+resource "aws_s3_object" "dengue_silver_to_gold_script" {
   bucket = module.artifacts_bucket.bucket_name
-  key    = local.gold_dengue_script_key
-  source = local.gold_dengue_script_path
+  key    = local.dengue_silver_to_gold_script_key
+  source = local.dengue_silver_to_gold_script_path
 
-  source_hash = filemd5(local.gold_dengue_script_path)
+  source_hash = filemd5(local.dengue_silver_to_gold_script_path)
 
   tags = {
     purpose = "glue-script"
   }
 }
 
-module "gold_dengue_glue_job" {
+module "dengue_silver_to_gold_glue_job" {
   source = "../../modules/glue_job"
 
-  job_name        = local.gold_dengue_job_name
+  job_name        = local.dengue_silver_to_gold_job_name
   role_arn        = module.iam_glue_role.role_arn
-  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.gold_dengue_script.key}"
+  script_location = "s3://${module.artifacts_bucket.bucket_name}/${aws_s3_object.dengue_silver_to_gold_script.key}"
 
   glue_version      = "5.0"
   worker_type       = "G.1X"
@@ -273,7 +273,7 @@ module "gold_dengue_glue_job" {
   }
 
   tags = {
-    purpose = "gold-dengue-star-schema"
+    purpose = "dengue-silver-to-gold"
     layer   = "gold"
   }
 }

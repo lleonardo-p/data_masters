@@ -1,7 +1,7 @@
 locals {
   dengue_batch_reconciliation_job_name    = "${var.project_name}-${var.environment}-dengue-batch-reconciliation"
-  dengue_batch_reconciliation_script_key  = "glue/scripts/reconcile_dengue_batch/reconcile_dengue_batch.py"
-  dengue_batch_reconciliation_script_path = "${path.root}/../../../../src/glue/jobs/reconcile_dengue_batch/reconcile_dengue_batch.py"
+  dengue_batch_reconciliation_script_key  = "glue/scripts/dengue_batch_reconciliation/dengue_batch_reconciliation.py"
+  dengue_batch_reconciliation_script_path = "${path.root}/../../../../src/glue/jobs/dengue_batch_reconciliation/dengue_batch_reconciliation.py"
   dengue_batch_reconciliation_output_path = "s3://${module.logs_bucket.bucket_name}/pipeline-runs/dengue-batch/reconciliation/"
 
   dengue_batch_state_machine_name = "${var.project_name}-${var.environment}-dengue-batch-pipeline"
@@ -104,9 +104,9 @@ data "aws_iam_policy_document" "dengue_batch_step_functions" {
     ]
 
     resources = [
-      module.bronze_ingestion_glue_job.job_arn,
-      module.silver_dengue_cases_glue_job.job_arn,
-      module.gold_dengue_glue_job.job_arn,
+      module.dengue_staging_to_bronze_glue_job.job_arn,
+      module.dengue_bronze_to_silver_glue_job.job_arn,
+      module.dengue_silver_to_gold_glue_job.job_arn,
       module.dengue_batch_reconciliation_glue_job.job_arn
     ]
   }
@@ -226,7 +226,7 @@ resource "aws_sfn_state_machine" "dengue_batch" {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
-          JobName = module.bronze_ingestion_glue_job.job_name
+          JobName = module.dengue_staging_to_bronze_glue_job.job_name
           Arguments = {
             "--BATCH_ID.$"           = "$$.Execution.Name"
             "--STAGING_INPUT_PATH.$" = "$.extraction.s3_uri"
@@ -239,7 +239,7 @@ resource "aws_sfn_state_machine" "dengue_batch" {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
-          JobName = module.silver_dengue_cases_glue_job.job_name
+          JobName = module.dengue_bronze_to_silver_glue_job.job_name
           Arguments = {
             "--BATCH_ID.$"          = "$$.Execution.Name"
             "--BRONZE_INPUT_PATH.$" = "States.Format('${local.bronze_dengue_output_path}processing_date={}/granularity={}/reference_period={}', $.extraction.processing_date, $.extraction.granularity, $.extraction.reference_period)"
@@ -252,7 +252,7 @@ resource "aws_sfn_state_machine" "dengue_batch" {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
-          JobName = module.gold_dengue_glue_job.job_name
+          JobName = module.dengue_silver_to_gold_glue_job.job_name
           Arguments = {
             "--BATCH_ID.$"          = "$$.Execution.Name"
             "--SILVER_INPUT_PATH.$" = "States.Format('${local.silver_dengue_cases_output_path}processing_date={}/granularity={}/reference_period={}', $.extraction.processing_date, $.extraction.granularity, $.extraction.reference_period)"

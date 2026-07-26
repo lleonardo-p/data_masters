@@ -351,7 +351,7 @@ spark.conf.set("spark.sql.shuffle.partitions", "48")
 
 logger.info(
     {
-        "event": "bronze_ingestion_started",
+        "event": "dengue_staging_to_bronze_started",
         "job_name": job_name,
         "batch_id": batch_id,
         "environment": environment,
@@ -493,7 +493,7 @@ try:
 
     logger.info(
         {
-            "event": "bronze_ingestion_statistics",
+            "event": "dengue_staging_to_bronze_statistics",
             "job_name": job_name,
             "batch_id": batch_id,
             "source_extraction_batch_id": source_manifest["batch_id"],
@@ -523,7 +523,7 @@ try:
 
     logger.info(
         {
-            "event": "bronze_ingestion_finished",
+            "event": "dengue_staging_to_bronze_finished",
             "job_name": job_name,
             "batch_id": batch_id,
             "processing_date": staging_metadata["processing_date"],
