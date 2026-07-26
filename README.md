@@ -140,7 +140,12 @@ trade-offs e possibilidades de evolução da plataforma.
 
 ## 4. Utilização
 
-<!--
-Seção reservada para o resumo de utilização da plataforma e para o link do guia
-detalhado de instalação e execução.
--->
+O guia de instalação e utilização apresenta os pré-requisitos, a configuração
+das credenciais AWS, o provisionamento da infraestrutura com Terraform e os
+procedimentos necessários para executar e validar a plataforma.
+
+> [!IMPORTANT]
+> ### [Acessar o guia de instalação e utilização](docs/usage/installation.md)
+>
+> Consulte este documento para preparar o ambiente, provisionar os recursos e
+> executar os fluxos da plataforma.
