@@ -110,6 +110,10 @@ def lambda_handler(event, context):
         return {
             "status": "SKIPPED",
             "batch_id": batch_id,
+            "environment": ENVIRONMENT,
+            "granularity": request.granularity,
+            "reference_period": request.reference_period,
+            "processing_date": request.processing_date,
             "s3_uri": f"s3://{DESTINATION_BUCKET}/{data_key}",
             "manifest_uri": (
                 f"s3://{DESTINATION_BUCKET}/{manifest_key}"
