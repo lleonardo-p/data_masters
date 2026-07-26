@@ -1,10 +1,13 @@
+import json
 import logging
 import re
 import sys
 import time
 import unicodedata
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
+import boto3
 from awsglue.utils import getResolvedOptions
 from pyspark import StorageLevel
 from pyspark.sql import SparkSession
@@ -16,7 +19,6 @@ from pyspark.sql.functions import (
     date_format,
     input_file_name,
     lit,
-    regexp_extract,
     sum as spark_sum,
     to_date,
     trim,
@@ -181,6 +183,113 @@ def normalize_column_name(column_name: str) -> str:
     return normalized.strip("_") or "unknown_column"
 
 
+def parse_staging_input_path(staging_input_path: str) -> dict[str, str]:
+    normalized_path = staging_input_path.rstrip("/")
+    parsed = urlparse(normalized_path)
+
+    if parsed.scheme != "s3" or not parsed.netloc:
+        raise ValueError(
+            "STAGING_INPUT_PATH must be a valid S3 URI."
+        )
+
+    if not parsed.path.endswith("/dengue.jsonl.gz"):
+        raise ValueError(
+            "STAGING_INPUT_PATH must point to dengue.jsonl.gz."
+        )
+
+    match = re.search(
+        r"/processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})"
+        r"/granularity=(?P<granularity>day|month)"
+        r"/reference_period=(?P<reference_period>[0-9]{4}-(?:[0-9]{2}|[0-9]{2}-[0-9]{2}))"
+        r"/dengue\.jsonl\.gz$",
+        parsed.path,
+    )
+
+    if match is None:
+        raise ValueError(
+            "STAGING_INPUT_PATH does not follow the expected partition layout."
+        )
+
+    metadata = match.groupdict()
+    reference_period = metadata["reference_period"]
+    granularity = metadata["granularity"]
+
+    if granularity == "month" and len(reference_period) != 7:
+        raise ValueError(
+            "Monthly input requires reference_period=YYYY-MM."
+        )
+
+    if granularity == "day" and len(reference_period) != 10:
+        raise ValueError(
+            "Daily input requires reference_period=YYYY-MM-DD."
+        )
+
+    datetime.strptime(
+        metadata["processing_date"],
+        "%Y-%m-%d",
+    )
+    datetime.strptime(
+        reference_period,
+        "%Y-%m" if granularity == "month" else "%Y-%m-%d",
+    )
+
+    data_key = parsed.path.lstrip("/")
+    manifest_key = (
+        f"{data_key.rsplit('/', 1)[0]}/manifest.json"
+    )
+
+    return {
+        **metadata,
+        "bucket": parsed.netloc,
+        "data_key": data_key,
+        "manifest_key": manifest_key,
+        "manifest_uri": f"s3://{parsed.netloc}/{manifest_key}",
+        "reference_year": reference_period[:4],
+    }
+
+
+def load_source_manifest(
+    bucket: str,
+    manifest_key: str,
+) -> dict:
+    response = boto3.client("s3").get_object(
+        Bucket=bucket,
+        Key=manifest_key,
+    )
+    manifest = json.loads(
+        response["Body"].read().decode("utf-8")
+    )
+
+    required_fields = {
+        "status",
+        "batch_id",
+        "granularity",
+        "reference_period",
+        "processing_date",
+        "record_count",
+        "compressed_sha256",
+        "s3_bucket",
+        "s3_key",
+        "completed_at",
+    }
+    missing_fields = sorted(
+        required_fields.difference(manifest)
+    )
+
+    if missing_fields:
+        raise ValueError(
+            "Missing source manifest fields: "
+            f"{', '.join(missing_fields)}"
+        )
+
+    if manifest["status"] != "SUCCEEDED":
+        raise ValueError(
+            "Source manifest status must be SUCCEEDED."
+        )
+
+    return manifest
+
+
 args = getResolvedOptions(
     sys.argv,
     [
@@ -207,6 +316,33 @@ if write_mode not in {"append", "overwrite"}:
 
 logger = configure_logger(job_name)
 spark = SparkSession.builder.appName(job_name).getOrCreate()
+staging_metadata = parse_staging_input_path(staging_input_path)
+source_manifest = load_source_manifest(
+    staging_metadata["bucket"],
+    staging_metadata["manifest_key"],
+)
+
+manifest_contract = {
+    "s3_bucket": staging_metadata["bucket"],
+    "s3_key": staging_metadata["data_key"],
+    "processing_date": staging_metadata["processing_date"],
+    "granularity": staging_metadata["granularity"],
+    "reference_period": staging_metadata["reference_period"],
+}
+manifest_mismatches = {
+    key: {
+        "expected": expected_value,
+        "actual": source_manifest.get(key),
+    }
+    for key, expected_value in manifest_contract.items()
+    if str(source_manifest.get(key)) != expected_value
+}
+
+if manifest_mismatches:
+    raise ValueError(
+        "Source manifest does not match STAGING_INPUT_PATH: "
+        f"{json.dumps(manifest_mismatches, sort_keys=True)}"
+    )
 
 spark.conf.set("spark.sql.adaptive.enabled", "true")
 spark.conf.set("spark.sql.parquet.compression.codec", "snappy")
@@ -221,32 +357,29 @@ logger.info(
         "environment": environment,
         "staging_input_path": staging_input_path,
         "bronze_output_path": bronze_output_path,
+        "source_manifest_path": staging_metadata["manifest_uri"],
+        "processing_date": staging_metadata["processing_date"],
+        "granularity": staging_metadata["granularity"],
+        "reference_period": staging_metadata["reference_period"],
         "source_column_count": len(SOURCE_COLUMNS),
         "write_mode": write_mode,
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
 )
 
-source_schema = StructType(
-    [StructField(column_name, StringType(), True) for column_name in SOURCE_COLUMNS]
-)
+source_schema = StructType([
+    StructField(column_name, StringType(), True)
+    for column_name in SOURCE_COLUMNS
+])
 
-# recursiveFileLookup permite ler todos os anos abaixo da raiz da Staging.
-# FAILFAST impede que uma mudanca estrutural da fonte seja ignorada em silencio.
+# O Spark descompacta .gz automaticamente. A entrada é um único JSON por linha,
+# com schema explícito para preservar todas as colunas de origem como string.
 df_raw = (
     spark.read
-    .option("header", "true")
-    .option("sep", ",")
-    .option("quote", '"')
-    .option("escape", '"')
-    .option("encoding", "UTF-8")
-    .option("dateFormat", "yyyy-MM-dd")
     .option("mode", "FAILFAST")
-    .option("enforceSchema", "false")
-    .option("recursiveFileLookup", "true")
-    .option("pathGlobFilter", "*.csv")
+    .option("multiLine", "false")
     .schema(source_schema)
-    .csv(staging_input_path)
+    .json(staging_input_path)
 )
 
 if not df_raw.columns:
@@ -259,24 +392,24 @@ df = df_raw.select(
     ]
 )
 
-df = df.withColumn("_source_file", input_file_name())
-
-# reference_year vem do path da Staging e representa o arquivo oficial anual.
-df = df.withColumn(
-    "reference_year",
-    when(
-        regexp_extract(
-            col("_source_file"),
-            r"reference_year=([0-9]{4})",
-            1,
-        )
-        != "",
-        regexp_extract(
-            col("_source_file"),
-            r"reference_year=([0-9]{4})",
-            1,
-        ),
-    ).otherwise(lit("unknown")),
+df = (
+    df.withColumn("_source_file", input_file_name())
+    .withColumn(
+        "processing_date",
+        lit(staging_metadata["processing_date"]),
+    )
+    .withColumn(
+        "granularity",
+        lit(staging_metadata["granularity"]),
+    )
+    .withColumn(
+        "reference_period",
+        lit(staging_metadata["reference_period"]),
+    )
+    .withColumn(
+        "reference_year",
+        lit(staging_metadata["reference_year"]),
+    )
 )
 
 df = df.withColumn(
@@ -311,24 +444,27 @@ df = df.withColumn(
 df = (
     df.withColumn("_batch_id", lit(batch_id))
     .withColumn("_source_system", lit("opendatasus_sinan"))
-    .withColumn("_source_format", lit("csv"))
+    .withColumn("_ingestion_source", lit("dengue_source_api"))
+    .withColumn("_source_format", lit("jsonl.gz"))
+    .withColumn(
+        "_source_extraction_batch_id",
+        lit(str(source_manifest["batch_id"])),
+    )
+    .withColumn(
+        "_source_manifest",
+        lit(staging_metadata["manifest_uri"]),
+    )
     .withColumn("_bronze_loaded_at", current_timestamp())
     .withColumn("_environment", lit(environment))
 )
 
-# O cache evita uma segunda leitura completa dos CSVs entre metricas e escrita.
+# O cache evita uma segunda leitura completa do JSONL.Gzip entre métricas e escrita.
 df = df.persist(StorageLevel.MEMORY_AND_DISK)
 
 try:
     ingestion_stats = (
         df.agg(
             count(lit(1)).alias("record_count"),
-            coalesce(
-                spark_sum(
-                    when(col("reference_year") == "unknown", 1).otherwise(0)
-                ),
-                lit(0),
-            ).alias("unknown_reference_year_count"),
             coalesce(
                 spark_sum(
                     when(col("_notification_date").isNull(), 1).otherwise(0)
@@ -346,30 +482,41 @@ try:
         .asDict()
     )
 
+    expected_record_count = int(source_manifest["record_count"])
+
+    if ingestion_stats["record_count"] != expected_record_count:
+        raise ValueError(
+            "Bronze record count does not match source manifest: "
+            f"expected={expected_record_count}, "
+            f"actual={ingestion_stats['record_count']}."
+        )
+
     logger.info(
         {
             "event": "bronze_ingestion_statistics",
             "job_name": job_name,
             "batch_id": batch_id,
+            "source_extraction_batch_id": source_manifest["batch_id"],
+            "source_compressed_sha256": source_manifest[
+                "compressed_sha256"
+            ],
             **ingestion_stats,
         }
     )
 
     (
         df.repartition(
-            "disease",
-            "reference_year",
-            "notification_year",
-            "notification_month",
+            "processing_date",
+            "granularity",
+            "reference_period",
         )
         .write
         .mode(write_mode)
         .option("compression", "snappy")
         .partitionBy(
-            "disease",
-            "reference_year",
-            "notification_year",
-            "notification_month",
+            "processing_date",
+            "granularity",
+            "reference_period",
         )
         .parquet(bronze_output_path)
     )
@@ -379,6 +526,9 @@ try:
             "event": "bronze_ingestion_finished",
             "job_name": job_name,
             "batch_id": batch_id,
+            "processing_date": staging_metadata["processing_date"],
+            "granularity": staging_metadata["granularity"],
+            "reference_period": staging_metadata["reference_period"],
             **ingestion_stats,
             "bronze_output_path": bronze_output_path,
             "finished_at": datetime.now(timezone.utc).isoformat(),

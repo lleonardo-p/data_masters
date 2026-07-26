@@ -13,9 +13,11 @@ from pyspark.sql.functions import (
     col,
     count,
     lit,
+    row_number,
     sum as spark_sum,
     when,
 )
+from pyspark.sql.window import Window
 
 
 DATE_FOREIGN_KEYS = [
@@ -86,6 +88,41 @@ def require_columns(
             f"Missing required {dataset_name} columns: "
             + ", ".join(missing_columns)
         )
+
+
+def parse_processing_partition(path: str, argument_name: str) -> dict[str, str]:
+    pattern = re.compile(
+        r"^(?P<root>s3://.+?)/"
+        r"processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})/"
+        r"granularity=(?P<granularity>day|month)/"
+        r"reference_period=(?P<reference_period>"
+        r"(?:[0-9]{4}-[0-9]{2}-[0-9]{2})|(?:[0-9]{4}-[0-9]{2})"
+        r")/?$"
+    )
+    match = pattern.match(path.rstrip("/"))
+
+    if not match:
+        raise ValueError(
+            f"{argument_name} must point to one processing partition using "
+            "processing_date=YYYY-MM-DD/granularity=day|month/"
+            "reference_period=YYYY-MM-DD|YYYY-MM."
+        )
+
+    metadata = match.groupdict()
+    if metadata["granularity"] == "day" and len(
+        metadata["reference_period"]
+    ) != 10:
+        raise ValueError(
+            f"{argument_name} daily partition requires YYYY-MM-DD."
+        )
+    if metadata["granularity"] == "month" and len(
+        metadata["reference_period"]
+    ) != 7:
+        raise ValueError(
+            f"{argument_name} monthly partition requires YYYY-MM."
+        )
+
+    return metadata
 
 
 def duplicate_key_count(dataframe: DataFrame, key_column: str) -> int:
@@ -159,7 +196,8 @@ args = getResolvedOptions(
         "ENVIRONMENT",
         "BRONZE_INPUT_PATH",
         "SILVER_INPUT_PATH",
-        "QUARANTINE_INPUT_PATH",
+        "SILVER_ROOT_PATH",
+        "QUARANTINE_ROOT_PATH",
         "GOLD_INPUT_PATH",
         "RECONCILIATION_OUTPUT_PATH",
         "FAIL_ON_MISMATCH",
@@ -171,10 +209,45 @@ batch_id = args["BATCH_ID"]
 environment = args["ENVIRONMENT"]
 bronze_input_path = args["BRONZE_INPUT_PATH"].rstrip("/")
 silver_input_path = args["SILVER_INPUT_PATH"].rstrip("/")
-quarantine_input_path = args["QUARANTINE_INPUT_PATH"].rstrip("/")
+silver_root_path = args["SILVER_ROOT_PATH"].rstrip("/")
+quarantine_root_path = args["QUARANTINE_ROOT_PATH"].rstrip("/")
 gold_input_path = args["GOLD_INPUT_PATH"].rstrip("/")
 reconciliation_output_path = args["RECONCILIATION_OUTPUT_PATH"].rstrip("/")
 fail_on_mismatch = args["FAIL_ON_MISMATCH"].lower() == "true"
+
+bronze_partition = parse_processing_partition(
+    bronze_input_path,
+    "BRONZE_INPUT_PATH",
+)
+silver_partition = parse_processing_partition(
+    silver_input_path,
+    "SILVER_INPUT_PATH",
+)
+
+partition_attributes = (
+    "processing_date",
+    "granularity",
+    "reference_period",
+)
+if any(
+    bronze_partition[attribute] != silver_partition[attribute]
+    for attribute in partition_attributes
+):
+    raise ValueError(
+        "Bronze and Silver input paths refer to different processing partitions."
+    )
+
+if silver_partition["root"].rstrip("/") != silver_root_path:
+    raise ValueError(
+        "SILVER_INPUT_PATH does not belong to SILVER_ROOT_PATH."
+    )
+
+partition_suffix = (
+    f"processing_date={silver_partition['processing_date']}/"
+    f"granularity={silver_partition['granularity']}/"
+    f"reference_period={silver_partition['reference_period']}"
+)
+quarantine_input_path = f"{quarantine_root_path}/{partition_suffix}"
 
 logger = configure_logger(job_name)
 spark = SparkSession.builder.appName(job_name).getOrCreate()
@@ -188,16 +261,29 @@ logger.info(
         "job_name": job_name,
         "batch_id": batch_id,
         "environment": environment,
+        "processing_date": silver_partition["processing_date"],
+        "granularity": silver_partition["granularity"],
+        "reference_period": silver_partition["reference_period"],
+        "bronze_input_path": bronze_input_path,
+        "silver_input_path": silver_input_path,
+        "silver_root_path": silver_root_path,
+        "quarantine_input_path": quarantine_input_path,
+        "gold_input_path": gold_input_path,
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
 )
 
-df_bronze = spark.read.parquet(bronze_input_path).persist(
-    StorageLevel.MEMORY_AND_DISK
+df_bronze = (
+    spark.read.option("basePath", bronze_partition["root"])
+    .parquet(bronze_input_path)
+    .persist(StorageLevel.MEMORY_AND_DISK)
 )
-df_silver = spark.read.parquet(silver_input_path).persist(
-    StorageLevel.MEMORY_AND_DISK
+df_silver = (
+    spark.read.option("basePath", silver_root_path)
+    .parquet(silver_input_path)
+    .persist(StorageLevel.MEMORY_AND_DISK)
 )
+df_silver_snapshot = spark.read.parquet(silver_root_path)
 df_fact = spark.read.parquet(
     f"{gold_input_path}/fact_dengue_cases"
 ).persist(StorageLevel.MEMORY_AND_DISK)
@@ -216,13 +302,32 @@ try:
     require_columns(df_bronze, {"_batch_id"}, "Bronze")
     require_columns(
         df_silver,
-        {"record_id", "source_batch_id", "data_quality_status"},
+        {
+            "record_id",
+            "record_hash",
+            "source_batch_id",
+            "data_quality_status",
+            "silver_loaded_at",
+        },
         "Silver",
+    )
+    require_columns(
+        df_silver_snapshot,
+        {
+            "record_id",
+            "record_hash",
+            "source_batch_id",
+            "data_quality_status",
+            "silver_loaded_at",
+            "processing_date",
+        },
+        "Silver snapshot",
     )
     require_columns(
         df_fact,
         {
             "case_id",
+            "record_hash",
             "source_batch_id",
             "disease_key",
             "demographic_key",
@@ -253,43 +358,23 @@ try:
     ).first().asDict()
 
     quarantine_count = 0
-    quarantine_other_batch_count = 0
-    quarantine_legacy_count = 0
+    quarantine_batch_mismatch_count = 0
     if path_exists(spark, quarantine_input_path):
         df_quarantine = (
-            spark.read.option("mergeSchema", "true")
+            spark.read.option("basePath", quarantine_root_path)
+            .option("mergeSchema", "true")
             .parquet(quarantine_input_path)
         )
-
-        if "source_batch_id" in df_quarantine.columns:
-            quarantine_stats = df_quarantine.agg(
-                spark_sum(
-                    when(col("source_batch_id") == lit(batch_id), 1)
-                    .otherwise(0)
-                ).alias("current_batch_count"),
-                spark_sum(
-                    when(
-                        col("source_batch_id").isNotNull()
-                        & (col("source_batch_id") != lit(batch_id)),
-                        1,
-                    ).otherwise(0)
-                ).alias("other_batch_count"),
-                spark_sum(
-                    when(col("source_batch_id").isNull(), 1).otherwise(0)
-                ).alias("legacy_count"),
-            ).first().asDict()
-
-            quarantine_count = int(
-                quarantine_stats["current_batch_count"] or 0
-            )
-            quarantine_other_batch_count = int(
-                quarantine_stats["other_batch_count"] or 0
-            )
-            quarantine_legacy_count = int(
-                quarantine_stats["legacy_count"] or 0
-            )
-        else:
-            quarantine_legacy_count = df_quarantine.count()
+        require_columns(
+            df_quarantine,
+            {"source_batch_id"},
+            "Quarantine",
+        )
+        quarantine_count = df_quarantine.count()
+        quarantine_batch_mismatch_count = df_quarantine.filter(
+            col("source_batch_id").isNull()
+            | (col("source_batch_id") != lit(batch_id))
+        ).count()
 
     gold_count = df_fact.count()
     duplicate_case_count = duplicate_key_count(df_fact, "case_id")
@@ -302,11 +387,77 @@ try:
             col("source_batch_id").isNull()
             | (col("source_batch_id") != lit(batch_id))
         ).count(),
-        "gold": df_fact.filter(
-            col("source_batch_id").isNull()
-            | (col("source_batch_id") != lit(batch_id))
-        ).count(),
+        "quarantine": quarantine_batch_mismatch_count,
     }
+
+    latest_record_window = Window.partitionBy("record_id").orderBy(
+        col("silver_loaded_at").desc_nulls_last(),
+        col("processing_date").desc_nulls_last(),
+        col("source_batch_id").desc_nulls_last(),
+    )
+    df_latest_silver = (
+        df_silver_snapshot.filter(
+            col("data_quality_status").isin("valid", "warning")
+        )
+        .withColumn(
+            "_reconciliation_record_version",
+            row_number().over(latest_record_window),
+        )
+        .filter(col("_reconciliation_record_version") == 1)
+        .drop("_reconciliation_record_version")
+        .select(
+            col("record_id").alias("case_id"),
+            col("record_hash").alias("silver_record_hash"),
+        )
+        .persist(StorageLevel.MEMORY_AND_DISK)
+    )
+
+    silver_snapshot_count = df_latest_silver.count()
+    gold_keys = df_fact.select("case_id", "record_hash")
+
+    silver_snapshot_missing_from_gold = df_latest_silver.join(
+        gold_keys.select("case_id"),
+        "case_id",
+        "left_anti",
+    ).count()
+    gold_missing_from_silver_snapshot = gold_keys.select("case_id").join(
+        df_latest_silver.select("case_id"),
+        "case_id",
+        "left_anti",
+    ).count()
+    gold_record_hash_mismatch_count = (
+        gold_keys.alias("gold")
+        .join(df_latest_silver.alias("silver"), "case_id", "inner")
+        .filter(
+            ~col("gold.record_hash").eqNullSafe(
+                col("silver.silver_record_hash")
+            )
+        )
+        .count()
+    )
+
+    current_silver_gold_mismatch_count = (
+        df_silver.select(
+            col("record_id").alias("case_id"),
+            col("record_hash").alias("silver_record_hash"),
+        )
+        .alias("silver")
+        .join(
+            gold_keys.select(
+                col("case_id").alias("gold_case_id"),
+                col("record_hash").alias("gold_record_hash"),
+            ),
+            col("silver.case_id") == col("gold_case_id"),
+            "left",
+        )
+        .filter(
+            col("gold_case_id").isNull()
+            | ~col("gold_record_hash").eqNullSafe(
+                col("silver.silver_record_hash")
+            )
+        )
+        .count()
+    )
 
     dimension_duplicate_keys = {
         "dim_date": duplicate_key_count(dimensions["dim_date"], "date_key"),
@@ -397,7 +548,19 @@ try:
             silver_count == silver_valid_count + silver_warning_count
             and silver_unexpected_status_count == 0
         ),
-        "gold_equals_silver": gold_count == silver_count,
+        "gold_equals_latest_silver_snapshot": (
+            gold_count == silver_snapshot_count
+        ),
+        "gold_case_set_matches_silver_snapshot": (
+            silver_snapshot_missing_from_gold == 0
+            and gold_missing_from_silver_snapshot == 0
+        ),
+        "gold_record_hashes_match_silver_snapshot": (
+            gold_record_hash_mismatch_count == 0
+        ),
+        "current_silver_batch_is_published_in_gold": (
+            current_silver_gold_mismatch_count == 0
+        ),
         "fact_grain_is_unique": duplicate_case_count == 0,
         "batch_identity_is_consistent": all(
             value == 0 for value in batch_identity_mismatches.values()
@@ -427,11 +590,22 @@ try:
             "silver_warning": silver_warning_count,
             "silver_unexpected_status": silver_unexpected_status_count,
             "quarantine": quarantine_count,
-            "quarantine_other_batches": quarantine_other_batch_count,
-            "quarantine_legacy_without_batch_id": quarantine_legacy_count,
+            "silver_snapshot_latest_records": silver_snapshot_count,
             "gold_fact": gold_count,
             "duplicate_cases": duplicate_case_count,
             "invalid_measure_rows": invalid_measure_count,
+            "silver_snapshot_missing_from_gold": (
+                silver_snapshot_missing_from_gold
+            ),
+            "gold_missing_from_silver_snapshot": (
+                gold_missing_from_silver_snapshot
+            ),
+            "gold_record_hash_mismatches": (
+                gold_record_hash_mismatch_count
+            ),
+            "current_silver_gold_mismatches": (
+                current_silver_gold_mismatch_count
+            ),
         },
         "batch_identity_mismatches": batch_identity_mismatches,
         "dimension_duplicate_keys": dimension_duplicate_keys,
@@ -441,6 +615,7 @@ try:
             "bronze": bronze_input_path,
             "silver": silver_input_path,
             "quarantine": quarantine_input_path,
+            "silver_root": silver_root_path,
             "gold": gold_input_path,
         },
     }
@@ -475,4 +650,6 @@ try:
 finally:
     df_bronze.unpersist()
     df_silver.unpersist()
+    if "df_latest_silver" in locals():
+        df_latest_silver.unpersist()
     df_fact.unpersist()

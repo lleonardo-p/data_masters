@@ -1,7 +1,9 @@
 import logging
+import re
 import sys
 import time
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from awsglue.utils import getResolvedOptions
 from pyspark import StorageLevel
@@ -189,6 +191,62 @@ def location_projection(
     )
 
 
+def parse_bronze_input_path(bronze_input_path: str) -> dict[str, str]:
+    normalized_path = bronze_input_path.rstrip("/")
+    parsed = urlparse(normalized_path)
+
+    if parsed.scheme != "s3" or not parsed.netloc:
+        raise ValueError(
+            "BRONZE_INPUT_PATH must be a valid S3 URI."
+        )
+
+    match = re.search(
+        r"^(?P<base_path>/.+)"
+        r"/processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})"
+        r"/granularity=(?P<granularity>day|month)"
+        r"/reference_period=(?P<reference_period>[0-9]{4}-(?:[0-9]{2}|[0-9]{2}-[0-9]{2}))$",
+        parsed.path,
+    )
+
+    if match is None:
+        raise ValueError(
+            "BRONZE_INPUT_PATH does not follow the expected partition layout."
+        )
+
+    metadata = match.groupdict()
+    reference_period = metadata["reference_period"]
+    granularity = metadata["granularity"]
+
+    if granularity == "month" and len(reference_period) != 7:
+        raise ValueError(
+            "Monthly input requires reference_period=YYYY-MM."
+        )
+
+    if granularity == "day" and len(reference_period) != 10:
+        raise ValueError(
+            "Daily input requires reference_period=YYYY-MM-DD."
+        )
+
+    datetime.strptime(
+        metadata["processing_date"],
+        "%Y-%m-%d",
+    )
+    datetime.strptime(
+        reference_period,
+        "%Y-%m" if granularity == "month" else "%Y-%m-%d",
+    )
+
+    base_prefix = metadata["base_path"].lstrip("/")
+
+    return {
+        "bucket": parsed.netloc,
+        "base_uri": f"s3://{parsed.netloc}/{base_prefix}/",
+        "processing_date": metadata["processing_date"],
+        "granularity": granularity,
+        "reference_period": reference_period,
+    }
+
+
 args = getResolvedOptions(
     sys.argv,
     [
@@ -219,6 +277,7 @@ if write_mode not in {"append", "overwrite"}:
 
 logger = configure_logger(job_name)
 spark = SparkSession.builder.appName(job_name).getOrCreate()
+bronze_partition = parse_bronze_input_path(bronze_input_path)
 
 spark.conf.set("spark.sql.adaptive.enabled", "true")
 spark.conf.set("spark.sql.parquet.compression.codec", "snappy")
@@ -232,6 +291,9 @@ logger.info(
         "batch_id": batch_id,
         "environment": environment,
         "bronze_input_path": bronze_input_path,
+        "processing_date": bronze_partition["processing_date"],
+        "granularity": bronze_partition["granularity"],
+        "reference_period": bronze_partition["reference_period"],
         "ibge_reference_path": ibge_reference_path,
         "silver_output_path": silver_output_path,
         "quarantine_output_path": quarantine_output_path,
@@ -240,13 +302,35 @@ logger.info(
     }
 )
 
-df_bronze = spark.read.parquet(bronze_input_path)
+df_bronze = (
+    spark.read
+    .option("basePath", bronze_partition["base_uri"])
+    .parquet(bronze_input_path)
+    .withColumn(
+        "processing_date",
+        lit(bronze_partition["processing_date"]),
+    )
+    .withColumn(
+        "granularity",
+        lit(bronze_partition["granularity"]),
+    )
+    .withColumn(
+        "reference_period",
+        lit(bronze_partition["reference_period"]),
+    )
+)
 
 required_bronze_columns = {
     "_batch_id",
     "_bronze_loaded_at",
+    "_ingestion_source",
+    "_source_extraction_batch_id",
     "_source_file",
+    "_source_manifest",
     "_source_system",
+    "processing_date",
+    "granularity",
+    "reference_period",
     "disease",
     "id_agravo",
     "dt_notific",
@@ -277,6 +361,9 @@ hash_source_columns = sorted(
         "reference_year",
         "notification_year",
         "notification_month",
+        "processing_date",
+        "granularity",
+        "reference_period",
     }
 )
 
@@ -342,6 +429,22 @@ df_ibge = (
 df_cases = df_bronze.select(
     source_string(df_bronze, "_batch_id").alias("source_batch_id"),
     source_string(df_bronze, "_source_system").alias("source_system"),
+    source_string(df_bronze, "_ingestion_source").alias(
+        "ingestion_source"
+    ),
+    source_string(df_bronze, "_source_extraction_batch_id").alias(
+        "source_extraction_batch_id"
+    ),
+    source_string(df_bronze, "_source_manifest").alias(
+        "source_manifest"
+    ),
+    source_string(df_bronze, "processing_date").alias(
+        "processing_date"
+    ),
+    source_string(df_bronze, "granularity").alias("granularity"),
+    source_string(df_bronze, "reference_period").alias(
+        "reference_period"
+    ),
     source_string(df_bronze, "reference_year")
     .cast("int")
     .alias("source_reference_year"),
@@ -866,18 +969,16 @@ try:
 
     (
         df_silver.repartition(
-            "disease_name",
-            "source_reference_year",
-            "notification_year",
-            "notification_month",
+            "processing_date",
+            "granularity",
+            "reference_period",
         )
         .write.mode(write_mode)
         .option("compression", "snappy")
         .partitionBy(
-            "disease_name",
-            "source_reference_year",
-            "notification_year",
-            "notification_month",
+            "processing_date",
+            "granularity",
+            "reference_period",
         )
         .parquet(silver_output_path)
     )
@@ -890,31 +991,23 @@ try:
                 element_at(col("quality_error_codes"), 1),
             )
             .withColumn("quarantined_at", current_timestamp())
-            .withColumn(
-                "quarantine_year",
-                date_format(current_date(), "yyyy"),
-            )
-            .withColumn(
-                "quarantine_month",
-                date_format(current_date(), "MM"),
-            )
             .drop("_duplicate_rank")
         )
 
         (
             df_quarantine.repartition(
+                "processing_date",
+                "granularity",
+                "reference_period",
                 "primary_error_code",
-                "source_reference_year",
-                "quarantine_year",
-                "quarantine_month",
             )
             .write.mode(write_mode)
             .option("compression", "snappy")
             .partitionBy(
+                "processing_date",
+                "granularity",
+                "reference_period",
                 "primary_error_code",
-                "source_reference_year",
-                "quarantine_year",
-                "quarantine_month",
             )
             .parquet(quarantine_output_path)
         )
@@ -923,6 +1016,10 @@ try:
         {
             "event": "silver_dengue_cases_finished",
             "job_name": job_name,
+            "batch_id": batch_id,
+            "processing_date": bronze_partition["processing_date"],
+            "granularity": bronze_partition["granularity"],
+            "reference_period": bronze_partition["reference_period"],
             **processing_stats,
             "silver_output_path": silver_output_path,
             "quarantine_output_path": quarantine_output_path,

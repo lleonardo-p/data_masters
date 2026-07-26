@@ -1,7 +1,9 @@
 import logging
+import re
 import sys
 import time
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from awsglue.utils import getResolvedOptions
 from pyspark import StorageLevel
@@ -22,6 +24,7 @@ from pyspark.sql.functions import (
     min as spark_min,
     month,
     quarter,
+    row_number,
     sequence,
     size,
     weekofyear,
@@ -29,6 +32,7 @@ from pyspark.sql.functions import (
     xxhash64,
     year,
 )
+from pyspark.sql.window import Window
 
 
 DATE_ROLE_COLUMNS = [
@@ -112,6 +116,12 @@ REQUIRED_SILVER_COLUMNS = {
     "data_quality_status",
     "quality_warning_codes",
     "silver_loaded_at",
+    "ingestion_source",
+    "source_extraction_batch_id",
+    "source_manifest",
+    "processing_date",
+    "granularity",
+    "reference_period",
 }
 
 for location_role in ("residence", "notification", "infection"):
@@ -136,6 +146,51 @@ def configure_logger(job_name: str) -> logging.Logger:
         logger.addHandler(handler)
 
     return logger
+
+
+def parse_silver_partition_path(silver_input_path: str) -> dict[str, str]:
+    parsed = urlparse(silver_input_path.rstrip("/"))
+
+    if parsed.scheme != "s3" or not parsed.netloc:
+        raise ValueError(
+            "SILVER_INPUT_PATH must be an S3 URI for one processing partition."
+        )
+
+    pattern = re.compile(
+        r"^(?P<base_path>.+)/"
+        r"processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})/"
+        r"granularity=(?P<granularity>day|month)/"
+        r"reference_period=(?P<reference_period>"
+        r"(?:[0-9]{4}-[0-9]{2}-[0-9]{2})|(?:[0-9]{4}-[0-9]{2})"
+        r")/?$"
+    )
+    match = pattern.match(parsed.path.lstrip("/"))
+
+    if not match:
+        raise ValueError(
+            "SILVER_INPUT_PATH must end with "
+            "processing_date=YYYY-MM-DD/granularity=day|month/"
+            "reference_period=YYYY-MM-DD|YYYY-MM."
+        )
+
+    values = match.groupdict()
+    if values["granularity"] == "day" and len(values["reference_period"]) != 10:
+        raise ValueError("Daily Silver input requires reference_period=YYYY-MM-DD.")
+    if values["granularity"] == "month" and len(values["reference_period"]) != 7:
+        raise ValueError("Monthly Silver input requires reference_period=YYYY-MM.")
+
+    values["base_uri"] = f"s3://{parsed.netloc}/{values['base_path']}"
+    return values
+
+
+def validate_required_columns(df: DataFrame, dataset_name: str) -> None:
+    missing_columns = sorted(REQUIRED_SILVER_COLUMNS.difference(df.columns))
+
+    if missing_columns:
+        raise ValueError(
+            f"Missing required columns in {dataset_name}: "
+            + ", ".join(missing_columns)
+        )
 
 
 def hash_key(*column_names: str) -> Column:
@@ -399,6 +454,12 @@ def build_fact(df: DataFrame) -> DataFrame:
         col("record_id").alias("case_id"),
         "record_hash",
         "source_batch_id",
+        "source_extraction_batch_id",
+        "source_manifest",
+        "ingestion_source",
+        "processing_date",
+        "granularity",
+        "reference_period",
         "environment",
         hash_key("disease_code", "disease_name").alias("disease_key"),
         date_key("notification_date").alias("notification_date_key"),
@@ -454,6 +515,7 @@ args = getResolvedOptions(
         "BATCH_ID",
         "ENVIRONMENT",
         "SILVER_INPUT_PATH",
+        "SILVER_ROOT_PATH",
         "GOLD_OUTPUT_PATH",
         "WRITE_MODE",
     ],
@@ -463,8 +525,16 @@ job_name = args["JOB_NAME"]
 batch_id = args["BATCH_ID"]
 environment = args["ENVIRONMENT"]
 silver_input_path = args["SILVER_INPUT_PATH"]
+silver_root_path = args["SILVER_ROOT_PATH"].rstrip("/")
 gold_output_path = args["GOLD_OUTPUT_PATH"].rstrip("/")
 write_mode = args["WRITE_MODE"].lower()
+silver_partition = parse_silver_partition_path(silver_input_path)
+
+if silver_partition["base_uri"].rstrip("/") != silver_root_path:
+    raise ValueError(
+        "SILVER_INPUT_PATH does not belong to SILVER_ROOT_PATH: "
+        f"{silver_input_path} is outside {silver_root_path}."
+    )
 
 if write_mode != "overwrite":
     raise ValueError(
@@ -486,21 +556,26 @@ logger.info(
         "batch_id": batch_id,
         "environment": environment,
         "silver_input_path": silver_input_path,
+        "silver_root_path": silver_root_path,
+        "processing_date": silver_partition["processing_date"],
+        "granularity": silver_partition["granularity"],
+        "reference_period": silver_partition["reference_period"],
         "gold_output_path": gold_output_path,
         "write_mode": write_mode,
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
 )
 
-df_silver = spark.read.parquet(silver_input_path)
-missing_columns = sorted(REQUIRED_SILVER_COLUMNS.difference(df_silver.columns))
+df_current_batch = (
+    spark.read.option("basePath", silver_root_path).parquet(silver_input_path)
+)
+validate_required_columns(df_current_batch, "current Silver partition")
 
-if missing_columns:
-    raise ValueError(
-        "Missing required Silver columns: " + ", ".join(missing_columns)
-    )
+current_partition_record_count = df_current_batch.count()
+if current_partition_record_count == 0:
+    raise ValueError(f"No Silver records found in {silver_input_path}.")
 
-batch_id_mismatch_count = df_silver.filter(
+batch_id_mismatch_count = df_current_batch.filter(
     col("source_batch_id").isNull()
     | (col("source_batch_id") != lit(batch_id))
 ).count()
@@ -511,11 +586,28 @@ if batch_id_mismatch_count > 0:
         f"{batch_id_mismatch_count} records do not belong to {batch_id}."
     )
 
-# A Gold aceita registros Silver válidos e com warning. Registros em quarentena
-# não estão no path Silver e, portanto, não entram no modelo dimensional.
-df_cases = df_silver.filter(
-    col("data_quality_status").isin("valid", "warning")
-).persist(StorageLevel.MEMORY_AND_DISK)
+# O lote atual valida a identidade da execução. Para preservar dimensões únicas
+# e uma fato completa em Parquet, a Gold reconstrói o snapshot a partir da raiz
+# Silver. Reprocessamentos são resolvidos pela versão Silver mais recente de
+# cada record_id.
+df_silver_snapshot = spark.read.parquet(silver_root_path)
+validate_required_columns(df_silver_snapshot, "Silver snapshot")
+
+latest_record_window = Window.partitionBy("record_id").orderBy(
+    col("silver_loaded_at").desc_nulls_last(),
+    col("processing_date").desc_nulls_last(),
+    col("source_batch_id").desc_nulls_last(),
+)
+
+df_cases = (
+    df_silver_snapshot.filter(
+        col("data_quality_status").isin("valid", "warning")
+    )
+    .withColumn("_gold_record_version", row_number().over(latest_record_window))
+    .filter(col("_gold_record_version") == 1)
+    .drop("_gold_record_version")
+    .persist(StorageLevel.MEMORY_AND_DISK)
+)
 
 try:
     record_count = df_cases.count()
@@ -565,6 +657,7 @@ try:
             "job_name": job_name,
             "batch_id": batch_id,
             "environment": environment,
+            "current_partition_record_count": current_partition_record_count,
             "record_count": record_count,
             "duplicate_case_count": duplicate_case_count,
             "tables": [*dimensions.keys(), "fact_dengue_cases"],
