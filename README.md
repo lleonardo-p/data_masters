@@ -40,7 +40,55 @@ Toda a solução foi projetada para execução na AWS. As decisões arquiteturai
 >
 > Os ADRs registram o contexto, a decisão adotada, as alternativas avaliadas, os impactos e os possíveis caminhos de evolução da plataforma.
 
-### 2.1 Estrutura da solução
+### 2.1 Problema de negócio
+
+Gestores e analistas de saúde pública precisam identificar municípios, períodos
+e grupos populacionais que apresentam crescimento nos casos de dengue para
+priorizar análises epidemiológicas, campanhas de orientação e a preparação da
+rede de atendimento.
+
+A plataforma apoia a vigilância e a preparação para possíveis surtos,
+transformando dados de dengue em indicadores que ajudam a priorizar
+territórios, identificar tendências, orientar os grupos mais afetados e avaliar
+a necessidade de preparação da capacidade hospitalar.
+
+O fluxo Batch disponibiliza uma visão histórica consolidada das notificações,
+permitindo analisar a evolução dos casos por período, município, UF, gravidade
+e faixa etária. O fluxo NRT complementa essa visão com o acompanhamento de
+eventos de triagem em tempo quase real, reduzindo o intervalo entre o aumento da
+procura por atendimento e sua identificação pelos responsáveis.
+
+A combinação dos dois fluxos pode contribuir para uma resposta antecipada,
+apoiando a intensificação de campanhas preventivas, a orientação da população e
+a preparação de equipes, insumos, unidades de atendimento e leitos. Os
+indicadores funcionam como sinais para investigação e planejamento, e não como
+confirmação automática de uma epidemia.
+
+As informações disponibilizadas permitem responder:
+
+- Quais municípios e UFs concentram os maiores volumes de notificações e casos
+  confirmados?
+- Quais municípios e UFs registram mais casos graves, hospitalizações e óbitos?
+- Como as notificações evoluem ao longo dos meses em cada município e UF?
+- Em quais períodos ocorreu crescimento nas notificações, confirmações ou
+  hospitalizações?
+- Onde e quando foram registrados os maiores volumes de casos graves?
+- Quais grupos etários concentram mais notificações, casos confirmados,
+  hospitalizações e óbitos?
+- Quais territórios e grupos etários podem ser priorizados em campanhas de
+  prevenção e orientação?
+- Em quais regiões houve crescimento recente na procura por triagem?
+- O volume de triagens está aumentando em comparação com períodos anteriores?
+- Quais regiões podem exigir uma avaliação antecipada da capacidade de
+  atendimento?
+
+As respostas devem ser interpretadas como apoio à análise epidemiológica e ao
+planejamento. A plataforma não substitui indicadores oficiais, não realiza
+diagnósticos e não confirma automaticamente a ocorrência de surtos ou
+epidemias.
+
+
+### 2.2 Estrutura da solução
 
 A plataforma é composta por dois fluxos de processamento.
 
@@ -55,12 +103,7 @@ O resultado é disponibilizado por meio de views consolidadas com indicadores po
 >
 > Este é o fluxo implementado de ponta a ponta, desde a entrada dos arquivos na Staging até a disponibilização das views no Athena.
 
-> **Diagrama da arquitetura Batch:** em desenvolvimento.
-
-<!--
-Substituir este comentário pelo diagrama final do fluxo Batch.
-![Arquitetura do fluxo Batch](architecture/c4/batch/batch-flow.png)
--->
+![Arquitetura do fluxo Batch](architecture/c4/batch/fluxo_batch.drawio.svg)
 
 ---
 
