@@ -204,7 +204,8 @@ def parse_bronze_input_path(bronze_input_path: str) -> dict[str, str]:
         r"^(?P<base_path>/.+)"
         r"/processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})"
         r"/granularity=(?P<granularity>day|month)"
-        r"/reference_period=(?P<reference_period>[0-9]{4}-(?:[0-9]{2}|[0-9]{2}-[0-9]{2}))$",
+        r"(?:/reference_period=(?P<reference_period>"
+        r"[0-9]{4}-(?:[0-9]{2}|[0-9]{2}-[0-9]{2})))?$",
         parsed.path,
     )
 
@@ -217,12 +218,12 @@ def parse_bronze_input_path(bronze_input_path: str) -> dict[str, str]:
     reference_period = metadata["reference_period"]
     granularity = metadata["granularity"]
 
-    if granularity == "month" and len(reference_period) != 7:
+    if reference_period and granularity == "month" and len(reference_period) != 7:
         raise ValueError(
             "Monthly input requires reference_period=YYYY-MM."
         )
 
-    if granularity == "day" and len(reference_period) != 10:
+    if reference_period and granularity == "day" and len(reference_period) != 10:
         raise ValueError(
             "Daily input requires reference_period=YYYY-MM-DD."
         )
@@ -231,10 +232,11 @@ def parse_bronze_input_path(bronze_input_path: str) -> dict[str, str]:
         metadata["processing_date"],
         "%Y-%m-%d",
     )
-    datetime.strptime(
-        reference_period,
-        "%Y-%m" if granularity == "month" else "%Y-%m-%d",
-    )
+    if reference_period:
+        datetime.strptime(
+            reference_period,
+            "%Y-%m" if granularity == "month" else "%Y-%m-%d",
+        )
 
     base_prefix = metadata["base_path"].lstrip("/")
 
@@ -306,19 +308,24 @@ df_bronze = (
     spark.read
     .option("basePath", bronze_partition["base_uri"])
     .parquet(bronze_input_path)
-    .withColumn(
-        "processing_date",
-        lit(bronze_partition["processing_date"]),
-    )
-    .withColumn(
-        "granularity",
-        lit(bronze_partition["granularity"]),
-    )
-    .withColumn(
-        "reference_period",
-        lit(bronze_partition["reference_period"]),
-    )
 )
+
+if bronze_partition["reference_period"]:
+    df_bronze = (
+        df_bronze
+        .withColumn(
+            "processing_date",
+            lit(bronze_partition["processing_date"]),
+        )
+        .withColumn(
+            "granularity",
+            lit(bronze_partition["granularity"]),
+        )
+        .withColumn(
+            "reference_period",
+            lit(bronze_partition["reference_period"]),
+        )
+    )
 
 required_bronze_columns = {
     "_batch_id",

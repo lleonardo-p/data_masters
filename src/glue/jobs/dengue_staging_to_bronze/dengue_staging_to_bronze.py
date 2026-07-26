@@ -17,8 +17,11 @@ from pyspark.sql.functions import (
     count,
     current_timestamp,
     date_format,
+    element_at,
     input_file_name,
     lit,
+    create_map,
+    regexp_extract,
     sum as spark_sum,
     to_date,
     trim,
@@ -192,34 +195,50 @@ def parse_staging_input_path(staging_input_path: str) -> dict[str, str]:
             "STAGING_INPUT_PATH must be a valid S3 URI."
         )
 
-    if not parsed.path.endswith("/dengue.jsonl.gz"):
-        raise ValueError(
-            "STAGING_INPUT_PATH must point to dengue.jsonl.gz."
-        )
-
-    match = re.search(
+    single_match = re.search(
         r"/processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})"
         r"/granularity=(?P<granularity>day|month)"
         r"/reference_period=(?P<reference_period>[0-9]{4}-(?:[0-9]{2}|[0-9]{2}-[0-9]{2}))"
         r"/dengue\.jsonl\.gz$",
         parsed.path,
     )
+    backfill_match = re.search(
+        r"/processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})"
+        r"/granularity=(?P<granularity>day|month)$",
+        parsed.path,
+    )
 
-    if match is None:
+    if single_match:
+        metadata = single_match.groupdict()
+        load_mode = "single"
+        data_key = parsed.path.lstrip("/")
+        input_data_path = normalized_path
+        manifest_prefix = data_key.rsplit("/", 1)[0]
+    elif backfill_match:
+        metadata = {
+            **backfill_match.groupdict(),
+            "reference_period": None,
+        }
+        load_mode = "backfill"
+        manifest_prefix = parsed.path.lstrip("/")
+        data_key = None
+        input_data_path = (
+            f"{normalized_path}/reference_period=*/dengue.jsonl.gz"
+        )
+    else:
         raise ValueError(
             "STAGING_INPUT_PATH does not follow the expected partition layout."
         )
 
-    metadata = match.groupdict()
     reference_period = metadata["reference_period"]
     granularity = metadata["granularity"]
 
-    if granularity == "month" and len(reference_period) != 7:
+    if reference_period and granularity == "month" and len(reference_period) != 7:
         raise ValueError(
             "Monthly input requires reference_period=YYYY-MM."
         )
 
-    if granularity == "day" and len(reference_period) != 10:
+    if reference_period and granularity == "day" and len(reference_period) != 10:
         raise ValueError(
             "Daily input requires reference_period=YYYY-MM-DD."
         )
@@ -228,23 +247,19 @@ def parse_staging_input_path(staging_input_path: str) -> dict[str, str]:
         metadata["processing_date"],
         "%Y-%m-%d",
     )
-    datetime.strptime(
-        reference_period,
-        "%Y-%m" if granularity == "month" else "%Y-%m-%d",
-    )
-
-    data_key = parsed.path.lstrip("/")
-    manifest_key = (
-        f"{data_key.rsplit('/', 1)[0]}/manifest.json"
-    )
+    if reference_period:
+        datetime.strptime(
+            reference_period,
+            "%Y-%m" if granularity == "month" else "%Y-%m-%d",
+        )
 
     return {
         **metadata,
         "bucket": parsed.netloc,
+        "load_mode": load_mode,
         "data_key": data_key,
-        "manifest_key": manifest_key,
-        "manifest_uri": f"s3://{parsed.netloc}/{manifest_key}",
-        "reference_year": reference_period[:4],
+        "input_data_path": input_data_path,
+        "manifest_prefix": manifest_prefix,
     }
 
 
@@ -290,6 +305,44 @@ def load_source_manifest(
     return manifest
 
 
+def load_source_manifests(metadata: dict[str, str]) -> list[dict]:
+    s3_client = boto3.client("s3")
+
+    if metadata["load_mode"] == "single":
+        manifest_keys = [
+            f"{metadata['manifest_prefix']}/manifest.json"
+        ]
+    else:
+        manifest_keys = []
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=metadata["bucket"],
+            Prefix=f"{metadata['manifest_prefix']}/reference_period=",
+        ):
+            manifest_keys.extend(
+                item["Key"]
+                for item in page.get("Contents", [])
+                if item["Key"].endswith("/manifest.json")
+            )
+
+    if not manifest_keys:
+        raise ValueError("No source manifests found for STAGING_INPUT_PATH.")
+
+    manifests = []
+    for manifest_key in sorted(manifest_keys):
+        manifest = load_source_manifest(
+            metadata["bucket"],
+            manifest_key,
+        )
+        manifest["_manifest_key"] = manifest_key
+        manifest["_manifest_uri"] = (
+            f"s3://{metadata['bucket']}/{manifest_key}"
+        )
+        manifests.append(manifest)
+
+    return manifests
+
+
 args = getResolvedOptions(
     sys.argv,
     [
@@ -317,32 +370,36 @@ if write_mode not in {"append", "overwrite"}:
 logger = configure_logger(job_name)
 spark = SparkSession.builder.appName(job_name).getOrCreate()
 staging_metadata = parse_staging_input_path(staging_input_path)
-source_manifest = load_source_manifest(
-    staging_metadata["bucket"],
-    staging_metadata["manifest_key"],
-)
-
-manifest_contract = {
-    "s3_bucket": staging_metadata["bucket"],
-    "s3_key": staging_metadata["data_key"],
-    "processing_date": staging_metadata["processing_date"],
-    "granularity": staging_metadata["granularity"],
-    "reference_period": staging_metadata["reference_period"],
-}
-manifest_mismatches = {
-    key: {
-        "expected": expected_value,
-        "actual": source_manifest.get(key),
-    }
-    for key, expected_value in manifest_contract.items()
-    if str(source_manifest.get(key)) != expected_value
-}
-
-if manifest_mismatches:
-    raise ValueError(
-        "Source manifest does not match STAGING_INPUT_PATH: "
-        f"{json.dumps(manifest_mismatches, sort_keys=True)}"
+source_manifests = load_source_manifests(staging_metadata)
+manifest_periods = set()
+for source_manifest in source_manifests:
+    reference_period = str(source_manifest["reference_period"])
+    expected_key = (
+        f"{staging_metadata['manifest_prefix']}/"
+        f"reference_period={reference_period}/dengue.jsonl.gz"
+        if staging_metadata["load_mode"] == "backfill"
+        else staging_metadata["data_key"]
     )
+    manifest_contract = {
+        "s3_bucket": staging_metadata["bucket"],
+        "s3_key": expected_key,
+        "processing_date": staging_metadata["processing_date"],
+        "granularity": staging_metadata["granularity"],
+        "reference_period": reference_period,
+    }
+    manifest_mismatches = {
+        key: {"expected": value, "actual": source_manifest.get(key)}
+        for key, value in manifest_contract.items()
+        if str(source_manifest.get(key)) != str(value)
+    }
+    if manifest_mismatches:
+        raise ValueError(
+            "Source manifest does not match STAGING_INPUT_PATH: "
+            f"{json.dumps(manifest_mismatches, sort_keys=True)}"
+        )
+    if reference_period in manifest_periods:
+        raise ValueError(f"Duplicate manifest for {reference_period}.")
+    manifest_periods.add(reference_period)
 
 spark.conf.set("spark.sql.adaptive.enabled", "true")
 spark.conf.set("spark.sql.parquet.compression.codec", "snappy")
@@ -357,7 +414,8 @@ logger.info(
         "environment": environment,
         "staging_input_path": staging_input_path,
         "bronze_output_path": bronze_output_path,
-        "source_manifest_path": staging_metadata["manifest_uri"],
+        "source_manifest_count": len(source_manifests),
+        "load_mode": staging_metadata["load_mode"],
         "processing_date": staging_metadata["processing_date"],
         "granularity": staging_metadata["granularity"],
         "reference_period": staging_metadata["reference_period"],
@@ -379,7 +437,7 @@ df_raw = (
     .option("mode", "FAILFAST")
     .option("multiLine", "false")
     .schema(source_schema)
-    .json(staging_input_path)
+    .json(staging_metadata["input_data_path"])
 )
 
 if not df_raw.columns:
@@ -392,8 +450,24 @@ df = df_raw.select(
     ]
 )
 
+df = df.withColumn("_source_file", input_file_name())
+if staging_metadata["load_mode"] == "single":
+    df = df.withColumn(
+        "reference_period",
+        lit(staging_metadata["reference_period"]),
+    )
+else:
+    df = df.withColumn(
+        "reference_period",
+        regexp_extract(
+            col("_source_file"),
+            r"reference_period=([^/]+)",
+            1,
+        ),
+    )
+
 df = (
-    df.withColumn("_source_file", input_file_name())
+    df
     .withColumn(
         "processing_date",
         lit(staging_metadata["processing_date"]),
@@ -403,12 +477,8 @@ df = (
         lit(staging_metadata["granularity"]),
     )
     .withColumn(
-        "reference_period",
-        lit(staging_metadata["reference_period"]),
-    )
-    .withColumn(
         "reference_year",
-        lit(staging_metadata["reference_year"]),
+        col("reference_period").substr(1, 4),
     )
 )
 
@@ -416,6 +486,18 @@ df = df.withColumn(
     "_notification_date",
     to_date(trim(col("dt_notific")), "yyyy-MM-dd"),
 )
+
+batch_map_values = []
+manifest_map_values = []
+for manifest in source_manifests:
+    batch_map_values.extend([
+        lit(str(manifest["reference_period"])),
+        lit(str(manifest["batch_id"])),
+    ])
+    manifest_map_values.extend([
+        lit(str(manifest["reference_period"])),
+        lit(str(manifest["_manifest_uri"])),
+    ])
 
 df = (
     df.withColumn(
@@ -448,11 +530,11 @@ df = (
     .withColumn("_source_format", lit("jsonl.gz"))
     .withColumn(
         "_source_extraction_batch_id",
-        lit(str(source_manifest["batch_id"])),
+        element_at(create_map(*batch_map_values), col("reference_period")),
     )
     .withColumn(
         "_source_manifest",
-        lit(staging_metadata["manifest_uri"]),
+        element_at(create_map(*manifest_map_values), col("reference_period")),
     )
     .withColumn("_bronze_loaded_at", current_timestamp())
     .withColumn("_environment", lit(environment))
@@ -462,6 +544,17 @@ df = (
 df = df.persist(StorageLevel.MEMORY_AND_DISK)
 
 try:
+    observed_periods = {
+        row["reference_period"]
+        for row in df.select("reference_period").distinct().collect()
+    }
+    if observed_periods != manifest_periods:
+        raise ValueError(
+            "Staging files and source manifests contain different periods: "
+            f"files={sorted(observed_periods)}, "
+            f"manifests={sorted(manifest_periods)}."
+        )
+
     ingestion_stats = (
         df.agg(
             count(lit(1)).alias("record_count"),
@@ -482,7 +575,10 @@ try:
         .asDict()
     )
 
-    expected_record_count = int(source_manifest["record_count"])
+    expected_record_count = sum(
+        int(manifest["record_count"])
+        for manifest in source_manifests
+    )
 
     if ingestion_stats["record_count"] != expected_record_count:
         raise ValueError(
@@ -496,10 +592,7 @@ try:
             "event": "dengue_staging_to_bronze_statistics",
             "job_name": job_name,
             "batch_id": batch_id,
-            "source_extraction_batch_id": source_manifest["batch_id"],
-            "source_compressed_sha256": source_manifest[
-                "compressed_sha256"
-            ],
+            "source_manifest_count": len(source_manifests),
             **ingestion_stats,
         }
     )

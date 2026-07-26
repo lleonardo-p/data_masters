@@ -7,8 +7,9 @@ from pathlib import Path
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODULE_ROOT))
 
-from contract import ( # noqa: E402
+from contract import (  # noqa: E402
     build_api_url,
+    build_backfill_periods,
     build_s3_keys,
     parse_event,
 )
@@ -130,7 +131,27 @@ class ContractTest(unittest.TestCase):
                 allowed_host_suffixes=ALLOWED_SUFFIXES,
             )
 
+    def test_month_backfill_periods(self) -> None:
+        self.assertEqual(
+            build_backfill_periods("month", "2024-11", "2025-02"),
+            [
+                {"reference_period": "2024-11"},
+                {"reference_period": "2024-12"},
+                {"reference_period": "2025-01"},
+                {"reference_period": "2025-02"},
+            ],
+        )
+
+    def test_day_backfill_periods(self) -> None:
+        self.assertEqual(
+            build_backfill_periods("day", "2024-01-30", "2024-02-01"),
+            [
+                {"reference_period": "2024-01-30"},
+                {"reference_period": "2024-01-31"},
+                {"reference_period": "2024-02-01"},
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,11 +1,12 @@
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlencode, urlparse
 
 
 MONTH_PATTERN = re.compile(r"^\d{4}-\d{2}$")
 DAY_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+MAX_BACKFILL_PERIODS = 366
 
 
 @dataclass(frozen=True)
@@ -147,3 +148,41 @@ def build_s3_keys(
         f"{root}/dengue.jsonl.gz",
         f"{root}/manifest.json",
     )
+
+
+def build_backfill_periods(
+    granularity: str,
+    start_period: str,
+    end_period: str,
+    max_periods: int = MAX_BACKFILL_PERIODS,
+) -> list[dict[str, str]]:
+    start = _validate_period(granularity, start_period)
+    end = _validate_period(granularity, end_period)
+
+    if granularity == "month":
+        current = datetime.strptime(start, "%Y-%m").date().replace(day=1)
+        last = datetime.strptime(end, "%Y-%m").date().replace(day=1)
+        result = []
+        while current <= last:
+            result.append({"reference_period": current.strftime("%Y-%m")})
+            current = (
+                current.replace(year=current.year + 1, month=1)
+                if current.month == 12
+                else current.replace(month=current.month + 1)
+            )
+    else:
+        current = date.fromisoformat(start)
+        last = date.fromisoformat(end)
+        result = []
+        while current <= last:
+            result.append({"reference_period": current.isoformat()})
+            current += timedelta(days=1)
+
+    if not result:
+        raise ValueError("start_period must be before or equal to end_period.")
+    if len(result) > max_periods:
+        raise ValueError(
+            f"Backfill exceeds the limit of {max_periods} periods."
+        )
+
+    return result

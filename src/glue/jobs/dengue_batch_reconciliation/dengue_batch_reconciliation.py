@@ -94,30 +94,36 @@ def parse_processing_partition(path: str, argument_name: str) -> dict[str, str]:
     pattern = re.compile(
         r"^(?P<root>s3://.+?)/"
         r"processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})/"
-        r"granularity=(?P<granularity>day|month)/"
+        r"granularity=(?P<granularity>day|month)"
+        r"(?:/"
         r"reference_period=(?P<reference_period>"
         r"(?:[0-9]{4}-[0-9]{2}-[0-9]{2})|(?:[0-9]{4}-[0-9]{2})"
-        r")/?$"
+        r"))?/?$"
     )
     match = pattern.match(path.rstrip("/"))
 
     if not match:
         raise ValueError(
-            f"{argument_name} must point to one processing partition using "
-            "processing_date=YYYY-MM-DD/granularity=day|month/"
+            f"{argument_name} must point to a processing batch using "
+            "processing_date=YYYY-MM-DD/granularity=day|month, "
+            "optionally followed by "
             "reference_period=YYYY-MM-DD|YYYY-MM."
         )
 
     metadata = match.groupdict()
-    if metadata["granularity"] == "day" and len(
+    if (
         metadata["reference_period"]
-    ) != 10:
+        and metadata["granularity"] == "day"
+        and len(metadata["reference_period"]) != 10
+    ):
         raise ValueError(
             f"{argument_name} daily partition requires YYYY-MM-DD."
         )
-    if metadata["granularity"] == "month" and len(
+    if (
         metadata["reference_period"]
-    ) != 7:
+        and metadata["granularity"] == "month"
+        and len(metadata["reference_period"]) != 7
+    ):
         raise ValueError(
             f"{argument_name} monthly partition requires YYYY-MM."
         )
@@ -244,9 +250,12 @@ if silver_partition["root"].rstrip("/") != silver_root_path:
 
 partition_suffix = (
     f"processing_date={silver_partition['processing_date']}/"
-    f"granularity={silver_partition['granularity']}/"
-    f"reference_period={silver_partition['reference_period']}"
+    f"granularity={silver_partition['granularity']}"
 )
+if silver_partition["reference_period"]:
+    partition_suffix += (
+        f"/reference_period={silver_partition['reference_period']}"
+    )
 quarantine_input_path = f"{quarantine_root_path}/{partition_suffix}"
 
 logger = configure_logger(job_name)

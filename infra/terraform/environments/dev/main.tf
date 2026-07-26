@@ -183,7 +183,7 @@ module "dengue_staging_to_bronze_glue_job" {
   glue_version      = "5.0"
   worker_type       = "G.1X"
   number_of_workers = 2
-  timeout           = 60
+  timeout           = 120
   max_retries       = 0
 
   default_arguments = {
@@ -221,7 +221,7 @@ module "dengue_bronze_to_silver_glue_job" {
   glue_version      = "5.0"
   worker_type       = "G.1X"
   number_of_workers = 2
-  timeout           = 60
+  timeout           = 120
   max_retries       = 0
 
   default_arguments = {
@@ -261,7 +261,7 @@ module "dengue_silver_to_gold_glue_job" {
   glue_version      = "5.0"
   worker_type       = "G.1X"
   number_of_workers = 2
-  timeout           = 60
+  timeout           = 120
   max_retries       = 0
 
   default_arguments = {
