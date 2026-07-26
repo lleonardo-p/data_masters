@@ -258,11 +258,9 @@ Adicionar captura dos arquivos e partições da Silver no Amazon S3.
 
 #### Evidência — Glue Job
 
-<!--
-Adicionar captura da execução concluída do Glue Bronze to Silver.
 
 ![Execução do Glue Bronze to Silver](assets/glue-bronze-silver.png)
--->
+
 
 #### Amostra dos dados Silver
 
@@ -410,19 +408,18 @@ por período no Athena.
 
 #### Evidência — Gold no Data Lake
 
-<!--
-Adicionar captura das dimensões e da tabela fato no Amazon S3.
+
+
 
 ![Gold no Amazon S3](assets/gold-s3.png)
--->
+
 
 #### Evidência — Glue Job
 
-<!--
-Adicionar captura da execução concluída do Glue Silver to Gold.
+
 
 ![Execução do Glue Silver to Gold](assets/glue-silver-gold.png)
--->
+
 
 #### Amostra do modelo dimensional
 
@@ -508,9 +505,9 @@ causa a falha do job e interrompe o pipeline.
 
 > **Evidência a adicionar:** relatório de reconciliação no Amazon S3.
 
-<!--
+
 ![Relatório de reconciliação](./assets/reconciliation-report.png)
--->
+
 
 ## 5. Orquestração e acionamento do pipeline
 
@@ -662,15 +659,15 @@ o status `SUCCEEDED`.
 
 > **Evidência a adicionar:** execução concluída do Glue Crawler.
 
-<!--
+
 ![Execução do Glue Crawler](./assets/glue-crawler-execution.png)
--->
+
 
 > **Evidência a adicionar:** tabelas da Gold registradas no Glue Data Catalog.
 
-<!--
+
 ![Tabelas no Glue Data Catalog](./assets/glue-data-catalog-tables.png)
--->
+
 
 > [ADR-010 — Catálogo de Dados com AWS Glue Data Catalog](../../architecture/ADR/ADR-010-Catalogo-Dados-Glue.md)
 
