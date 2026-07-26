@@ -78,3 +78,5 @@ dist/
 build/
 *.egg-info/
 *.tfplan
+.env
+api-local/data/*

@@ -127,3 +127,18 @@ output "dengue_batch_alerts_topic_arn" {
   description = "SNS topic that receives dengue batch failure alarms."
   value       = aws_sns_topic.dengue_batch_alerts.arn
 }
+
+output "dengue_batch_extractor_function_name" {
+  description = "Lambda function that extracts dengue data into S3 Staging."
+  value       = aws_lambda_function.dengue_batch_extractor.function_name
+}
+
+output "dengue_batch_extractor_function_arn" {
+  description = "ARN of the dengue Batch extractor Lambda function."
+  value       = aws_lambda_function.dengue_batch_extractor.arn
+}
+
+output "dengue_source_api_secret_name" {
+  description = "Secrets Manager secret that stores the dengue source API key."
+  value       = aws_secretsmanager_secret.dengue_source_api_key.name
+}
