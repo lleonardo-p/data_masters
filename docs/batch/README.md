@@ -503,13 +503,13 @@ causa a falha do job e interrompe o pipeline.
 > **Evidência a adicionar:** execução do job de reconciliação.
 
 <!--
-![Execução do job de reconciliação](../../evidences/batch/reconciliation-glue-job.png)
+![Execução do job de reconciliação](./assets/reconciliation-glue-job.png)
 -->
 
 > **Evidência a adicionar:** relatório de reconciliação no Amazon S3.
 
 <!--
-![Relatório de reconciliação](../../evidences/batch/reconciliation-report.png)
+![Relatório de reconciliação](./assets/reconciliation-report.png)
 -->
 
 ## 5. Orquestração e acionamento do pipeline
@@ -582,13 +582,13 @@ execução automática pelo EventBridge.
 > **Evidência a adicionar:** execução completa no AWS Step Functions.
 
 <!--
-![Execução da Step Functions](../../evidences/batch/step-functions-execution.png)
+![Execução da Step Functions](./assets/step-functions-execution.png)
 -->
 
 > **Evidência a adicionar:** alerta ou logs da execução no Amazon CloudWatch.
 
 <!--
-![Logs da orquestração](../../evidences/batch/orchestration-cloudwatch.png)
+![Logs da orquestração](./assets/orchestration-cloudwatch.png)
 -->
 
 > [ADR-0XX — Orquestração do fluxo Batch com AWS Step Functions](../../architecture/ADR/ADR-0XX-Orquestracao-Batch-Step-Functions.md)
@@ -663,13 +663,13 @@ o status `SUCCEEDED`.
 > **Evidência a adicionar:** execução concluída do Glue Crawler.
 
 <!--
-![Execução do Glue Crawler](../../evidences/batch/glue-crawler-execution.png)
+![Execução do Glue Crawler](./assets/glue-crawler-execution.png)
 -->
 
 > **Evidência a adicionar:** tabelas da Gold registradas no Glue Data Catalog.
 
 <!--
-![Tabelas no Glue Data Catalog](../../evidences/batch/glue-data-catalog-tables.png)
+![Tabelas no Glue Data Catalog](./assets/glue-data-catalog-tables.png)
 -->
 
 > [ADR-010 — Catálogo de Dados com AWS Glue Data Catalog](../../architecture/ADR/ADR-010-Catalogo-Dados-Glue.md)
@@ -760,13 +760,13 @@ ORDER BY
 > **Evidência a adicionar:** views criadas no banco `baip_dev_gold`.
 
 
-![Views disponíveis no Athena](../../evidences/batch/athena-views.png)
+![Views disponíveis no Athena](./assets/athena-views.png)
 
 
 > **Evidência a adicionar:** resultado de uma consulta analítica.
 
 
-![Resultado da consulta no Athena](../../evidences/batch/athena-query-result.png)
+![Resultado da consulta no Athena](./assets/athena-query-result.png)
 
 
 > [ADR-014 — Consumo Analítico com Amazon Athena](../../architecture/ADR/ADR-014-Consumo-Analitico-PowerBI-Athena.md)
@@ -859,13 +859,13 @@ terminaram sem erro técnico.
 > **Evidência a adicionar:** logs estruturados de um job do AWS Glue.
 
 
-![Logs do Glue no CloudWatch](../../evidences/batch/cloudwatch-glue-logs.png)
+![Logs do Glue no CloudWatch](./assets/cloudwatch-glue-logs.png)
 
 
 > **Evidência a adicionar:** métricas e alarmes da Step Functions.
 
 <!--
-![Alarmes da Step Functions](../../evidences/batch/cloudwatch-step-functions-alarms.png)
+![Alarmes da Step Functions](./assets/cloudwatch-step-functions-alarms.png)
 -->
 
 > [ADR-012 — Observabilidade e Monitoramento](../../architecture/ADR/ADR-012-Observabilidade-Monitoramento.md)
