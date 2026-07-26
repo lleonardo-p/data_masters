@@ -271,11 +271,11 @@ module "gold_dengue_glue_job" {
   max_retries       = 0
 
   default_arguments = {
-    "--BATCH_ID"          = "manual"
-    "--ENVIRONMENT"       = var.environment
-    "--SILVER_INPUT_PATH" = local.silver_dengue_cases_output_path
-    "--GOLD_OUTPUT_PATH"  = local.gold_dengue_output_path
-    "--WRITE_MODE"        = "overwrite"
+    "--BATCH_ID"         = "manual"
+    "--ENVIRONMENT"      = var.environment
+    "--SILVER_ROOT_PATH" = local.silver_dengue_cases_output_path
+    "--GOLD_OUTPUT_PATH" = local.gold_dengue_output_path
+    "--WRITE_MODE"       = "overwrite"
   }
 
   tags = {
