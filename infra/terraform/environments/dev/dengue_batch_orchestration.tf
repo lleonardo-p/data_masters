@@ -43,9 +43,8 @@ module "dengue_batch_reconciliation_glue_job" {
   default_arguments = {
     "--BATCH_ID"                   = "manual"
     "--ENVIRONMENT"                = var.environment
-    "--BRONZE_INPUT_PATH"          = local.bronze_dengue_output_path
-    "--SILVER_INPUT_PATH"          = local.silver_dengue_cases_output_path
-    "--QUARANTINE_INPUT_PATH"      = local.silver_dengue_quarantine_path
+    "--SILVER_ROOT_PATH"           = local.silver_dengue_cases_output_path
+    "--QUARANTINE_ROOT_PATH"       = local.silver_dengue_quarantine_path
     "--GOLD_INPUT_PATH"            = local.gold_dengue_output_path
     "--RECONCILIATION_OUTPUT_PATH" = local.dengue_batch_reconciliation_output_path
     "--FAIL_ON_MISMATCH"           = "true"
@@ -200,7 +199,9 @@ resource "aws_sfn_state_machine" "dengue_batch" {
         Parameters = {
           JobName = module.dengue_batch_reconciliation_glue_job.job_name
           Arguments = {
-            "--BATCH_ID.$" = "$$.Execution.Name"
+            "--BATCH_ID.$"          = "$$.Execution.Name"
+            "--BRONZE_INPUT_PATH.$" = "$.bronze_input_path"
+            "--SILVER_INPUT_PATH.$" = "$.silver_input_path"
           }
         }
         ResultPath = "$.reconciliation"
