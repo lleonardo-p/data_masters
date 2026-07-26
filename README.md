@@ -1,242 +1,151 @@
-# BAIP — Brazil Arbovirus Intelligence Platform
+# Data Masters — Trilha de Engenharia de Dados
 
-> Plataforma de Dados e Inteligência Epidemiológica para Arboviroses
+## Plataforma de Processamento de Dados — Caso Arboviroses
 
-O BAIP é um case de Engenharia de Dados em AWS que demonstra como receber,
-processar, governar e servir dados epidemiológicos por três padrões de
-integração: batch por arquivos, eventos near real-time e ingestão diária de API.
+**Autor:** Leonardo Lucas Pereira<br>
+**Formação:** Engenheiro de Computação e especialista em Engenharia de Machine Learning<br>
+**Atuação no projeto:** Arquitetura e desenvolvimento
 
-O projeto prioriza decisões justificadas, rastreabilidade, qualidade,
-privacidade, segurança, custo e caminhos explícitos de evolução. Ele não se
-apresenta como sistema assistencial nem substitui indicadores oficiais.
+---
 
-## Proposta
+## 1. Objetivo
 
-A plataforma responde a três necessidades de negócio complementares:
+Este projeto corresponde à segunda fase do processo interno de certificação da empresa. O objetivo desta etapa é desenvolver e documentar uma solução de engenharia de dados que contemple os seguintes tópicos:
 
-| Frente | Necessidade simulada | Resultado | Estado |
-|---|---|---|---|
-| Batch de dengue | Receber arquivos oficiais ou fornecidos por um parceiro, tratá-los e disponibilizar indicadores confiáveis | Modelo dimensional no S3, catálogo e views Athena | Implementado e validado até o Athena |
-| Triagem hospitalar NRT | Disponibilizar indicadores operacionais recentes sem expor PII | API de indicadores com freshness-alvo de até 2 minutos | Planejado |
-| API externa diária | Ingerir contexto climático diariamente e disponibilizar dados padronizados | Dataset Silver para exploração e futuros cruzamentos | Planejado |
-
-Os estados acima são deliberados: `implementado` significa que existe código e
-evidência executável; `planejado` representa arquitetura aprovada para uma etapa
-seguinte; `evolução` é uma alternativa condicionada a volume, SLA ou requisitos
-que o MVP ainda não possui.
-
-## Arquitetura em uma visão
-
-```mermaid
-flowchart TD
-    P["BAIP"] --> B["Batch de dengue"]
-    P --> N["Triagem NRT"]
-    P --> A["API externa diária"]
-    B --> BA["Step Functions, Medallion e Athena"]
-    N --> NA["SQS, Lambda, DynamoDB e API"]
-    A --> AA["Scheduler, extração e Silver"]
-```
-
-O Data Lake utiliza Amazon S3 e arquitetura Medallion. Staging é uma zona de
-recebimento temporário; Bronze preserva a fonte; Silver padroniza e valida;
-Gold organiza fatos e dimensões para consumo. Nem todas as frentes precisam
-percorrer todas as camadas: a API diária termina intencionalmente na Silver.
-
-## Frente 1 — Batch de dengue
-
-O caso representa uma troca governada de arquivos com um órgão público, cliente
-ou parceiro que publica extratos periódicos, mas não oferece uma API estável ou
-um canal integrado para a plataforma. No MVP, um operador autorizado recebe o
-arquivo oficial, confere origem, período e integridade e faz o upload no prefixo
-de Staging. A etapa manual é, portanto, um canal de entrada controlado e não uma
-alegação de automação inexistente.
-
-Arquivos anuais utilizados:
-
-```text
-staging/opendatasus/dengue/reference_year=2024/DENGBR24.csv
-staging/opendatasus/dengue/reference_year=2025/DENGBR25.csv
-staging/opendatasus/dengue/reference_year=2026/DENGBR26.csv
-```
-
-O fluxo implementado é:
-
-```text
-CSV oficial -> S3 Staging -> Step Functions
-             -> Glue Bronze -> Glue Silver + Quarantine
-             -> Glue Gold -> Reconciliação bloqueante
-             -> Glue Crawler -> Glue Data Catalog -> Athena
-```
-
-Principais conceitos demonstrados:
-
-- schema explícito da fonte e falha rápida para mudanças estruturais;
-- metadados de linhagem e preservação da origem;
-- conversão de CSV para Parquet/Snappy;
-- padronização de nulos, nomes, tipos, datas e domínios;
-- enriquecimento de municípios com referência do IBGE;
-- identidade técnica determinística com hash;
-- separação entre erro de qualidade, alerta e quarentena;
-- modelo estrela com grão explícito e medidas aditivas;
-- catálogo técnico, consultas SQL e views de consumo;
-- infraestrutura AWS versionada em Terraform.
-
-Comece pela [visão ponta a ponta do batch](docs/batch-dengue/README.md). O
-[cenário de negócio](docs/cases/01-batch-dengue.md), o
-[contrato técnico](docs/data/dengue/README.md) e o
-[runbook](docs/operations/dengue-batch-end-to-end.md) detalham responsabilidades
-específicas.
-
-## Frente 2 — Triagem hospitalar near real-time
-
-O caso simula hospitais enviando eventos de triagem relacionados a suspeita de
-dengue. Todos os dados são sintéticos; nenhum CPF real deve ser usado, salvo no
-repositório, enviado a logs ou exibido em dashboards.
-
-O desenho separa o evento identificável dos indicadores de consumo:
-
-```text
-Hospital Simulator -> API/ingestão -> SQS -> Lambda NRT
-                                         |-> identidade restrita
-                                         |-> DynamoDB de indicadores
-                                         |-> Firehose/S3 restrito, se necessário
-
-Dashboard -> API Gateway -> Lambda query -> DynamoDB
-```
-
-A API é consultável sob demanda. O requisito de dois minutos é um objetivo de
-freshness do dado (`event_time` até `available_at`) e não um agendamento da API.
-O dashboard pode atualizar a consulta a cada dois minutos.
-
-Detalhes: [Caso NRT de triagem hospitalar](docs/cases/02-nrt-triagem-hospitalar.md).
-
-## Frente 3 — Ingestão diária de API externa
-
-Para demonstrar um padrão diferente sem duplicar toda a arquitetura de dengue,
-a terceira frente ingere diariamente dados climáticos do Open-Meteo e termina
-na Silver. Temperatura e precipitação são contextos úteis para análises futuras
-de arboviroses, mas o MVP não afirma causalidade epidemiológica.
-
-Um adaptador para uma API simulada de Zika pode reutilizar o mesmo padrão, desde
-que possua contrato e fonte claramente identificados. Open-Meteo e Zika não são
-tratados como a mesma fonte.
-
-```text
-EventBridge Scheduler -> Step Functions -> Lambda extractor
-                      -> S3 Staging -> transformação -> Silver
-```
-
-Detalhes: [Caso de API externa diária](docs/cases/03-api-externa-diaria.md).
-
-## Segurança, privacidade e acesso
-
-O MVP usa uma conta e uma região para controlar custo, com segregação lógica
-por buckets, prefixos, databases, roles e tags. A arquitetura produtiva proposta
-separa ambientes em contas e aplica governança centralizada.
-
-Papéis lógicos:
-
-| Papel | Acesso esperado |
+| Tópico | Objetivo |
 |---|---|
-| Ingestion operator | Escrita somente no prefixo autorizado da Staging; sem leitura da Gold |
-| Glue execution role | Leitura e escrita apenas nos paths necessários ao job e nos artefatos |
-| Data engineer | Operação de pipelines e leitura técnica controlada; sem acesso irrestrito à identidade NRT |
-| Data quality reviewer | Leitura da quarentena e metadados necessários à investigação |
-| Athena analyst / BI | `SELECT` apenas nas tabelas e views Gold aprovadas |
-| Security auditor | CloudTrail, configurações, logs de auditoria e evidências; sem consumo assistencial |
+| Extração de dados | Obter dados a partir de diferentes fontes e formatos |
+| Ingestão de dados | Receber e encaminhar os dados para processamento |
+| Armazenamento de dados | Organizar e disponibilizar os dados conforme suas etapas de processamento |
+| Observabilidade | Permitir o acompanhamento das execuções, métricas e falhas |
+| Segurança de dados | Proteger os dados e controlar o acesso aos recursos |
+| Mascaramento de dados | Evitar a exposição de informações pessoais ou sensíveis |
+| Arquitetura de dados | Definir componentes, responsabilidades e integração entre os serviços |
+| Escalabilidade | Preparar a solução para evolução de volume, frequência e necessidades de negócio |
 
-PII sintética do fluxo NRT deve ser removida ou pseudonimizada o mais cedo
-possível. Silver, Gold, Athena, dashboards e logs não recebem identificadores
-diretos. Hash técnico de registro não é anonimização de PII: no batch de dengue
-ele representa identidade e deduplicação do conteúdo de origem.
+O desenvolvimento deverá considerar não apenas o funcionamento da solução, mas também os desafios encontrados, suas limitações e as melhorias futuras. O resultado esperado é uma plataforma de dados segura, eficiente, rastreável e capaz de evoluir de acordo com o crescimento da demanda.
 
-Detalhes: [Segurança, LGPD e modelo de acesso](docs/security/access-control-and-pii.md).
+---
 
-## Escalabilidade
+## 2. Apresentação do case — Plataforma de dados para arboviroses
 
-O MVP não implementa Multi-Region, EMR, Fargate ou Lake Formation apenas para
-parecer maior. A documentação registra limites e gatilhos mensuráveis:
+O case escolhido utiliza dados públicos de notificações de dengue disponibilizados pelo Ministério da Saúde. A dengue pertence ao grupo das arboviroses e foi selecionada como domínio para demonstrar diferentes padrões de processamento em uma mesma plataforma de dados.
 
-- Glue Auto Scaling e tuning antes de trocar o motor batch;
-- EMR quando for necessário controle persistente de Spark, bibliotecas,
-  execução longa ou melhor economia em grande escala;
-- Fargate para extrações de API maiores que o limite da Lambda, dependências
-  pesadas ou fan-out controlado;
-- Kinesis/MSK quando houver replay prolongado, ordenação por chave, múltiplos
-  consumidores independentes ou throughput incompatível com o desenho SQS;
-- Redshift quando concorrência e latência previsível superarem o modelo Athena;
-- Lake Formation quando houver múltiplas equipes, dados reais e necessidade de
-  controle por linha, coluna ou domínio;
-- Multi-Region somente após definição de RTO, RPO, residência e orçamento.
+O período analisado compreende os anos de 2024 e 2025, além dos dados disponíveis entre janeiro e julho de 2026. O arquivo de 2026 representa uma fotografia parcial correspondente à última atualização disponível durante o desenvolvimento do projeto.
 
-Detalhes: [ADR de processamento batch](architecture/ADR/ADR-003-Processamento-Batch-Glue.md)
-e [ADR de formato e particionamento](architecture/ADR/ADR-015-Particionamento-Formato-Arquivos.md).
+Toda a solução foi projetada para execução na AWS. As decisões arquiteturais, alternativas consideradas, consequências e possibilidades de evolução estão registradas nos *Architecture Decision Records* do repositório.
 
-## Modelo Gold implementado
+> [!IMPORTANT]
+> ### [Acessar as decisões arquiteturais — ADRs](architecture/ADR/)
+>
+> Os ADRs registram o contexto, a decisão adotada, as alternativas avaliadas, os impactos e os possíveis caminhos de evolução da plataforma.
 
-A fato possui grão de uma linha por notificação Silver válida ou com warning:
+### 2.1 Problema de negócio
 
-```text
-fact_dengue_cases
-```
+Gestores e analistas de saúde pública precisam identificar municípios, períodos
+e grupos populacionais que apresentam crescimento nos casos de dengue para
+priorizar análises epidemiológicas, campanhas de orientação e a preparação da
+rede de atendimento.
 
-Dimensões:
+A plataforma apoia a vigilância e a preparação para possíveis surtos,
+transformando dados de dengue em indicadores que ajudam a priorizar
+territórios, identificar tendências, orientar os grupos mais afetados e avaliar
+a necessidade de preparação da capacidade hospitalar.
 
-```text
-dim_date
-dim_location
-dim_disease
-dim_demographic
-dim_clinical
-```
+O fluxo Batch disponibiliza uma visão histórica consolidada das notificações,
+permitindo analisar a evolução dos casos por período, município, UF, gravidade
+e faixa etária. O fluxo NRT complementa essa visão com o acompanhamento de
+eventos de triagem em tempo quase real, reduzindo o intervalo entre o aumento da
+procura por atendimento e sua identificação pelos responsáveis.
 
-O crawler cria no database `baip_dev_gold` as tabelas com prefixo `dengue_`, e
-as views Athena oferecem consumo por município, UF, faixa etária e
-classificação.
+A combinação dos dois fluxos pode contribuir para uma resposta antecipada,
+apoiando a intensificação de campanhas preventivas, a orientação da população e
+a preparação de equipes, insumos, unidades de atendimento e leitos. Os
+indicadores funcionam como sinais para investigação e planejamento, e não como
+confirmação automática de uma epidemia.
 
-## Organização do repositório
+As informações disponibilizadas permitem responder:
 
-```text
-architecture/
-├── ADR/
-└── c4/
+- Quais municípios e UFs concentram os maiores volumes de notificações e casos
+  confirmados?
+- Quais municípios e UFs registram mais casos graves, hospitalizações e óbitos?
+- Como as notificações evoluem ao longo dos meses em cada município e UF?
+- Em quais períodos ocorreu crescimento nas notificações, confirmações ou
+  hospitalizações?
+- Onde e quando foram registrados os maiores volumes de casos graves?
+- Quais grupos etários concentram mais notificações, casos confirmados,
+  hospitalizações e óbitos?
+- Quais territórios e grupos etários podem ser priorizados em campanhas de
+  prevenção e orientação?
+- Em quais regiões houve crescimento recente na procura por triagem?
+- O volume de triagens está aumentando em comparação com períodos anteriores?
+- Quais regiões podem exigir uma avaliação antecipada da capacidade de
+  atendimento?
 
-docs/
-├── batch-dengue/
-├── cases/
-├── data/dengue/
-├── operations/
-└── security/
+As respostas devem ser interpretadas como apoio à análise epidemiológica e ao
+planejamento. A plataforma não substitui indicadores oficiais, não realiza
+diagnósticos e não confirma automaticamente a ocorrência de surtos ou
+epidemias.
 
-infra/terraform/
-scripts/
-src/athena/
-src/glue/jobs/
-```
 
-## Estado atual e próximos fluxos
+### 2.2 Estrutura da solução
 
-O batch de dengue foi executado de ponta a ponta com Step Functions. A
-reconciliação fechou Bronze, Silver, quarentena e Gold; o crawler atualizou o
-catálogo; e os cinco checks Athena foram aprovados. O resultado sanitizado está
-em [Execução validada](docs/batch-dengue/validated-run.md).
+A plataforma é composta por dois fluxos de processamento.
 
-As próximas implementações são independentes e terão documentação própria:
+### Fluxo Batch
 
-1. triagem hospitalar NRT com idempotência, DLQ, indicadores e API;
-2. ingestão diária de Open-Meteo até a Silver;
-3. consumidor visual das views do Athena, sem alterar o contrato do batch.
+O fluxo Batch processa arquivos públicos de notificações de dengue. Os dados percorrem um pipeline distribuído em lote, organizado segundo a arquitetura Medallion, passando pelas etapas de recebimento, preservação, tratamento, qualidade e modelagem analítica.
 
-Veja o [índice da documentação](docs/README.md).
+O resultado é disponibilizado por meio de views consolidadas com indicadores por período, estado, município, faixa etária, classificação e outras perspectivas analíticas.
 
-## Referências
+> [!IMPORTANT]
+> ### [Acessar a documentação do fluxo Batch](docs/batch/README.md)
+>
+> Este é o fluxo implementado de ponta a ponta, desde a entrada dos arquivos na Staging até a disponibilização das views no Athena.
 
-- [AWS Well-Architected — Data Analytics Lens](https://docs.aws.amazon.com/wellarchitected/latest/analytics-lens/)
-- [AWS Glue Auto Scaling](https://docs.aws.amazon.com/glue/latest/dg/auto-scaling.html)
-- [Amazon Athena — otimização de dados](https://docs.aws.amazon.com/athena/latest/ug/performance-tuning-data-optimization-techniques.html)
-- [AWS Lambda com Amazon SQS](https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html)
-- [Amazon ECS/Fargate networking](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-networking.html)
-- [AWS Lake Formation com Athena](https://docs.aws.amazon.com/lake-formation/latest/dg/athena-lf.html)
-- [Portal de Dados Abertos do SUS](https://dadosabertos.saude.gov.br/)
-- [API de Localidades do IBGE](https://servicodados.ibge.gov.br/api/docs/localidades)
-- [Open-Meteo API](https://open-meteo.com/en/docs)
+![Arquitetura do fluxo Batch](architecture/c4/batch/fluxo_batch.drawio.svg)
+
+---
+
+### Fluxo NRT — Near Real Time
+
+O fluxo NRT simulará eventos de triagem hospitalar relacionados a casos suspeitos de dengue. Os eventos incluirão dados pessoais exclusivamente sintéticos e serão publicados em um serviço de mensageria.
+
+Durante o processamento, serão aplicados controles de validação, idempotência e proteção de PII. O resultado será composto por indicadores operacionais atualizados em Near Real Time e disponibilizados para consumo por meio de uma API.
+
+> [!NOTE]
+> ### [Acessar a documentação do fluxo NRT — em desenvolvimento](docs/nrt/README.md)
+>
+> Esta frente demonstrará mensageria, processamento orientado a eventos, proteção de dados pessoais sintéticos e disponibilização de indicadores por API.
+
+> **Diagrama da arquitetura NRT:** em desenvolvimento.
+
+<!--
+Substituir este comentário pelo diagrama final do fluxo NRT.
+![Arquitetura do fluxo NRT](architecture/c4/nrt/nrt-flow.png)
+-->
+
+---
+
+O fluxo Batch utiliza exclusivamente dados públicos. O fluxo NRT utilizará somente dados sintéticos e não processará informações reais de pacientes.
+
+O projeto não tem como objetivo substituir sistemas ou indicadores epidemiológicos oficiais. Seu propósito é utilizar esse domínio para demonstrar conceitos, decisões e práticas de engenharia de dados.
+
+## 3. Considerações
+
+<!--
+Seção reservada para as considerações finais, limitações identificadas,
+trade-offs e possibilidades de evolução da plataforma.
+-->
+
+## 4. Utilização
+
+O guia de instalação e utilização apresenta os pré-requisitos, a configuração
+das credenciais AWS, o provisionamento da infraestrutura com Terraform e os
+procedimentos necessários para executar e validar a plataforma.
+
+> [!IMPORTANT]
+> ### [Acessar o guia de instalação e utilização](docs/usage/installation.md)
+>
+> Consulte este documento para preparar o ambiente, provisionar os recursos e
+> executar os fluxos da plataforma.
