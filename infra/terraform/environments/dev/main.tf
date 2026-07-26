@@ -233,7 +233,6 @@ module "silver_dengue_cases_glue_job" {
   default_arguments = {
     "--BATCH_ID"               = "manual"
     "--ENVIRONMENT"            = var.environment
-    "--BRONZE_INPUT_PATH"      = local.bronze_dengue_output_path
     "--IBGE_REFERENCE_PATH"    = local.ibge_municipalities_reference_path
     "--SILVER_OUTPUT_PATH"     = local.silver_dengue_cases_output_path
     "--QUARANTINE_OUTPUT_PATH" = local.silver_dengue_quarantine_path
