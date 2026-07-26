@@ -497,13 +497,12 @@ status = FAILED
 Se o parâmetro `FAIL_ON_MISMATCH` estiver habilitado, uma divergência também
 causa a falha do job e interrompe o pipeline.
 
-> **Evidência a adicionar:** execução do job de reconciliação.
+> ****Evidência:**:** execução do job de reconciliação.
 
-<!--
+
 ![Execução do job de reconciliação](./assets/reconciliation-glue-job.png)
--->
 
-> **Evidência a adicionar:** relatório de reconciliação no Amazon S3.
+> ****Evidência:**:** relatório de reconciliação no Amazon S3.
 
 
 ![Relatório de reconciliação](./assets/reconciliation-report.png)
@@ -576,7 +575,7 @@ Durante o desenvolvimento, o acionamento poderá permanecer manual. Em uma
 evolução da solução, a API poderá utilizar um endereço estável, permitindo a
 execução automática pelo EventBridge.
 
-> **Evidência a adicionar:** execução completa no AWS Step Functions.
+> ****Evidência:**:** execução completa no AWS Step Functions.
 
 <!--
 ![Execução da Step Functions](./assets/step-functions-execution.png)
@@ -657,13 +656,13 @@ o status `SUCCEEDED`.
 > O Crawler realiza descoberta de metadados. Ele não substitui as validações de
 > qualidade nem o job de reconciliação.
 
-> **Evidência a adicionar:** execução concluída do Glue Crawler.
+> ****Evidência:**:** execução concluída do Glue Crawler.
 
 
 ![Execução do Glue Crawler](./assets/glue-crawler-execution.png)
 
 
-> **Evidência a adicionar:** tabelas da Gold registradas no Glue Data Catalog.
+> ****Evidência:**:** tabelas da Gold registradas no Glue Data Catalog.
 
 
 ![Tabelas no Glue Data Catalog](./assets/glue-data-catalog-tables.png)
@@ -754,13 +753,13 @@ ORDER BY
     uf_abbreviation;
 ```
 
-> **Evidência a adicionar:** views criadas no banco `baip_dev_gold`.
+> ****Evidência:**:** views criadas no banco `baip_dev_gold`.
 
 
 ![Views disponíveis no Athena](./assets/athena-views.png)
 
 
-> **Evidência a adicionar:** resultado de uma consulta analítica.
+> ****Evidência:**:** resultado de uma consulta analítica.
 
 
 ![Resultado da consulta no Athena](./assets/athena-query-result.png)
@@ -853,16 +852,16 @@ Reconciliação
 Essa combinação evita considerar o pipeline saudável apenas porque os serviços
 terminaram sem erro técnico.
 
-> **Evidência a adicionar:** logs estruturados de um job do AWS Glue.
+> ****Evidência:**:** logs estruturados de um job do AWS Glue.
 
 
 ![Logs do Glue no CloudWatch](./assets/cloudwatch-glue-logs.png)
 
 
-> **Evidência a adicionar:** métricas e alarmes da Step Functions.
+> ****Evidência:**:** métricas e alarmes da Step Functions.
 
-<!--
+
 ![Alarmes da Step Functions](./assets/cloudwatch-step-functions-alarms.png)
--->
+
 
 > [ADR-012 — Observabilidade e Monitoramento](../../architecture/ADR/ADR-012-Observabilidade-Monitoramento.md)
