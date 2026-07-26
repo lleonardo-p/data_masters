@@ -759,15 +759,15 @@ ORDER BY
 
 > **Evidência a adicionar:** views criadas no banco `baip_dev_gold`.
 
-<!--
+
 ![Views disponíveis no Athena](../../evidences/batch/athena-views.png)
--->
+
 
 > **Evidência a adicionar:** resultado de uma consulta analítica.
 
-<!--
+
 ![Resultado da consulta no Athena](../../evidences/batch/athena-query-result.png)
--->
+
 
 > [ADR-014 — Consumo Analítico com Amazon Athena](../../architecture/ADR/ADR-014-Consumo-Analitico-PowerBI-Athena.md)
 
@@ -858,9 +858,9 @@ terminaram sem erro técnico.
 
 > **Evidência a adicionar:** logs estruturados de um job do AWS Glue.
 
-<!--
+
 ![Logs do Glue no CloudWatch](../../evidences/batch/cloudwatch-glue-logs.png)
--->
+
 
 > **Evidência a adicionar:** métricas e alarmes da Step Functions.
 
