@@ -142,3 +142,43 @@ output "dengue_source_api_secret_name" {
   description = "Secrets Manager secret that stores the dengue source API key."
   value       = aws_secretsmanager_secret.dengue_source_api_key.name
 }
+
+output "dengue_nrt_queue_name" {
+  description = "Name of the SQS queue that receives synthetic dengue triage events."
+  value       = aws_sqs_queue.dengue_nrt.name
+}
+
+output "dengue_nrt_queue_url" {
+  description = "URL used by the hospital simulator to publish dengue triage events."
+  value       = aws_sqs_queue.dengue_nrt.url
+}
+
+output "dengue_nrt_queue_arn" {
+  description = "ARN of the SQS queue that receives synthetic dengue triage events."
+  value       = aws_sqs_queue.dengue_nrt.arn
+}
+
+output "dengue_nrt_dlq_name" {
+  description = "Name of the dengue NRT dead-letter queue."
+  value       = aws_sqs_queue.dengue_nrt_dlq.name
+}
+
+output "dengue_nrt_dlq_url" {
+  description = "URL of the dengue NRT dead-letter queue."
+  value       = aws_sqs_queue.dengue_nrt_dlq.url
+}
+
+output "dengue_nrt_dlq_arn" {
+  description = "ARN of the dengue NRT dead-letter queue."
+  value       = aws_sqs_queue.dengue_nrt_dlq.arn
+}
+
+output "dengue_nrt_producer_policy_arn" {
+  description = "IAM policy ARN for principals that publish synthetic triage events."
+  value       = aws_iam_policy.dengue_nrt_producer.arn
+}
+
+output "dengue_nrt_alerts_topic_arn" {
+  description = "SNS topic that receives dengue NRT queue alarms."
+  value       = aws_sns_topic.dengue_nrt_alerts.arn
+}
