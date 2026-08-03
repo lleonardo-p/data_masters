@@ -22,7 +22,8 @@ TF_PLAN ?= baip-dev.tfplan
 	source-up source-import source-health tunnel-up tunnel-url \
 	tunnel-health hospital-build nrt-publish nrt-queues nrt-health \
 	nrt-indicators nrt-history nrt-logs batch-run batch-backfill batch-status \
-	batch-watch batch-history batch-manifest batch-validate down
+	batch-watch batch-history batch-manifest batch-validate \
+	athena-deploy-views views down
 
 help: ## Lista os comandos de demonstração.
 	@echo "Uso: make <alvo> [VAR=valor]"
@@ -49,6 +50,8 @@ help: ## Lista os comandos de demonstração.
 	@echo "  batch-history   Lista as últimas execuções"
 	@echo "  batch-manifest  Exibe o relatório de reconciliação"
 	@echo "  batch-validate  Executa os testes de aceitação no Athena"
+	@echo "  athena-deploy-views  Cria ou atualiza as views analíticas no Athena"
+	@echo "  views                Alias curto para athena-deploy-views"
 	@echo
 	@echo "NRT"
 	@echo "  hospital-build  Constrói a imagem do simulador hospitalar"
@@ -128,6 +131,11 @@ batch-manifest:
 
 batch-validate:
 	@AWS_PROFILE="$(AWS_PROFILE)" AWS_REGION="$(AWS_REGION)" ./scripts/dengue_batch.sh validate
+
+athena-deploy-views:
+	@AWS_PROFILE="$(AWS_PROFILE)" AWS_REGION="$(AWS_REGION)" ./scripts/deploy_athena_dengue_views.sh
+
+views: athena-deploy-views
 
 hospital-build:
 	@./scripts/local_demo.sh hospital-build
