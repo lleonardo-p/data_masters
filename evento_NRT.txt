@@ -1,0 +1,30 @@
+Sistema hospitalar
+    ↓ envia JSON com CPF e dados da triagem
+Amazon SQS
+    ↓ entrega o evento
+Lambda NRT Processor
+    ├── valida o contrato
+    ├── verifica duplicidade pelo event_id
+    ├── normaliza o CPF
+    ├── consulta ou gera o patient_token
+    ├── remove o CPF do evento
+    └── processa os dados sem PII
+         ├── Token Vault no DynamoDB
+         │    HMAC(CPF) → patient_token
+         │
+         ├── Histórico individual no DynamoDB
+         │    patient_token → timeline de eventos clínicos
+         │
+         └── Indicadores agregados no DynamoDB
+              região, sexo, faixa etária, período e situação clínica
+
+
+API epidemiológica
+└── consulta somente indicadores agregados, sem CPF e sem token individual
+
+API individual restrita
+└── recebe CPF → consulta Token Vault → encontra patient_token → retorna histórico autorizado
+
+
+
+Sistema hospitalar → SQS → Lambda → Token Vault + Histórico individual + Indicadores agregados → APIs

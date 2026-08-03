@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://baip.example/schemas/nrt/triage-event-v1.json",
+  "title": "Dengue triage event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "event_time",
+    "source_system",
+    "triage_id",
+    "patient",
+    "triage",
+    "health_unit"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "TRIAGE_REGISTERED" },
+    "schema_version": { "const": "1.0" },
+    "event_time": { "type": "string", "format": "date-time" },
+    "source_system": { "const": "hospital_simulator" },
+    "triage_id": { "type": "string", "minLength": 1 },
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpf", "full_name", "age", "sex", "phone", "email"],
+      "properties": {
+        "cpf": { "type": "string", "pattern": "^[0-9]{11}$" },
+        "full_name": { "type": "string", "minLength": 1 },
+        "age": { "type": "integer", "minimum": 0, "maximum": 120 },
+        "sex": { "enum": ["F", "M", "UNKNOWN"] },
+        "phone": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "minLength": 1 }
+      }
+    },
+    "triage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notification_at",
+        "disease_code",
+        "case_classification",
+        "risk_level",
+        "symptoms_start_date"
+      ],
+      "properties": {
+        "notification_at": { "type": "string", "format": "date-time" },
+        "disease_code": { "const": "A90" },
+        "case_classification": { "const": "SUSPECTED" },
+        "risk_level": {
+          "enum": ["BLUE", "GREEN", "YELLOW", "ORANGE", "RED"]
+        },
+        "symptoms_start_date": { "type": "string", "format": "date" }
+      }
+    },
+    "health_unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit_id",
+        "unit_name",
+        "municipality_code",
+        "municipality_name",
+        "state"
+      ],
+      "properties": {
+        "unit_id": { "type": "string", "minLength": 1 },
+        "unit_name": { "type": "string", "minLength": 1 },
+        "municipality_code": { "type": "string", "pattern": "^[0-9]{7}$" },
+        "municipality_name": { "type": "string", "minLength": 1 },
+        "state": { "type": "string", "pattern": "^[A-Z]{2}$" }
+      }
+    }
+  }
+}
