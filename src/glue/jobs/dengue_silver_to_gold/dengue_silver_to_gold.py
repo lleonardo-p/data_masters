@@ -153,30 +153,40 @@ def parse_silver_partition_path(silver_input_path: str) -> dict[str, str]:
 
     if parsed.scheme != "s3" or not parsed.netloc:
         raise ValueError(
-            "SILVER_INPUT_PATH must be an S3 URI for one processing partition."
+            "SILVER_INPUT_PATH must be an S3 URI for a processing batch."
         )
 
     pattern = re.compile(
         r"^(?P<base_path>.+)/"
         r"processing_date=(?P<processing_date>[0-9]{4}-[0-9]{2}-[0-9]{2})/"
-        r"granularity=(?P<granularity>day|month)/"
+        r"granularity=(?P<granularity>day|month)"
+        r"(?:/"
         r"reference_period=(?P<reference_period>"
         r"(?:[0-9]{4}-[0-9]{2}-[0-9]{2})|(?:[0-9]{4}-[0-9]{2})"
-        r")/?$"
+        r"))?/?$"
     )
     match = pattern.match(parsed.path.lstrip("/"))
 
     if not match:
         raise ValueError(
             "SILVER_INPUT_PATH must end with "
-            "processing_date=YYYY-MM-DD/granularity=day|month/"
+            "processing_date=YYYY-MM-DD/granularity=day|month, "
+            "optionally followed by "
             "reference_period=YYYY-MM-DD|YYYY-MM."
         )
 
     values = match.groupdict()
-    if values["granularity"] == "day" and len(values["reference_period"]) != 10:
+    if (
+        values["reference_period"]
+        and values["granularity"] == "day"
+        and len(values["reference_period"]) != 10
+    ):
         raise ValueError("Daily Silver input requires reference_period=YYYY-MM-DD.")
-    if values["granularity"] == "month" and len(values["reference_period"]) != 7:
+    if (
+        values["reference_period"]
+        and values["granularity"] == "month"
+        and len(values["reference_period"]) != 7
+    ):
         raise ValueError("Monthly Silver input requires reference_period=YYYY-MM.")
 
     values["base_uri"] = f"s3://{parsed.netloc}/{values['base_path']}"
@@ -551,7 +561,7 @@ spark.conf.set("spark.sql.shuffle.partitions", "48")
 
 logger.info(
     {
-        "event": "gold_dengue_star_schema_started",
+        "event": "dengue_silver_to_gold_started",
         "job_name": job_name,
         "batch_id": batch_id,
         "environment": environment,
@@ -653,7 +663,7 @@ try:
 
     logger.info(
         {
-            "event": "gold_dengue_star_schema_finished",
+            "event": "dengue_silver_to_gold_finished",
             "job_name": job_name,
             "batch_id": batch_id,
             "environment": environment,

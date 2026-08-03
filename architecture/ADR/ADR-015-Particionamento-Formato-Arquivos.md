@@ -37,7 +37,7 @@ year=YYYY/month=MM
 Exemplo:
 
 ```text
-s3://baip-data-lake/silver/opendatasus/dengue/cases/source_reference_year=2026/notification_year=2026/notification_month=07/
+s3://baip-data-lake/silver/opendatasus/dengue/processing_date=2026-07-26/granularity=month/reference_period=2026-07/
 s3://baip-data-lake/gold/opendatasus/dengue/fact_dengue_cases/notification_year=2026/notification_month=07/
 ```
 

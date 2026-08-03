@@ -38,14 +38,14 @@ output "glue_execution_role_arn" {
   value       = module.iam_glue_role.role_arn
 }
 
-output "bronze_ingestion_glue_job_name" {
-  description = "Bronze dengue ingestion AWS Glue job name."
-  value       = module.bronze_ingestion_glue_job.job_name
+output "dengue_staging_to_bronze_glue_job_name" {
+  description = "Dengue Staging-to-Bronze AWS Glue job name."
+  value       = module.dengue_staging_to_bronze_glue_job.job_name
 }
 
-output "bronze_ingestion_glue_job_arn" {
-  description = "Bronze dengue ingestion AWS Glue job ARN."
-  value       = module.bronze_ingestion_glue_job.job_arn
+output "dengue_staging_to_bronze_glue_job_arn" {
+  description = "Dengue Staging-to-Bronze AWS Glue job ARN."
+  value       = module.dengue_staging_to_bronze_glue_job.job_arn
 }
 
 output "ibge_municipalities_reference_path" {
@@ -73,14 +73,14 @@ output "silver_dengue_quarantine_path" {
   value       = local.silver_dengue_quarantine_path
 }
 
-output "silver_dengue_cases_glue_job_name" {
-  description = "Silver dengue cases AWS Glue job name."
-  value       = module.silver_dengue_cases_glue_job.job_name
+output "dengue_bronze_to_silver_glue_job_name" {
+  description = "Dengue Bronze-to-Silver AWS Glue job name."
+  value       = module.dengue_bronze_to_silver_glue_job.job_name
 }
 
-output "silver_dengue_cases_glue_job_arn" {
-  description = "Silver dengue cases AWS Glue job ARN."
-  value       = module.silver_dengue_cases_glue_job.job_arn
+output "dengue_bronze_to_silver_glue_job_arn" {
+  description = "Dengue Bronze-to-Silver AWS Glue job ARN."
+  value       = module.dengue_bronze_to_silver_glue_job.job_arn
 }
 
 output "gold_dengue_output_path" {
@@ -88,14 +88,14 @@ output "gold_dengue_output_path" {
   value       = local.gold_dengue_output_path
 }
 
-output "gold_dengue_glue_job_name" {
-  description = "Gold dengue star schema AWS Glue job name."
-  value       = module.gold_dengue_glue_job.job_name
+output "dengue_silver_to_gold_glue_job_name" {
+  description = "Dengue Silver-to-Gold AWS Glue job name."
+  value       = module.dengue_silver_to_gold_glue_job.job_name
 }
 
-output "gold_dengue_glue_job_arn" {
-  description = "Gold dengue star schema AWS Glue job ARN."
-  value       = module.gold_dengue_glue_job.job_arn
+output "dengue_silver_to_gold_glue_job_arn" {
+  description = "Dengue Silver-to-Gold AWS Glue job ARN."
+  value       = module.dengue_silver_to_gold_glue_job.job_arn
 }
 
 output "gold_dengue_crawler_name" {

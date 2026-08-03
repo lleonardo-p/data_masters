@@ -1,7 +1,7 @@
 locals {
   dengue_batch_reconciliation_job_name    = "${var.project_name}-${var.environment}-dengue-batch-reconciliation"
-  dengue_batch_reconciliation_script_key  = "glue/scripts/reconcile_dengue_batch/reconcile_dengue_batch.py"
-  dengue_batch_reconciliation_script_path = "${path.root}/../../../../src/glue/jobs/reconcile_dengue_batch/reconcile_dengue_batch.py"
+  dengue_batch_reconciliation_script_key  = "glue/scripts/dengue_batch_reconciliation/dengue_batch_reconciliation.py"
+  dengue_batch_reconciliation_script_path = "${path.root}/../../../../src/glue/jobs/dengue_batch_reconciliation/dengue_batch_reconciliation.py"
   dengue_batch_reconciliation_output_path = "s3://${module.logs_bucket.bucket_name}/pipeline-runs/dengue-batch/reconciliation/"
 
   dengue_batch_state_machine_name = "${var.project_name}-${var.environment}-dengue-batch-pipeline"
@@ -37,7 +37,7 @@ module "dengue_batch_reconciliation_glue_job" {
   glue_version      = "5.0"
   worker_type       = "G.1X"
   number_of_workers = 2
-  timeout           = 60
+  timeout           = 120
   max_retries       = 0
 
   default_arguments = {
@@ -80,6 +80,19 @@ resource "aws_iam_role" "dengue_batch_step_functions" {
 
 data "aws_iam_policy_document" "dengue_batch_step_functions" {
   statement {
+    sid    = "InvokeDengueExtractor"
+    effect = "Allow"
+
+    actions = [
+      "lambda:InvokeFunction"
+    ]
+
+    resources = [
+      aws_lambda_function.dengue_batch_extractor.arn
+    ]
+  }
+
+  statement {
     sid    = "RunDengueGlueJobs"
     effect = "Allow"
 
@@ -91,9 +104,9 @@ data "aws_iam_policy_document" "dengue_batch_step_functions" {
     ]
 
     resources = [
-      module.bronze_ingestion_glue_job.job_arn,
-      module.silver_dengue_cases_glue_job.job_arn,
-      module.gold_dengue_glue_job.job_arn,
+      module.dengue_staging_to_bronze_glue_job.job_arn,
+      module.dengue_bronze_to_silver_glue_job.job_arn,
+      module.dengue_silver_to_gold_glue_job.job_arn,
       module.dengue_batch_reconciliation_glue_job.job_arn
     ]
   }
@@ -151,17 +164,173 @@ resource "aws_sfn_state_machine" "dengue_batch" {
 
   definition = jsonencode({
     Comment        = "Orchestrates and reconciles the complete dengue batch pipeline."
-    StartAt        = "RunBronze"
-    TimeoutSeconds = 14400
+    StartAt        = "HasForceOption"
+    TimeoutSeconds = 604800
     States = {
+      HasForceOption = {
+        Type = "Choice"
+        Choices = [
+          {
+            Variable  = "$.force"
+            IsPresent = true
+            Next      = "HasLoadMode"
+          }
+        ]
+        Default = "SetDefaultForce"
+      }
+      SetDefaultForce = {
+        Type       = "Pass"
+        Result     = false
+        ResultPath = "$.force"
+        Next       = "HasLoadMode"
+      }
+      HasLoadMode = {
+        Type = "Choice"
+        Choices = [{
+          Variable  = "$.load_mode"
+          IsPresent = true
+          Next      = "RouteLoadMode"
+        }]
+        Default = "SetSingleMode"
+      }
+      SetSingleMode = {
+        Type       = "Pass"
+        Result     = "single"
+        ResultPath = "$.load_mode"
+        Next       = "RouteLoadMode"
+      }
+      RouteLoadMode = {
+        Type = "Choice"
+        Choices = [{
+          Variable     = "$.load_mode"
+          StringEquals = "backfill"
+          Next         = "PlanBackfill"
+        }]
+        Default = "ExtractSinglePeriod"
+      }
+      PlanBackfill = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
+        Parameters = {
+          FunctionName = aws_lambda_function.dengue_batch_extractor.arn
+          Payload = {
+            operation           = "plan_backfill"
+            "end_period.$"      = "$.end_period"
+            "granularity.$"     = "$.granularity"
+            "processing_date.$" = "$.processing_date"
+            "start_period.$"    = "$.start_period"
+          }
+        }
+        ResultSelector = {
+          "period_count.$" = "$.Payload.period_count"
+          "periods.$"      = "$.Payload.periods"
+        }
+        ResultPath = "$.plan"
+        Next       = "ExtractBackfillPeriods"
+      }
+      ExtractBackfillPeriods = {
+        Type           = "Map"
+        ItemsPath      = "$.plan.periods"
+        MaxConcurrency = 1
+        ItemSelector = {
+          "api_base_url.$"     = "$.api_base_url"
+          "force.$"            = "$.force"
+          "granularity.$"      = "$.granularity"
+          "processing_date.$"  = "$.processing_date"
+          "reference_period.$" = "$$.Map.Item.Value.reference_period"
+        }
+        ItemProcessor = {
+          ProcessorConfig = {
+            Mode = "INLINE"
+          }
+          StartAt = "ExtractPeriod"
+          States = {
+            ExtractPeriod = {
+              Type     = "Task"
+              Resource = "arn:aws:states:::lambda:invoke"
+              Parameters = {
+                FunctionName = aws_lambda_function.dengue_batch_extractor.arn
+                "Payload.$"  = "$"
+              }
+              End = true
+            }
+          }
+        }
+        ResultPath = null
+        Next       = "PrepareBackfillBatch"
+      }
+      PrepareBackfillBatch = {
+        Type = "Pass"
+        Parameters = {
+          load_mode              = "backfill"
+          "granularity.$"        = "$.granularity"
+          "processing_date.$"    = "$.processing_date"
+          "staging_input_path.$" = "States.Format('${local.bronze_dengue_staging_input_path}processing_date={}/granularity={}', $.processing_date, $.granularity)"
+          "bronze_input_path.$"  = "States.Format('${local.bronze_dengue_output_path}processing_date={}/granularity={}', $.processing_date, $.granularity)"
+          "silver_input_path.$"  = "States.Format('${local.silver_dengue_cases_output_path}processing_date={}/granularity={}', $.processing_date, $.granularity)"
+        }
+        ResultPath = "$.batch"
+        Next       = "RunBronze"
+      }
+      ExtractSinglePeriod = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
+        Parameters = {
+          FunctionName = aws_lambda_function.dengue_batch_extractor.arn
+          Payload = {
+            "api_base_url.$"     = "$.api_base_url"
+            "force.$"            = "$.force"
+            "granularity.$"      = "$.granularity"
+            "processing_date.$"  = "$.processing_date"
+            "reference_period.$" = "$.reference_period"
+          }
+        }
+        ResultSelector = {
+          "batch_id.$"         = "$.Payload.batch_id"
+          "granularity.$"      = "$.Payload.granularity"
+          "manifest_uri.$"     = "$.Payload.manifest_uri"
+          "processing_date.$"  = "$.Payload.processing_date"
+          "reference_period.$" = "$.Payload.reference_period"
+          "s3_uri.$"           = "$.Payload.s3_uri"
+          "status.$"           = "$.Payload.status"
+        }
+        Retry = [
+          {
+            ErrorEquals = [
+              "Lambda.AWSLambdaException",
+              "Lambda.SdkClientException",
+              "Lambda.ServiceException",
+              "Lambda.TooManyRequestsException"
+            ]
+            IntervalSeconds = 2
+            MaxAttempts     = 3
+            BackoffRate     = 2
+          }
+        ]
+        ResultPath = "$.extraction"
+        Next       = "PrepareSingleBatch"
+      }
+      PrepareSingleBatch = {
+        Type = "Pass"
+        Parameters = {
+          load_mode              = "single"
+          "granularity.$"        = "$.extraction.granularity"
+          "processing_date.$"    = "$.extraction.processing_date"
+          "staging_input_path.$" = "$.extraction.s3_uri"
+          "bronze_input_path.$"  = "States.Format('${local.bronze_dengue_output_path}processing_date={}/granularity={}/reference_period={}', $.extraction.processing_date, $.extraction.granularity, $.extraction.reference_period)"
+          "silver_input_path.$"  = "States.Format('${local.silver_dengue_cases_output_path}processing_date={}/granularity={}/reference_period={}', $.extraction.processing_date, $.extraction.granularity, $.extraction.reference_period)"
+        }
+        ResultPath = "$.batch"
+        Next       = "RunBronze"
+      }
       RunBronze = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
-          JobName = module.bronze_ingestion_glue_job.job_name
+          JobName = module.dengue_staging_to_bronze_glue_job.job_name
           Arguments = {
             "--BATCH_ID.$"           = "$$.Execution.Name"
-            "--STAGING_INPUT_PATH.$" = "$.staging_input_path"
+            "--STAGING_INPUT_PATH.$" = "$.batch.staging_input_path"
           }
         }
         ResultPath = "$.bronze"
@@ -171,10 +340,10 @@ resource "aws_sfn_state_machine" "dengue_batch" {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
-          JobName = module.silver_dengue_cases_glue_job.job_name
+          JobName = module.dengue_bronze_to_silver_glue_job.job_name
           Arguments = {
             "--BATCH_ID.$"          = "$$.Execution.Name"
-            "--BRONZE_INPUT_PATH.$" = "$.bronze_input_path"
+            "--BRONZE_INPUT_PATH.$" = "$.batch.bronze_input_path"
           }
         }
         ResultPath = "$.silver"
@@ -184,10 +353,10 @@ resource "aws_sfn_state_machine" "dengue_batch" {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
-          JobName = module.gold_dengue_glue_job.job_name
+          JobName = module.dengue_silver_to_gold_glue_job.job_name
           Arguments = {
             "--BATCH_ID.$"          = "$$.Execution.Name"
-            "--SILVER_INPUT_PATH.$" = "$.silver_input_path"
+            "--SILVER_INPUT_PATH.$" = "$.batch.silver_input_path"
           }
         }
         ResultPath = "$.gold"
@@ -200,8 +369,8 @@ resource "aws_sfn_state_machine" "dengue_batch" {
           JobName = module.dengue_batch_reconciliation_glue_job.job_name
           Arguments = {
             "--BATCH_ID.$"          = "$$.Execution.Name"
-            "--BRONZE_INPUT_PATH.$" = "$.bronze_input_path"
-            "--SILVER_INPUT_PATH.$" = "$.silver_input_path"
+            "--BRONZE_INPUT_PATH.$" = "$.batch.bronze_input_path"
+            "--SILVER_INPUT_PATH.$" = "$.batch.silver_input_path"
           }
         }
         ResultPath = "$.reconciliation"

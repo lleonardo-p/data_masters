@@ -9,7 +9,12 @@ from urllib.request import Request, urlopen
 import boto3
 from boto3.s3.transfer import TransferConfig
 
-from contract import build_api_url, build_s3_keys, parse_event
+from contract import (
+    build_api_url,
+    build_backfill_periods,
+    build_s3_keys,
+    parse_event,
+)
 from streaming import AuditedGzipReader
 
 
@@ -83,6 +88,23 @@ def manifest_exists(bucket: str, key: str) -> bool:
 
 
 def lambda_handler(event, context):
+    if event.get("operation") == "plan_backfill":
+        periods = build_backfill_periods(
+            str(event.get("granularity", "")).lower(),
+            str(event.get("start_period", "")),
+            str(event.get("end_period", "")),
+        )
+        return {
+            "status": "PLANNED",
+            "load_mode": "backfill",
+            "granularity": str(event["granularity"]).lower(),
+            "processing_date": str(event["processing_date"]),
+            "start_period": str(event["start_period"]),
+            "end_period": str(event["end_period"]),
+            "period_count": len(periods),
+            "periods": periods,
+        }
+
     request = parse_event(
         event,
         allowed_host_suffixes=ALLOWED_API_HOST_SUFFIXES,
@@ -110,6 +132,10 @@ def lambda_handler(event, context):
         return {
             "status": "SKIPPED",
             "batch_id": batch_id,
+            "environment": ENVIRONMENT,
+            "granularity": request.granularity,
+            "reference_period": request.reference_period,
+            "processing_date": request.processing_date,
             "s3_uri": f"s3://{DESTINATION_BUCKET}/{data_key}",
             "manifest_uri": (
                 f"s3://{DESTINATION_BUCKET}/{manifest_key}"
