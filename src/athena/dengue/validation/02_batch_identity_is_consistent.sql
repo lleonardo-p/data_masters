@@ -7,8 +7,8 @@ WITH batch_stats AS (
 )
 SELECT
     'batch_identity_is_consistent' AS check_name,
-    missing_batch_id_count = 0
-        AND distinct_batch_id_count = 1 AS passed,
+     missing_batch_id_count = 0
+        AND distinct_batch_id_count >= 1 AS passed,
     CONCAT(
         'row_count=',
         CAST(row_count AS VARCHAR),

@@ -50,6 +50,21 @@ services:
       - api
     restart: unless-stopped
 
+  hospital-simulator:
+    build: ./hospital_simulator
+    profiles: ["nrt"]
+    environment:
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_PROFILE: ${AWS_PROFILE:-baip-dev}
+      SQS_QUEUE_URL: ${NRT_SQS_QUEUE_URL:-}
+      EVENT_INTERVAL_SECONDS: ${NRT_EVENT_INTERVAL_SECONDS:-3}
+      MAX_EVENTS: ${NRT_MAX_EVENTS:-0}
+      DRY_RUN: ${NRT_DRY_RUN:-false}
+      RANDOM_SEED: ${NRT_RANDOM_SEED:-}
+      LOG_LEVEL: ${NRT_LOG_LEVEL:-INFO}
+    volumes:
+      - ${HOME}/.aws:/home/appuser/.aws:ro
+    restart: on-failure
+
 volumes:
   dengue_postgres_data:
-
