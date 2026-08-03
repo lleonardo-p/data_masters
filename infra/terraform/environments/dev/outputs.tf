@@ -217,3 +217,18 @@ output "dengue_nrt_idempotency_table_name" {
   description = "DynamoDB table used to prevent duplicate event processing."
   value       = aws_dynamodb_table.dengue_nrt_idempotency.name
 }
+
+output "dengue_nrt_api_url" {
+  description = "Base URL of the dengue NRT HTTP API."
+  value       = aws_apigatewayv2_api.dengue_nrt.api_endpoint
+}
+
+output "dengue_nrt_api_function_name" {
+  description = "Name of the Lambda that serves dengue NRT queries."
+  value       = aws_lambda_function.dengue_nrt_api.function_name
+}
+
+output "dengue_nrt_api_id" {
+  description = "API Gateway HTTP API identifier for dengue NRT queries."
+  value       = aws_apigatewayv2_api.dengue_nrt.id
+}
