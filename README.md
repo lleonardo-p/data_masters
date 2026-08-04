@@ -1,6 +1,8 @@
 # Data Masters — Trilha de Engenharia de Dados
 
-## Plataforma de Processamento de Dados — Caso Arboviroses
+## BAIP — Brazil Arbovirus Intelligence Platform
+
+### Plataforma de Inteligência Epidemiológica e Assistencial — Caso Dengue
 
 **Autor:** Leonardo Lucas Pereira<br>
 **Formação:** Engenheiro de Computação e especialista em Engenharia de Machine Learning<br>
@@ -10,142 +12,46 @@
 
 ## 1. Objetivo
 
-Este projeto corresponde à segunda fase do processo interno de certificação da empresa. O objetivo desta etapa é desenvolver e documentar uma solução de engenharia de dados que contemple os seguintes tópicos:
+A **BAIP — Brazil Arbovirus Intelligence Platform** é uma plataforma de inteligência epidemiológica e assistencial criada para transformar dados de arboviroses em informações acionáveis para gestores e profissionais autorizados.
 
-| Tópico | Objetivo |
-|---|---|
-| Extração de dados | Obter dados a partir de diferentes fontes e formatos |
-| Ingestão de dados | Receber e encaminhar os dados para processamento |
-| Armazenamento de dados | Organizar e disponibilizar os dados conforme suas etapas de processamento |
-| Observabilidade | Permitir o acompanhamento das execuções, métricas e falhas |
-| Segurança de dados | Proteger os dados e controlar o acesso aos recursos |
-| Mascaramento de dados | Evitar a exposição de informações pessoais ou sensíveis |
-| Arquitetura de dados | Definir componentes, responsabilidades e integração entre os serviços |
-| Escalabilidade | Preparar a solução para evolução de volume, frequência e necessidades de negócio |
+Embora sua arquitetura permita a incorporação de outras arboviroses, o escopo implementado neste projeto está concentrado na **dengue**. A solução combina dados históricos de notificações com eventos recentes de triagem para reduzir o tempo entre a ocorrência dos casos, a identificação de mudanças no cenário e a tomada de decisão.
 
-O desenvolvimento deverá considerar não apenas o funcionamento da solução, mas também os desafios encontrados, suas limitações e as melhorias futuras. O resultado esperado é uma plataforma de dados segura, eficiente, rastreável e capaz de evoluir de acordo com o crescimento da demanda.
+A plataforma apoia três níveis de decisão:
 
----
+| Nível           | Decisão apoiada                                                                                                   |
+| --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Estratégico** | Priorizar municípios, regiões, campanhas preventivas e investimentos em saúde                                     |
+| **Tático**      | Planejar equipes, insumos, unidades de atendimento e capacidade hospitalar                                        |
+| **Operacional** | Monitorar triagens recentes, identificar concentrações de risco e consultar o histórico autorizado de um paciente |
 
-## 2. Apresentação do case — Plataforma de dados para arboviroses
+Com as informações disponibilizadas, a plataforma permite identificar:
 
-O case escolhido utiliza dados públicos de notificações de dengue disponibilizados pelo Ministério da Saúde. A dengue pertence ao grupo das arboviroses e foi selecionada como domínio para demonstrar diferentes padrões de processamento em uma mesma plataforma de dados.
+* os municípios e UFs com maior concentração de notificações;
+* os períodos com crescimento de casos, hospitalizações e ocorrências graves;
+* as faixas etárias e os grupos mais impactados;
+* as regiões que podem exigir campanhas preventivas ou investigação epidemiológica;
+* o aumento recente da procura por triagem;
+* a distribuição dos atendimentos por região, unidade e nível de risco;
+* o histórico de triagem de um paciente, mediante acesso autorizado e sem exposição direta de seus dados pessoais nas tabelas operacionais.
 
-O período analisado compreende os anos de 2024 e 2025, além dos dados disponíveis entre janeiro e julho de 2026. O arquivo de 2026 representa uma fotografia parcial correspondente à última atualização disponível durante o desenvolvimento do projeto.
+Além do valor para o negócio, o projeto demonstra a aplicação prática de conceitos de engenharia de dados, incluindo processamento Batch e Near Real-Time, arquitetura de dados, qualidade, segurança, pseudonimização, rastreabilidade, observabilidade, escalabilidade e infraestrutura como código.
 
-Toda a solução foi projetada para execução na AWS. As decisões arquiteturais, alternativas consideradas, consequências e possibilidades de evolução estão registradas nos *Architecture Decision Records* do repositório.
+A plataforma não realiza diagnóstico médico nem prevê automaticamente a ocorrência de uma epidemia. Ela funciona como um sistema de apoio à decisão, utilizando padrões históricos e sinais operacionais recentes para orientar investigação, planejamento e preparação da rede de atendimento.
 
-> [!IMPORTANT]
-> ### [Acessar as decisões arquiteturais — ADRs](architecture/ADR/)
->
-> Os ADRs registram o contexto, a decisão adotada, as alternativas avaliadas, os impactos e os possíveis caminhos de evolução da plataforma.
+> **Em resumo:** a solução ajuda a responder **onde agir, quando agir, para quem direcionar os esforços e como preparar a rede de atendimento**, utilizando dados confiáveis, rastreáveis e protegidos.
 
-### 2.1 Problema de negócio
+### 1.1 Evidência de valor — visão histórica consolidada
 
-Gestores e analistas de saúde pública precisam identificar municípios, períodos
-e grupos populacionais que apresentam crescimento nos casos de dengue para
-priorizar análises epidemiológicas, campanhas de orientação e a preparação da
-rede de atendimento.
+A camada analítica transforma milhões de registros processados em rankings que apoiam a priorização de territórios e grupos populacionais.
 
-A plataforma apoia a vigilância e a preparação para possíveis surtos,
-transformando dados de dengue em indicadores que ajudam a priorizar
-territórios, identificar tendências, orientar os grupos mais afetados e avaliar
-a necessidade de preparação da capacidade hospitalar.
+O exemplo abaixo apresenta:
 
-O fluxo Batch disponibiliza uma visão histórica consolidada das notificações,
-permitindo analisar a evolução dos casos por período, município, UF, gravidade
-e faixa etária. O fluxo NRT complementa essa visão com o acompanhamento de
-eventos de triagem em tempo quase real, reduzindo o intervalo entre o aumento da
-procura por atendimento e sua identificação pelos responsáveis.
+* faixas etárias com maior percentual de hospitalização;
+* faixas etárias com maior número de casos confirmados;
+* municípios com maior número de casos confirmados;
+* municípios com maior número de casos graves;
+* indicadores de hospitalizações e óbitos.
 
-A combinação dos dois fluxos pode contribuir para uma resposta antecipada,
-apoiando a intensificação de campanhas preventivas, a orientação da população e
-a preparação de equipes, insumos, unidades de atendimento e leitos. Os
-indicadores funcionam como sinais para investigação e planejamento, e não como
-confirmação automática de uma epidemia.
+![Ranking de indicadores epidemiológicos no Amazon Athena](docs/assets/athena-indicadores-priorizacao.png)
 
-As informações disponibilizadas permitem responder:
-
-- Quais municípios e UFs concentram os maiores volumes de notificações e casos
-  confirmados?
-- Quais municípios e UFs registram mais casos graves, hospitalizações e óbitos?
-- Como as notificações evoluem ao longo dos meses em cada município e UF?
-- Em quais períodos ocorreu crescimento nas notificações, confirmações ou
-  hospitalizações?
-- Onde e quando foram registrados os maiores volumes de casos graves?
-- Quais grupos etários concentram mais notificações, casos confirmados,
-  hospitalizações e óbitos?
-- Quais territórios e grupos etários podem ser priorizados em campanhas de
-  prevenção e orientação?
-- Em quais regiões houve crescimento recente na procura por triagem?
-- O volume de triagens está aumentando em comparação com períodos anteriores?
-- Quais regiões podem exigir uma avaliação antecipada da capacidade de
-  atendimento?
-
-As respostas devem ser interpretadas como apoio à análise epidemiológica e ao
-planejamento. A plataforma não substitui indicadores oficiais, não realiza
-diagnósticos e não confirma automaticamente a ocorrência de surtos ou
-epidemias.
-
-
-### 2.2 Estrutura da solução
-
-A plataforma é composta por dois fluxos de processamento.
-
-### Fluxo Batch
-
-O fluxo Batch processa arquivos públicos de notificações de dengue. Os dados percorrem um pipeline distribuído em lote, organizado segundo a arquitetura Medallion, passando pelas etapas de recebimento, preservação, tratamento, qualidade e modelagem analítica.
-
-O resultado é disponibilizado por meio de views consolidadas com indicadores por período, estado, município, faixa etária, classificação e outras perspectivas analíticas.
-
-> [!IMPORTANT]
-> ### [Acessar a documentação do fluxo Batch](docs/batch/README.md)
->
-> Este é o fluxo implementado de ponta a ponta, desde a entrada dos arquivos na Staging até a disponibilização das views no Athena.
-
-![Arquitetura do fluxo Batch](architecture/c4/batch/fluxo_batch.drawio.svg)
-
----
-
-### Fluxo NRT — Near Real Time
-
-O fluxo NRT simulará eventos de triagem hospitalar relacionados a casos suspeitos de dengue. Os eventos incluirão dados pessoais exclusivamente sintéticos e serão publicados em um serviço de mensageria.
-
-Durante o processamento, serão aplicados controles de validação, idempotência e proteção de PII. O resultado será composto por indicadores operacionais atualizados em Near Real Time e disponibilizados para consumo por meio de uma API.
-
-> [!NOTE]
-> ### [Acessar a documentação do fluxo NRT — em desenvolvimento](docs/nrt/README.md)
->
-> Esta frente demonstrará mensageria, processamento orientado a eventos, proteção de dados pessoais sintéticos e disponibilização de indicadores por API.
-
-> **Diagrama da arquitetura NRT:** em desenvolvimento.
-
-<!--
-Substituir este comentário pelo diagrama final do fluxo NRT.
-![Arquitetura do fluxo NRT](architecture/c4/nrt/nrt-flow.png)
--->
-
----
-
-O fluxo Batch utiliza exclusivamente dados públicos. O fluxo NRT utilizará somente dados sintéticos e não processará informações reais de pacientes.
-
-O projeto não tem como objetivo substituir sistemas ou indicadores epidemiológicos oficiais. Seu propósito é utilizar esse domínio para demonstrar conceitos, decisões e práticas de engenharia de dados.
-
-## 3. Considerações
-
-<!--
-Seção reservada para as considerações finais, limitações identificadas,
-trade-offs e possibilidades de evolução da plataforma.
--->
-
-## 4. Utilização
-
-O guia de instalação e utilização apresenta os pré-requisitos, a configuração
-das credenciais AWS, o provisionamento da infraestrutura com Terraform e os
-procedimentos necessários para executar e validar a plataforma.
-
-> [!IMPORTANT]
-> ### [Acessar o guia de instalação e utilização](docs/usage/installation.md)
->
-> Consulte este documento para preparar o ambiente, provisionar os recursos e
-> executar os fluxos da plataforma.
+Essa visão oferece respostas objetivas para o direcionamento de campanhas, a investigação epidemiológica e a preparação da rede de atendimento.
