@@ -193,9 +193,9 @@ A documentação técnica apresenta os componentes, as decisões arquiteturais e
 
 > **Evidência a adicionar:** diagrama completo da arquitetura Batch.
 
-<!--
+
 ![Arquitetura do fluxo Batch](architecture/c4/batch/fluxo_batch.drawio.svg)
--->
+
 
 > **Evidência a adicionar:** diagrama completo da arquitetura NRT.
 
