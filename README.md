@@ -106,11 +106,9 @@ O fluxo produz indicadores operacionais por território, unidade, faixa etária 
 > [!IMPORTANT]
 > [Acessar a documentação do fluxo NRT](docs/nrt/README.md)
 
-<!--
-Adicionar o diagrama quando o arquivo final estiver disponível:
 
 ![Arquitetura do fluxo NRT](architecture/c4/nrt/fluxo_nrt.drawio.svg)
--->
+
 
 ---
 
