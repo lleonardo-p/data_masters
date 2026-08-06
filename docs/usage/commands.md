@@ -338,7 +338,7 @@ make down
 ## 6. Sequência resumida
 
 ```bash
-make source-setup
+make source-up
 make source-health
 
 make tunnel-up
@@ -373,4 +373,11 @@ make nrt-logs
 make nrt-dashboard-up
 make nrt-dashboard-health
 make down
+
+
+make batch-backfill \
+  GRANULARITY=month \
+  START_PERIOD=2024-01 \
+  END_PERIOD=2024-02 \
+  PROCESSING_DATE="$(date -u +%F)"
 ```
