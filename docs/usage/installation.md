@@ -10,10 +10,10 @@ Execute os comandos a partir da raiz do repositório.
 - Git;
 - AWS CLI v2;
 - Terraform `>= 1.10.0`;
-- `unzip` para os arquivos de origem;
+- Docker com Docker Compose;
+- Python 3;
 - uma conta AWS com permissão para criar S3, IAM, Glue, Athena, Step Functions,
   CloudWatch e SNS;
-- os arquivos `DENGBR24.csv`, `DENGBR25.csv` e `DENGBR26.csv`;
 - o arquivo de referência `municipios_ufs_ibge.json`.
 
 Verifique as ferramentas:
@@ -212,64 +212,44 @@ aws s3 ls \
   --region "${AWS_REGION}"
 ```
 
-## 6. Preparar e enviar os arquivos CSV
+## 6. Preparar a fonte externa local
 
-O job Bronze atual utiliza `pathGlobFilter="*.csv"`. Portanto:
-
-- envie arquivos `.csv` descompactados;
-- não envie `.zip` diretamente;
-- não utilize `.csv.gz` sem antes adaptar e testar o filtro do job.
-
-Se os arquivos estiverem em ZIP, descompacte-os localmente:
+O projeto automatiza a preparação da fonte histórica utilizada pela API local.
+Execute:
 
 ```bash
-unzip DENGBR24.csv.zip
-unzip DENGBR25.csv.zip
-unzip DENGBR26.csv.zip
+make source-setup
 ```
 
-Confirme os nomes:
+Esse comando:
+
+1. baixa `DENGBR24.csv.zip`, `DENGBR25.csv.zip` e `DENGBR26.csv.zip` do
+   Portal de Dados Abertos do SUS;
+2. valida os arquivos ZIP;
+3. converte cada CSV para o formato `.csv.gz` esperado pelo importador;
+4. inicia o PostgreSQL e a FastAPI com Docker Compose;
+5. importa os registros no banco;
+6. verifica a disponibilidade da fonte.
+
+Os arquivos são armazenados em `api-local/data/`, diretório ignorado pelo Git.
+Downloads e importações já concluídos são ignorados nas próximas execuções.
+
+Para executar somente o download e a conversão:
 
 ```bash
-ls -lh DENGBR24.csv DENGBR25.csv DENGBR26.csv
+make source-download
 ```
 
-Envie cada arquivo para sua partição de ano de referência:
+Valide a fonte externa:
 
 ```bash
-aws s3 cp \
-  ./DENGBR24.csv \
-  "s3://${DATA_LAKE_BUCKET}/staging/opendatasus/dengue/reference_year=2024/DENGBR24.csv" \
-  --profile "${AWS_PROFILE}" \
-  --region "${AWS_REGION}"
-
-aws s3 cp \
-  ./DENGBR25.csv \
-  "s3://${DATA_LAKE_BUCKET}/staging/opendatasus/dengue/reference_year=2025/DENGBR25.csv" \
-  --profile "${AWS_PROFILE}" \
-  --region "${AWS_REGION}"
-
-aws s3 cp \
-  ./DENGBR26.csv \
-  "s3://${DATA_LAKE_BUCKET}/staging/opendatasus/dengue/reference_year=2026/DENGBR26.csv" \
-  --profile "${AWS_PROFILE}" \
-  --region "${AWS_REGION}"
+make source-health
 ```
 
-Verifique a Staging antes de iniciar o pipeline:
-
-```bash
-aws s3 ls \
-  "s3://${DATA_LAKE_BUCKET}/staging/opendatasus/dengue/" \
-  --recursive \
-  --human-readable \
-  --summarize \
-  --profile "${AWS_PROFILE}" \
-  --region "${AWS_REGION}"
-```
-
-Inicie o lote somente depois que os três uploads e a referência IBGE estiverem
-completos.
+> [!NOTE]
+> O download e a importação inicial processam milhões de registros e podem
+> levar alguns minutos, dependendo da conexão e dos recursos disponíveis para
+> o Docker.
 
 ## 7. Executar o fluxo Batch
 
