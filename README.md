@@ -12,49 +12,47 @@
 
 ## 1. Objetivo
 
-A **BAIP — Brazil Arbovirus Intelligence Platform** é uma plataforma de inteligência epidemiológica e assistencial criada para transformar dados de arboviroses em informações acionáveis para gestores e profissionais autorizados.
+A **BAIP — Brazil Arbovirus Intelligence Platform** transforma dados históricos de dengue e eventos recentes de triagem em informações para apoiar decisões de saúde pública.
 
-Embora sua arquitetura permita a incorporação de outras arboviroses, o escopo implementado neste projeto está concentrado na **dengue**. A solução combina dados históricos de notificações com eventos recentes de triagem para reduzir o tempo entre a ocorrência dos casos, a identificação de mudanças no cenário e a tomada de decisão.
+Embora a arquitetura permita incorporar outras arboviroses, o escopo implementado está concentrado na **dengue**.
 
 A plataforma apoia três níveis de decisão:
 
-| Nível           | Decisão apoiada                                                                                                   |
-| --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Estratégico** | Priorizar municípios, regiões, campanhas preventivas e investimentos em saúde                                     |
-| **Tático**      | Planejar equipes, insumos, unidades de atendimento e capacidade hospitalar                                        |
-| **Operacional** | Monitorar triagens recentes, identificar concentrações de risco e consultar o histórico autorizado de um paciente |
+| Nível           | Decisão apoiada                                                             |
+| --------------- | --------------------------------------------------------------------------- |
+| **Estratégico** | Priorizar territórios, campanhas preventivas e investimentos                |
+| **Tático**      | Planejar equipes, insumos e capacidade hospitalar                           |
+| **Operacional** | Monitorar triagens recentes e consultar o histórico autorizado de pacientes |
 
-Com as informações disponibilizadas, a plataforma permite identificar:
+A solução permite responder:
 
-* os municípios e UFs com maior concentração de notificações;
-* os períodos com crescimento de casos, hospitalizações e ocorrências graves;
-* as faixas etárias e os grupos mais impactados;
-* as regiões que podem exigir campanhas preventivas ou investigação epidemiológica;
-* o aumento recente da procura por triagem;
-* a distribuição dos atendimentos por região, unidade e nível de risco;
-* o histórico de triagem de um paciente, mediante acesso autorizado e sem exposição direta de seus dados pessoais nas tabelas operacionais.
+* onde estão concentrados os maiores volumes de casos;
+* quais grupos etários apresentam maior impacto;
+* quando ocorre crescimento nas notificações e hospitalizações;
+* como as triagens recentes estão distribuídas por território e nível de risco;
+* quais regiões podem exigir investigação ou preparação da rede de atendimento.
 
-Além do valor para o negócio, o projeto demonstra a aplicação prática de conceitos de engenharia de dados, incluindo processamento Batch e Near Real-Time, arquitetura de dados, qualidade, segurança, pseudonimização, rastreabilidade, observabilidade, escalabilidade e infraestrutura como código.
+Para isso, o projeto combina processamento **Batch** e **Near Real-Time**, qualidade de dados, pseudonimização, rastreabilidade, observabilidade e infraestrutura como código.
 
-A plataforma não realiza diagnóstico médico nem prevê automaticamente a ocorrência de uma epidemia. Ela funciona como um sistema de apoio à decisão, utilizando padrões históricos e sinais operacionais recentes para orientar investigação, planejamento e preparação da rede de atendimento.
+A BAIP não realiza diagnóstico médico nem prevê epidemias automaticamente. Seus indicadores apoiam a investigação epidemiológica, o planejamento e a alocação de recursos.
 
-> **Em resumo:** a solução ajuda a responder **onde agir, quando agir, para quem direcionar os esforços e como preparar a rede de atendimento**, utilizando dados confiáveis, rastreáveis e protegidos.
+> **Em resumo:** a plataforma ajuda a responder **onde agir, quando agir, para quem direcionar os esforços e como preparar a rede de atendimento**.
 
-### 1.1 Evidência de valor — visão histórica consolidada
+### 1.1 Evidência de valor — visão histórica
 
-A camada analítica transforma milhões de registros processados em rankings que apoiam a priorização de territórios e grupos populacionais.
+A camada analítica transforma milhões de registros em indicadores para priorização territorial e análise do perfil dos casos.
 
-O exemplo abaixo apresenta:
+O painel apresenta:
 
-* faixas etárias com maior percentual de hospitalização;
-* faixas etárias com maior número de casos confirmados;
-* municípios com maior número de casos confirmados;
-* municípios com maior número de casos graves;
-* indicadores de hospitalizações e óbitos.
+* UFs com mais casos confirmados;
+* municípios com mais casos confirmados;
+* municípios com mais casos graves;
+* faixas etárias com maior percentual de hospitalização.
 
-![Ranking de indicadores epidemiológicos no Amazon Athena](docs/assets/athena-indicadores-priorizacao.png)
+![Indicadores históricos de dengue](docs/assets/baip-indicadores-historicos.png)
 
-Essa visão oferece respostas objetivas para o direcionamento de campanhas, a investigação epidemiológica e a preparação da rede de atendimento.
+Os rankings utilizam valores absolutos e percentuais calculados a partir dos registros disponíveis (01/2024 - 02/2026).
+
 
 ### 1.2 Evidência de valor — indicadores em tempo quase real
 
@@ -190,8 +188,6 @@ A documentação técnica apresenta os componentes, as decisões arquiteturais e
 > Registra o contexto, as alternativas avaliadas, as decisões adotadas, seus impactos, limitações e possíveis caminhos de evolução.
 
 ### 3.1 Diagramas de arquitetura
-
-> **Evidência a adicionar:** diagrama completo da arquitetura Batch.
 
 
 ![Arquitetura do fluxo Batch](architecture/c4/batch/fluxo_batch.drawio.svg)
