@@ -222,9 +222,8 @@ inválidos contaminem as análises.
 
 #### Amostra dos registros em Quarentena
 
-<!--
-![Amostra dos registros em Quarentena](assets/quarantine-data-sample.png)
--->
+
+![Amostra dos registros em Quarentena](../assets/quarantine-data-sample.png)
 
 ### 4.3 Silver para Gold
 
