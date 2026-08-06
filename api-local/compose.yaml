@@ -66,5 +66,20 @@ services:
       - ${HOME}/.aws:/home/appuser/.aws:ro
     restart: on-failure
 
+  nrt-dashboard:
+    build: ./nrt_dashboard
+    profiles: ["dashboard"]
+    environment:
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_PROFILE: ${AWS_PROFILE:-baip-dev}
+      NRT_API_BASE_URL: ${NRT_API_BASE_URL:-}
+      DASHBOARD_WINDOW_MINUTES: ${DASHBOARD_WINDOW_MINUTES:-60}
+      DASHBOARD_REFRESH_SECONDS: ${DASHBOARD_REFRESH_SECONDS:-120}
+    volumes:
+      - ${HOME}/.aws:/home/appuser/.aws:ro
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+
 volumes:
   dengue_postgres_data:

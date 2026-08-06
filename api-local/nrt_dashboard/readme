@@ -1,0 +1,109 @@
+# Dashboard NRT
+
+Dashboard local da **BAIP â€” Brazil Arbovirus Intelligence Platform** para
+visualizaÃ§Ã£o dos indicadores recentes de triagem de dengue.
+
+O painel consulta a API NRT protegida com AWS IAM, compara os indicadores das
+27 Unidades Federativas e apresenta atÃ© dez UFs com triagens no perÃ­odo
+selecionado. As duas primeiras posiÃ§Ãµes recebem destaque em vermelho.
+
+## Indicadores apresentados
+
+- total de triagens no perÃ­odo;
+- quantidade de UFs com atividade;
+- triagens classificadas com risco laranja ou vermelho;
+- ranking das dez UFs com mais triagens;
+- distribuiÃ§Ã£o das triagens por nÃ­vel de risco.
+
+O dashboard apresenta triagens recentes e nÃ£o representa diagnÃ³stico mÃ©dico ou
+confirmaÃ§Ã£o automÃ¡tica de epidemia.
+
+## Estrutura
+
+```text
+api-local/nrt_dashboard/
+â”œâ”€â”€ app.py
+â”œâ”€â”€ Dockerfile
+â”œâ”€â”€ README.md
+â””â”€â”€ requirements.txt
+```
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `app.py` | Consulta a API e constrÃ³i as visualizaÃ§Ãµes com Streamlit e Plotly |
+| `Dockerfile` | Define a imagem Docker do dashboard |
+| `requirements.txt` | Declara as dependÃªncias Python |
+
+## PrÃ©-requisitos
+
+- infraestrutura AWS do projeto provisionada;
+- API NRT disponÃ­vel;
+- Docker em execuÃ§Ã£o;
+- credenciais configuradas no profile AWS utilizado pelo projeto;
+- eventos recentes processados pelo fluxo NRT.
+
+As credenciais sÃ£o montadas no contÃªiner em modo somente leitura. Elas nÃ£o sÃ£o
+copiadas para a imagem Docker nem armazenadas no cÃ³digo.
+
+## Publicar eventos para demonstraÃ§Ã£o
+
+Antes de abrir o painel, publique eventos recentes:
+
+```bash
+make nrt-publish COUNT=100 INTERVAL=1
+```
+
+## Subir o dashboard
+
+Na raiz do repositÃ³rio, execute:
+
+```bash
+make nrt-dashboard-up
+```
+
+O painel ficarÃ¡ disponÃ­vel em:
+
+```text
+http://localhost:8501
+```
+
+## ConfiguraÃ§Ã£o
+
+Por padrÃ£o, o dashboard consulta os Ãºltimos 60 minutos e atualiza os dados a
+cada 120 segundos.
+
+Para alterar esses valores:
+
+```bash
+make nrt-dashboard-up \
+  WINDOW_MINUTES=180 \
+  REFRESH_SECONDS=60
+```
+
+| VariÃ¡vel | PadrÃ£o | Finalidade |
+|---|---:|---|
+| `WINDOW_MINUTES` | `60` | Janela inicial consultada pela API |
+| `REFRESH_SECONDS` | `120` | Intervalo de atualizaÃ§Ã£o automÃ¡tica |
+| `AWS_PROFILE` | `baip-dev` | Profile utilizado para autenticaÃ§Ã£o AWS IAM |
+| `AWS_REGION` | `us-east-1` | RegiÃ£o da API NRT |
+
+## Verificar o dashboard
+
+```bash
+make nrt-dashboard-health
+```
+
+## Acompanhar os logs
+
+```bash
+make nrt-dashboard-logs
+```
+
+## Encerrar o ambiente
+
+```bash
+make down
+```
+
+O encerramento dos contÃªineres locais nÃ£o remove os recursos provisionados na
+AWS.

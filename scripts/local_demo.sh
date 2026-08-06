@@ -123,6 +123,24 @@ show_queue_status() {
         --output table
 }
 
+start_nrt_dashboard() {
+    local api_base_url
+    api_base_url="$(terraform_output dengue_nrt_api_url)"
+
+    NRT_API_BASE_URL="${api_base_url}" \
+    DASHBOARD_WINDOW_MINUTES="${WINDOW_MINUTES:-60}" \
+    DASHBOARD_REFRESH_SECONDS="${REFRESH_SECONDS:-120}" \
+    AWS_PROFILE="${AWS_PROFILE}" \
+    AWS_REGION="${AWS_REGION}" \
+        compose --profile dashboard up \
+            --detach \
+            --build \
+            --force-recreate \
+            nrt-dashboard
+
+    echo "Dashboard NRT disponível em: http://localhost:8501"
+}
+
 main() {
     case "${1:-}" in
         check)
@@ -162,9 +180,19 @@ main() {
         nrt-queues)
             show_queue_status
             ;;
+        nrt-dashboard-up)
+            require_env_file
+            start_nrt_dashboard
+            ;;
+        nrt-dashboard-health)
+            curl --fail --show-error http://localhost:8501/_stcore/health
+            ;;
+        nrt-dashboard-logs)
+            compose --profile dashboard logs --follow nrt-dashboard
+            ;;
         down)
             require_env_file
-            compose --profile tools --profile tunnel --profile nrt down
+            compose --profile tools --profile tunnel --profile nrt --profile dashboard down
             ;;
         *)
             echo "Comando inválido: ${1:-}" >&2
