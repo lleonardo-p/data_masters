@@ -9,19 +9,36 @@ NRT. Execute todos os comandos a partir da raiz do repositório.
 
 ## 1. Preparar a fonte externa
 
-### 1.1 Subir PostgreSQL e FastAPI
+### 1.1 Montar a fonte completa
 
-O comando inicia o banco PostgreSQL e a API local que representa a fonte
-externa dos dados de dengue. O Docker aguarda o banco ficar saudável antes de
-iniciar a API.
+Baixa os três arquivos oficiais de dengue, converte de `.csv.zip` para
+`.csv.gz`, inicia PostgreSQL e FastAPI e importa os registros no banco.
 
 **COMANDO A EXECUTAR:**
 
 ```bash
-make source-up
+make source-setup
 ```
 
-### 1.2 Verificar a fonte externa
+### 1.2 Executar somente o download
+
+Baixa e converte os arquivos sem iniciar os contêineres nem importar os dados.
+
+```bash
+make source-download
+```
+
+### 1.3 Comandos manuais da fonte
+
+Os comandos abaixo permanecem disponíveis para executar separadamente a subida
+dos serviços e a importação:
+
+```bash
+make source-up
+make source-import
+```
+
+### 1.4 Verificar a fonte externa
 
 Consulta o endpoint `/health` da FastAPI e mostra o estado dos contêineres da
 API e do PostgreSQL.
@@ -321,7 +338,7 @@ make down
 ## 6. Sequência resumida
 
 ```bash
-make source-up
+make source-setup
 make source-health
 
 make tunnel-up

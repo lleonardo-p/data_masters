@@ -20,7 +20,8 @@ LIMIT ?= 50
 TF_PLAN ?= baip-dev.tfplan
 
 .PHONY: help check infra-validate infra-plan infra-apply infra-output \
-	source-up source-import source-health tunnel-up tunnel-url \
+	source-download source-setup source-up source-import source-health \
+	tunnel-up tunnel-url \
 	tunnel-health hospital-build nrt-publish nrt-queues nrt-health \
 	nrt-indicators nrt-history nrt-logs nrt-dashboard-up nrt-dashboard-health \
 	nrt-dashboard-logs batch-run batch-backfill batch-status \
@@ -37,6 +38,8 @@ help: ## Lista os comandos de demonstração.
 	@echo "  infra-output    Exibe os outputs provisionados"
 	@echo
 	@echo "Fonte externa local"
+	@echo "  source-download Baixa e converte os arquivos oficiais para .csv.gz"
+	@echo "  source-setup    Prepara os dados, sobe a fonte e executa a importação"
 	@echo "  source-up       Sobe PostgreSQL e a API local"
 	@echo "  source-import   Importa os arquivos de api-local/data"
 	@echo "  source-health   Verifica API local e PostgreSQL"
@@ -91,6 +94,12 @@ infra-output:
 
 source-up:
 	@./scripts/local_demo.sh source-up
+
+source-download:
+	@./scripts/local_demo.sh source-download
+
+source-setup:
+	@./scripts/local_demo.sh source-setup
 
 source-import:
 	@./scripts/local_demo.sh source-import

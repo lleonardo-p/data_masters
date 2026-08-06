@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_DIR="${REPOSITORY_ROOT}/api-local"
 TERRAFORM_DIR="${REPOSITORY_ROOT}/infra/terraform/environments/dev"
+SOURCE_DATA_PREPARER="${REPOSITORY_ROOT}/scripts/prepare_dengue_source_data.py"
 
 compose() {
     docker compose --project-directory "${COMPOSE_DIR}" \
@@ -87,6 +88,28 @@ check_environment() {
     echo "Ambiente pronto para a demonstração."
 }
 
+prepare_source_data() {
+    require_command python3
+
+    python3 "${SOURCE_DATA_PREPARER}" \
+        --data-dir "${COMPOSE_DIR}/data"
+}
+
+start_source() {
+    require_env_file
+    compose up --detach db api
+}
+
+import_source_data() {
+    require_env_file
+    compose --profile tools run --rm importer /data
+}
+
+show_source_health() {
+    curl --fail --show-error http://localhost:8000/health | python3 -m json.tool
+    compose ps db api
+}
+
 publish_nrt_events() {
     local count interval queue_url
     count="${COUNT:-10}"
@@ -146,17 +169,23 @@ main() {
         check)
             check_environment
             ;;
+        source-download)
+            prepare_source_data
+            ;;
+        source-setup)
+            prepare_source_data
+            start_source
+            import_source_data
+            show_source_health
+            ;;
         source-up)
-            require_env_file
-            compose up --detach db api
+            start_source
             ;;
         source-import)
-            require_env_file
-            compose --profile tools run --rm importer /data
+            import_source_data
             ;;
         source-health)
-            curl --fail --show-error http://localhost:8000/health | python3 -m json.tool
-            compose ps db api
+            show_source_health
             ;;
         tunnel-up)
             require_env_file
