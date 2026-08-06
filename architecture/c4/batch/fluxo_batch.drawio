@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Página-1" id="ivsfxBcAYNS_mLLSKbA-">
-    <mxGraphModel dx="2537" dy="2051" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="3241" dy="2414" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -17,7 +17,7 @@
             <mxGeometry height="120" width="240" x="-10" y="-90" as="geometry" />
           </mxCell>
         </object>
-        <object placeholders="1" c4Name="Container name" c4Type="Container" c4Technology="e.g. SpringBoot, ElasticSearch, etc." c4Description="Description of container role/responsibility." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="C0IEEwb2PzpqCNgDhGZz-3">
+        <object placeholders="1" c4Name="Extração de Dados" c4Type="Container" c4Technology="AWS Lambda / Python" c4Description="Consome a API externa e grava os dados em JSONL.Gzip na Staging, com metadados de rastreabilidade." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="C0IEEwb2PzpqCNgDhGZz-3">
           <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
             <mxGeometry height="120" width="240" x="440" y="-90" as="geometry" />
           </mxCell>
@@ -207,6 +207,210 @@
         </mxCell>
         <mxCell id="C0IEEwb2PzpqCNgDhGZz-68" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="C2 — Containers do Processamento Batch" vertex="1">
           <mxGeometry height="30" width="180" x="260" y="-170" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-1" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="zBdQAcabCXdcbkYaMMN5-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-2" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Fornece dados extraídos" vertex="1">
+          <mxGeometry relative="1" x="-0.1019" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="API de Dados Públicos de Dengue" c4Type="Software System" c4Description="API que disponibiliza dados públicos de dengue obtidos de arquivos oficiais do Ministério da Saúde." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#cccccc&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-3">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#8C8496;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#736782;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="2066.6470588235297" y="-28.70588235294099" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="Extração de Dados" c4Type="Container" c4Technology="AWS Lambda / Python" c4Description="Consome a API externa e grava os dados em JSONL.Gzip na Staging, com metadados de rastreabilidade." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-4">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="2516.6470588235297" y="-28.70588235294099" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-5" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="zBdQAcabCXdcbkYaMMN5-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-6" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-5" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Fornece arquivos CSV" vertex="1">
+          <mxGeometry relative="1" x="-0.0177" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Staging" c4Type="Container" c4Technology="Amazon S3" c4Description="Armazena os dados extraídos antes do processamento." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-7">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="2926.6470588235297" y="-28.70588235294099" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-8" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-9" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-8" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Grava dados extraídos" vertex="1">
+          <mxGeometry relative="1" x="-0.0024" y="1" as="geometry">
+            <mxPoint x="-15" y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Staging to Bronze" c4Type="Container" c4Technology="AWS Glue / PySpark" c4Description="Converte os dados da Staging para Parquet/Snappy e adiciona metadados de rastreabilidade." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-10">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#1ba1e2;align=center;arcSize=10;strokeColor=#006EAF;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];fontColor=#ffffff;" vertex="1">
+            <mxGeometry height="120" width="240" x="3317.6470588235297" y="-28.70588235294099" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-11" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-12" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-11" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Fornece dados brutos" vertex="1">
+          <mxGeometry relative="1" x="0.0397" as="geometry">
+            <mxPoint x="8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Bronze" c4Type="Container" c4Technology="Amazon S3" c4Description="Armazena os dados brutos em Parquet/Snappy com metadados de rastreabilidade." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-13">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="3317.6470588235297" y="351.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-14" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-15" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-14" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Grava dados em Parquet" vertex="1">
+          <mxGeometry relative="1" x="-0.1722" y="1" as="geometry">
+            <mxPoint x="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-16" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="zBdQAcabCXdcbkYaMMN5-19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-17" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-16" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Grava dados tratados" vertex="1">
+          <mxGeometry relative="1" x="-0.0152" y="2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Bronze to Silver" c4Type="Container" c4Technology="AWS Glue / PySpark" c4Description="Normaliza, enriquece e valida os dados, enviando registros inválidos para a quarentena." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-18">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="2926.6470588235297" y="351.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="Silver" c4Type="Container" c4Technology="Amazon S3" c4Description="Armazena dados tratados, normalizados e enriquecidos." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-19">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="2526.6470588235297" y="351.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="Quarentena" c4Type="Container" c4Technology="Amazon S3" c4Description="Armazena registros inválidos com seus códigos de erro." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-20">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="2926.6470588235297" y="551.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-21" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-22" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-21" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Isola dados inválidos" vertex="1">
+          <mxGeometry relative="1" x="-0.1238" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Silver to Gold" c4Type="Container" c4Technology="AWS Glue / PySpark" c4Description="Constrói o modelo dimensional com tabelas fato e dimensões." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-23">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="2526.6470588235297" y="561.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-24" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="zBdQAcabCXdcbkYaMMN5-41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-25" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-24" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Fornece dados analíticos" vertex="1">
+          <mxGeometry relative="1" x="-0.094" y="-3" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Gold" c4Type="Container" c4Technology="Amazon S3" c4Description="Armazena fatos e dimensões para consumo analítico." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-26">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="2526.6470588235297" y="771.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-27" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-28" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-27" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Fornece dados tratados" vertex="1">
+          <mxGeometry relative="1" x="-0.3046" y="2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-29" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-26">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-30" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-29" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Grava fato e dimensões" vertex="1">
+          <mxGeometry relative="1" x="-0.3176" y="2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-31" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="zBdQAcabCXdcbkYaMMN5-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-32" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-31" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Fornece municípios" vertex="1">
+          <mxGeometry relative="1" x="-0.1722" y="-2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Referência IBGE" c4Type="Container" c4Technology="Amazon S3" c4Description="Armazena municípios, UFs e regiões usados no enriquecimento da Silver." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-33">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="2926.6470588235297" y="171.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-34" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-40">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-35" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-34" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Atualiza o catálogo" vertex="1">
+          <mxGeometry relative="1" x="-0.2385" y="-2" as="geometry">
+            <mxPoint x="12" y="-2" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Glue Crawler — Gold" c4Type="Container" c4Technology="AWS Glue Crawler" c4Description="Identifica schemas e partições dos dados da Gold." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-36">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="2526.6470588235297" y="951.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-37" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-36" value="Disponibiliza arquivos Gold">
+          <mxGeometry relative="1" y="10" as="geometry">
+            <mxPoint y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-38" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-40" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="zBdQAcabCXdcbkYaMMN5-41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-39" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-38" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Fornece metadados" vertex="1">
+          <mxGeometry relative="1" x="-0.1388" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Glue Data Catalog — Gold" c4Type="Container" c4Technology="AWS Glue Data Catalog" c4Description="Armazena metadados, schemas e partições das tabelas Gold." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-40">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="2906.6470588235297" y="951.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="Amazon Athena" c4Type="Container" c4Technology="Amazon Athena / SQL" c4Description="Consulta os dados da Gold e disponibiliza views analíticas." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-41">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="3317.6470588235297" y="951.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-42" parent="1" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=0;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#232F3E;dashed=0;" value="AWS Cloud" vertex="1">
+          <mxGeometry height="1190" width="1310" x="2336.6470588235297" y="-68.70588235294099" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-43" parent="zBdQAcabCXdcbkYaMMN5-42" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="AWS Cloud — Conta BAIP | Região us-east-1" vertex="1">
+          <mxGeometry height="30" width="180" x="1120" y="1150" as="geometry" />
+        </mxCell>
+        <object placeholders="1" c4Name="Analista de Dados" c4Type="Person" c4Description="Consulta indicadores e views analíticas." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#cccccc&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="zBdQAcabCXdcbkYaMMN5-44">
+          <mxCell parent="1" style="html=1;fontSize=11;dashed=0;whiteSpace=wrap;fillColor=#083F75;strokeColor=#06315C;fontColor=#ffffff;shape=mxgraph.c4.person2;align=center;metaEdit=1;points=[[0.5,0,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0]];resizable=0;" vertex="1">
+            <mxGeometry height="180" width="200" x="3796.6470588235297" y="921.294117647059" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-45" edge="1" parent="1" source="zBdQAcabCXdcbkYaMMN5-44" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" target="zBdQAcabCXdcbkYaMMN5-41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-46" connectable="0" parent="zBdQAcabCXdcbkYaMMN5-45" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Consulta indicadores" vertex="1">
+          <mxGeometry relative="1" x="-0.2597" y="-2" as="geometry">
+            <mxPoint x="9" y="2" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-47" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Leonardo Lucas Pereira&lt;div&gt;2026-07-25&lt;/div&gt;&lt;div&gt;Version 1.0&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="220" x="3426.6470588235297" y="-108.70588235294099" as="geometry" />
+        </mxCell>
+        <mxCell id="zBdQAcabCXdcbkYaMMN5-48" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="C2 — Containers do Processamento Batch" vertex="1">
+          <mxGeometry height="30" width="180" x="2336.6470588235297" y="-108.70588235294099" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
