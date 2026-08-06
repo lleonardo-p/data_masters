@@ -91,10 +91,10 @@ Os dados são validados, pseudonimizados e transformados em indicadores operacio
 
 ## 3. Considerações
 
-<!--
-Seção reservada para limitações, resultados, aprendizados e possibilidades
-de evolução da plataforma.
--->
+## Fonte dos dados
+
+> [!NOTE]
+> As limitações do MVP, fontes dos dados, plano de recuperação e estimativa de custos estão documentados em [Considerações do projeto](docs/considerations/README.md).
 
 ---
 
