@@ -14,6 +14,7 @@ INTERVAL ?= 3
 SCOPE_TYPE ?= GLOBAL
 SCOPE_VALUE ?=
 WINDOW_MINUTES ?= 60
+REFRESH_SECONDS ?= 120
 CPF ?= 90088005780
 LIMIT ?= 50
 TF_PLAN ?= baip-dev.tfplan
@@ -21,7 +22,8 @@ TF_PLAN ?= baip-dev.tfplan
 .PHONY: help check infra-validate infra-plan infra-apply infra-output \
 	source-up source-import source-health tunnel-up tunnel-url \
 	tunnel-health hospital-build nrt-publish nrt-queues nrt-health \
-	nrt-indicators nrt-history nrt-logs batch-run batch-backfill batch-status \
+	nrt-indicators nrt-history nrt-logs nrt-dashboard-up nrt-dashboard-health \
+	nrt-dashboard-logs batch-run batch-backfill batch-status \
 	batch-watch batch-history batch-manifest batch-validate \
 	athena-deploy-views views down
 
@@ -61,6 +63,9 @@ help: ## Lista os comandos de demonstração.
 	@echo "  nrt-indicators  Consulta indicadores agregados"
 	@echo "  nrt-history     Consulta histórico por CPF sintético"
 	@echo "  nrt-logs        Exibe logs recentes do processador e da API"
+	@echo "  nrt-dashboard-up     Sobe o painel Streamlit em http://localhost:8501"
+	@echo "  nrt-dashboard-health Verifica a disponibilidade do painel"
+	@echo "  nrt-dashboard-logs   Acompanha os logs do painel"
 	@echo
 	@echo "Ambiente"
 	@echo "  check           Valida dependências e configuração local"
@@ -161,6 +166,17 @@ nrt-history:
 
 nrt-logs:
 	@AWS_PROFILE="$(AWS_PROFILE)" AWS_REGION="$(AWS_REGION)" ./scripts/dengue_nrt.sh logs
+
+nrt-dashboard-up:
+	@AWS_PROFILE="$(AWS_PROFILE)" AWS_REGION="$(AWS_REGION)" \
+	 WINDOW_MINUTES="$(WINDOW_MINUTES)" REFRESH_SECONDS="$(REFRESH_SECONDS)" \
+	 ./scripts/local_demo.sh nrt-dashboard-up
+
+nrt-dashboard-health:
+	@./scripts/local_demo.sh nrt-dashboard-health
+
+nrt-dashboard-logs:
+	@./scripts/local_demo.sh nrt-dashboard-logs
 
 down:
 	@./scripts/local_demo.sh down
