@@ -1,0 +1,208 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Página-1" id="HSiA7JiBD43veGHu9B63">
+    <mxGraphModel dx="2160" dy="2283" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object placeholders="1" c4Name="Sistema Hospitalar" c4Type="External System" c4Description="Publica eventos de triagem de pacientes.&#xa;Representado por um simulador no MVP." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#cccccc&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-1">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#8C8496;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#736782;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="10" y="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="BAIP — Fluxo NRT de Dengue" c4Type="SystemScopeBoundary" c4Application="Software System" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;&lt;div style=&quot;text-align: left&quot;&gt;%c4Name%&lt;/div&gt;&lt;/b&gt;&lt;/font&gt;&lt;div style=&quot;text-align: left&quot;&gt;[%c4Application%]&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-2">
+          <mxCell parent="1" style="rounded=1;fontSize=11;whiteSpace=wrap;html=1;dashed=1;arcSize=20;fillColor=none;strokeColor=#666666;fontColor=#333333;labelBackgroundColor=none;align=left;verticalAlign=bottom;labelBorderColor=none;spacingTop=0;spacing=10;dashPattern=8 4;metaEdit=1;rotatable=0;perimeter=rectanglePerimeter;noLabel=0;labelPadding=0;allowArrows=0;connectable=0;expand=0;recursiveResize=0;editable=1;pointerEvents=0;absoluteArcSize=1;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="840" width="1330" x="390" y="-170" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-10" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="HMdPLijSMy_kmW70Js_E-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-20" connectable="0" parent="HMdPLijSMy_kmW70Js_E-10" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Entrega mensagens em lotes de até 10" vertex="1">
+          <mxGeometry relative="1" x="-0.2375" as="geometry">
+            <mxPoint x="25" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-23" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="HMdPLijSMy_kmW70Js_E-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-24" connectable="0" parent="HMdPLijSMy_kmW70Js_E-23" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Redireciona após três falhas de processamento" vertex="1">
+          <mxGeometry relative="1" x="-0.2" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Fila de Triagens" c4Type="Container" c4Technology="Amazon SQS" c4Description="Recebe eventos de triagem e desacopla o sistema hospitalar do processamento." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-4">
+          <mxCell parent="1" style="shape=cylinder3;size=15;direction=south;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="470" y="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="DLQ de Triagens" c4Type="Container" c4Technology="Amazon SQS" c4Description="Reter mensagens que falharam após três tentativas" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-5">
+          <mxCell parent="1" style="shape=cylinder3;size=15;direction=south;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="470" y="350" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-6" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="HMdPLijSMy_kmW70Js_E-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-21" connectable="0" parent="HMdPLijSMy_kmW70Js_E-6" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Publica evento JSON de triagem" vertex="1">
+          <mxGeometry relative="1" x="-0.2455" y="3" as="geometry">
+            <mxPoint x="17" y="3" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-14" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="HMdPLijSMy_kmW70Js_E-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-42" connectable="0" parent="HMdPLijSMy_kmW70Js_E-14" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Atualiza os contadores agregados" vertex="1">
+          <mxGeometry relative="1" x="0.0545" y="1" as="geometry">
+            <mxPoint x="-10" y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-26" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="HMdPLijSMy_kmW70Js_E-11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-27" connectable="0" parent="HMdPLijSMy_kmW70Js_E-26" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Solicita geração do fingerprint do CPF" vertex="1">
+          <mxGeometry relative="1" x="0.1818" y="1" as="geometry">
+            <mxPoint x="-30" y="-26" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Processador NRT" c4Type="Container" c4Technology="AWS Lambda / Python" c4Description="Validar, pseudonimizar, controlar duplicidade e persistir o evento" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-9">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="950" y="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="Chave HMAC de CPF" c4Type="Container" c4Technology="AWS KMS HMAC-SHA-256" c4Description="Gerar o fingerprint determinístico do CPF sem expor a chave" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-11">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="780" y="-110" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="Indicadores NRT" c4Type="Container" c4Technology="Amazon DynamoDB" c4Description="Armazenar contadores por minuto, território, unidade, idade e risco" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-13">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="1400" y="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="Serviço de Consulta NRT" c4Type="Container" c4Technology="AWS Lambda / Python" c4Description="Consultar indicadores e histórico pseudonimizado" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-15">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="1400" y="330" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-43" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="HMdPLijSMy_kmW70Js_E-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-44" connectable="0" parent="HMdPLijSMy_kmW70Js_E-43" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Encaminha a requisição" vertex="1">
+          <mxGeometry relative="1" x="0.15" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="API NRT" c4Type="Container" c4Technology="Amazon API Gateway" c4Description="Expõe o endpoint de saúde e as rotas de negócio protegidas por AWS IAM." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%: %c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-17">
+          <mxCell parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;labelBackgroundColor=none;fillColor=#23A2D9;fontColor=#ffffff;align=center;arcSize=10;strokeColor=#0E7DAD;metaEdit=1;resizable=0;points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];" vertex="1">
+            <mxGeometry height="120" width="240" x="1400" y="540" as="geometry" />
+          </mxCell>
+        </object>
+        <object placeholders="1" c4Name="Histórico de Triagens" c4Type="Container" c4Technology="Amazon DynamoDB" c4Description="Armazenar o histórico pseudonimizado do paciente" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-32">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="950" y="330" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-33" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="HMdPLijSMy_kmW70Js_E-32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-41" connectable="0" parent="HMdPLijSMy_kmW70Js_E-33" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Armazena o histórico de triagens sem identificadores pessoais diretos." vertex="1">
+          <mxGeometry relative="1" x="-0.1455" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Cofre de Tokens" c4Type="Container" c4Technology="Amazon DynamoDB" c4Description="Relacionar HMAC(CPF) ao patient_token" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-34">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="1100" y="-110" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-35" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="HMdPLijSMy_kmW70Js_E-34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-39" connectable="0" parent="HMdPLijSMy_kmW70Js_E-35" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Obtém ou cria o &lt;code data-start=&quot;2785&quot; data-end=&quot;2800&quot;&gt;patient_token&lt;/code&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.8" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Controle de Idempotência" c4Type="Container" c4Technology="Amazon DynamoDB" c4Description="Impedir o processamento repetido do mesmo event_id" label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%:&amp;nbsp;%c4Technology%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#E6E6E6&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-37">
+          <mxCell parent="1" style="shape=cylinder3;size=15;whiteSpace=wrap;html=1;boundedLbl=1;rounded=0;labelBackgroundColor=none;fillColor=#23A2D9;fontSize=12;fontColor=#ffffff;align=center;strokeColor=#0E7DAD;metaEdit=1;points=[[0.5,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.5,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];resizable=0;" vertex="1">
+            <mxGeometry height="120" width="240" x="1380" y="-110" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-38" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="HMdPLijSMy_kmW70Js_E-37">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-40" connectable="0" parent="HMdPLijSMy_kmW70Js_E-38" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Registra o &lt;code data-start=&quot;2861&quot; data-end=&quot;2871&quot;&gt;event_id&lt;/code&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.8852" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-45" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" target="HMdPLijSMy_kmW70Js_E-32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-51" connectable="0" parent="HMdPLijSMy_kmW70Js_E-45" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Consulta eventos do paciente" vertex="1">
+          <mxGeometry relative="1" x="0.1417" y="-2" as="geometry">
+            <mxPoint x="10" y="2" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-46" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="HMdPLijSMy_kmW70Js_E-11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1690" y="390" />
+              <mxPoint x="1690" y="-150" />
+              <mxPoint x="900" y="-150" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-54" connectable="0" parent="HMdPLijSMy_kmW70Js_E-46" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Gera o fingerprint para a consulta por CPF" vertex="1">
+          <mxGeometry relative="1" x="0.9529" y="4" as="geometry">
+            <mxPoint y="14" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-49" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="HMdPLijSMy_kmW70Js_E-34">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1660" y="390" />
+              <mxPoint x="1660" y="-130" />
+              <mxPoint x="1220" y="-130" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-50" connectable="0" parent="HMdPLijSMy_kmW70Js_E-49" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Localiza o patient_token pelo fingerprint" vertex="1">
+          <mxGeometry relative="1" x="0.8445" y="2" as="geometry">
+            <mxPoint x="173" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-57" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-56" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="HMdPLijSMy_kmW70Js_E-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="xUku4wVXUFqhTNVrI9Cy-4" connectable="0" parent="HMdPLijSMy_kmW70Js_E-57" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Consulta indicadores e histórico com autenticação AWS IAM" vertex="1">
+          <mxGeometry relative="1" x="-0.1731" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object placeholders="1" c4Name="Profissional autorizado" c4Type="Person" c4Description="Consulta indicadores e o histórico pseudonimizado de pacientes." label="&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;%c4Name%&lt;/b&gt;&lt;/font&gt;&lt;div&gt;[%c4Type%]&lt;/div&gt;&lt;br&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;&lt;font color=&quot;#cccccc&quot;&gt;%c4Description%&lt;/font&gt;&lt;/div&gt;" id="HMdPLijSMy_kmW70Js_E-56">
+          <mxCell parent="1" style="html=1;fontSize=11;dashed=0;whiteSpace=wrap;fillColor=#6C6477;strokeColor=#4D4D4D;fontColor=#ffffff;shape=mxgraph.c4.person2;align=center;metaEdit=1;points=[[0.5,0,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0]];resizable=0;" vertex="1">
+            <mxGeometry height="180" width="200" x="1420" y="750" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-58" edge="1" parent="1" source="HMdPLijSMy_kmW70Js_E-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="HMdPLijSMy_kmW70Js_E-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HMdPLijSMy_kmW70Js_E-59" connectable="0" parent="HMdPLijSMy_kmW70Js_E-58" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Consulta e soma os oito shards" vertex="1">
+          <mxGeometry relative="1" x="0.0444" y="3" as="geometry">
+            <mxPoint x="1" y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="xUku4wVXUFqhTNVrI9Cy-1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Leonardo Lucas Pereira&lt;div&gt;2026-08-06&lt;/div&gt;&lt;div&gt;Version 1.0&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="220" x="1520" y="-210" as="geometry" />
+        </mxCell>
+        <mxCell id="xUku4wVXUFqhTNVrI9Cy-2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="C2 — Containers do Processamento NRT" vertex="1">
+          <mxGeometry height="30" width="180" x="380" y="-210" as="geometry" />
+        </mxCell>
+        <mxCell id="xUku4wVXUFqhTNVrI9Cy-3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="AWS Cloud — Conta BAIP | Região us-east-1" vertex="1">
+          <mxGeometry height="30" width="180" x="920" y="640" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
