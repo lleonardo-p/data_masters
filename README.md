@@ -104,4 +104,4 @@ Os dados são validados, pseudonimizados e transformados em indicadores operacio
 > [Acessar o guia de instalação](docs/usage/installation.md)
 
 > [!NOTE]
-> [Acessar os comandos de demonstração](docs/usage/COMANDOS_MAKE.md)
+> [Acessar os comandos de demonstração](docs/usage/commands.md)
