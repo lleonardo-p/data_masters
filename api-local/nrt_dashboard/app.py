@@ -73,6 +73,31 @@ st.markdown(
         border-radius: 12px;
         padding: 14px;
     }
+    .state-card {
+        background: #ffffff;
+        border: 1px solid #dce6ef;
+        border-left: 5px solid #2389b9;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(22, 47, 69, 0.08);
+        margin-bottom: 12px;
+        padding: 14px 16px;
+    }
+    .state-card.first {border-left-color: #b91c1c;}
+    .state-card.second {border-left-color: #ef4444;}
+    .state-card-position {
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .state-card-value {
+        color: #172b3a;
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-top: 4px;
+        white-space: nowrap;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -156,6 +181,13 @@ def ranking_chart(ranking: pd.DataFrame) -> go.Figure:
         "#B91C1C" if position == 1 else "#EF4444" if position == 2 else "#2389B9"
         for position in plot_frame["posicao"]
     ]
+    fixed_labels = [
+        f"{state} | {total:,} {'triagem' if total == 1 else 'triagens'}"
+        for state, total in zip(
+            plot_frame["uf"],
+            plot_frame["total_triages"],
+        )
+    ]
 
     figure = go.Figure(
         go.Bar(
@@ -163,8 +195,11 @@ def ranking_chart(ranking: pd.DataFrame) -> go.Figure:
             y=plot_frame["uf"],
             orientation="h",
             marker_color=colors,
-            text=plot_frame["total_triages"].map(lambda value: f"{value:,}"),
-            textposition="outside",
+            text=fixed_labels,
+            textposition="inside",
+            insidetextanchor="end",
+            textfont=dict(color="#FFFFFF", size=16, weight="bold"),
+            constraintext="none",
             customdata=plot_frame[["posicao"]],
             hovertemplate=(
                 "<b>%{y}</b><br>Posição: %{customdata[0]}"
@@ -180,10 +215,35 @@ def ranking_chart(ranking: pd.DataFrame) -> go.Figure:
         margin=dict(l=30, r=70, t=70, b=40),
         paper_bgcolor="white",
         plot_bgcolor="white",
+        font=dict(color="#172B3A"),
         showlegend=False,
+        uniformtext_minsize=13,
+        uniformtext_mode="show",
     )
     figure.update_xaxes(showgrid=True, gridcolor="#E8EEF3", rangemode="tozero")
     return figure
+
+
+def show_state_cards(ranking: pd.DataFrame) -> None:
+    records = ranking.head(10).to_dict("records")
+
+    for start in range(0, len(records), 5):
+        row = records[start : start + 5]
+        columns = st.columns(5)
+        for column, item in zip(columns, row):
+            position = int(item["posicao"])
+            card_class = "first" if position == 1 else "second" if position == 2 else ""
+            total = int(item["total_triages"])
+            label = "triagem" if total == 1 else "triagens"
+            column.markdown(
+                f"""
+                <div class="state-card {card_class}">
+                    <div class="state-card-position">{position}º lugar</div>
+                    <div class="state-card-value">{item['uf']} | {total:,} {label}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 
 st.title("BAIP — Monitoramento NRT de dengue")
@@ -233,6 +293,7 @@ def dashboard() -> None:
             "Publique novos eventos ou amplie a janela de consulta."
         )
     else:
+        show_state_cards(top_states)
         st.plotly_chart(
             ranking_chart(top_states),
             use_container_width=True,

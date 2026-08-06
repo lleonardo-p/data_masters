@@ -132,7 +132,11 @@ start_nrt_dashboard() {
     DASHBOARD_REFRESH_SECONDS="${REFRESH_SECONDS:-120}" \
     AWS_PROFILE="${AWS_PROFILE}" \
     AWS_REGION="${AWS_REGION}" \
-        compose --profile dashboard up --detach --build nrt-dashboard
+        compose --profile dashboard up \
+            --detach \
+            --build \
+            --force-recreate \
+            nrt-dashboard
 
     echo "Dashboard NRT disponível em: http://localhost:8501"
 }
