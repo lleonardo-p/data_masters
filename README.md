@@ -33,6 +33,22 @@ O painel apresenta os territórios e grupos com maior impacto nos registros proc
 
 Os rankings utilizam valores absolutos e percentuais calculados a partir dos dados disponíveis.
 
+### 1.2 Monitoramento NRT
+
+O painel NRT apresenta as triagens processadas em tempo quase real, permitindo acompanhar o volume recente de atendimentos por UF e nível de risco.
+
+A visualização destaca:
+
+- as UFs com maior volume de triagens;
+- a quantidade total de triagens no período;
+- o número de UFs com atividade;
+- os atendimentos classificados com risco laranja ou vermelho;
+- a distribuição das triagens entre os diferentes níveis de risco.
+
+![Monitoramento NRT de triagens de dengue](docs/assets/baip-indicadores-NRT.png)
+
+Os indicadores podem apoiar a identificação de mudanças recentes na procura por atendimento e orientar a investigação e a preparação da rede assistencial. Eles não representam diagnóstico médico nem confirmação automática de epidemia.
+
 ---
 
 ## 2. Fluxos da plataforma

@@ -68,10 +68,18 @@ st.markdown(
     <style>
     .block-container {padding-top: 1.8rem; padding-bottom: 2rem;}
     [data-testid="stMetric"] {
-        background: #f7fafc;
+        background: #ffffff;
         border: 1px solid #dce6ef;
         border-radius: 12px;
         padding: 14px;
+        box-shadow: 0 2px 8px rgba(22, 47, 69, 0.08);
+    }
+    [data-testid="stMetric"] * {
+        color: #172b3a !important;
+    }
+    [data-testid="stMetricLabel"] * {
+        color: #64748b !important;
+        font-weight: 600 !important;
     }
     .state-card {
         background: #ffffff;
