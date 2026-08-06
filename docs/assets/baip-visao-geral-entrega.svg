@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="830" viewBox="0 0 1600 830" role="img" aria-labelledby="title desc">
+  <title id="title">BAIP — visão geral da entrega</title>
+  <desc id="desc">Resumo visual da plataforma com serviços AWS, Terraform, registros processados, qualidade, indicadores em tempo quase real e segurança.</desc>
+
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020617" flood-opacity="0.24"/>
+    </filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="data" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0284c7"/>
+      <stop offset="1" stop-color="#075985"/>
+    </linearGradient>
+    <linearGradient id="nrt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0891b2"/>
+      <stop offset="1" stop-color="#155e75"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="830" rx="30" fill="url(#bg)"/>
+  <circle cx="1510" cy="65" r="170" fill="#38bdf8" opacity="0.06"/>
+  <circle cx="75" cy="805" r="210" fill="#8b5cf6" opacity="0.06"/>
+
+  <text x="70" y="70" fill="#f8fafc" font-family="Inter,Arial,sans-serif" font-size="34" font-weight="800">BAIP — visão geral da entrega</text>
+  <text x="70" y="108" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="18">Engenharia de dados aplicada à análise histórica e ao monitoramento ativo da dengue</text>
+
+  <!-- AWS -->
+  <g filter="url(#shadow)">
+    <rect x="70" y="155" width="460" height="280" rx="24" fill="#f59e0b"/>
+    <circle cx="130" cy="218" r="37" fill="#111827"/>
+    <text x="101" y="226" fill="#fff" font-family="Arial,sans-serif" font-size="22" font-weight="700">aws</text>
+    <path d="M108 237 Q132 252 158 235" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+    <text x="185" y="208" fill="#111827" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">PLATAFORMA AWS</text>
+    <text x="185" y="253" fill="#111827" font-family="Inter,Arial,sans-serif" font-size="48" font-weight="850">13 serviços</text>
+    <line x1="105" y1="286" x2="495" y2="286" stroke="#111827" stroke-opacity="0.25"/>
+    <text x="105" y="320" fill="#111827" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="600">S3 · Glue · Athena · Lambda · Step Functions</text>
+    <text x="105" y="348" fill="#111827" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="600">SQS · DynamoDB · API Gateway · KMS</text>
+    <text x="105" y="376" fill="#111827" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="600">CloudWatch · SNS · Secrets Manager · IAM</text>
+    <text x="105" y="407" fill="#422006" font-family="Inter,Arial,sans-serif" font-size="15">Integração dos fluxos Batch e NRT</text>
+  </g>
+
+  <!-- Terraform -->
+  <g filter="url(#shadow)">
+    <rect x="570" y="155" width="460" height="280" rx="24" fill="#7c3aed"/>
+    <circle cx="630" cy="218" r="37" fill="#fff" fill-opacity="0.96"/>
+    <g transform="translate(607 193)">
+      <path d="M0 0 18 10 18 31 0 21Z" fill="#7c3aed"/>
+      <path d="M22 12 40 22 40 43 22 33Z" fill="#7c3aed"/>
+      <path d="M22 -11 40 -1 40 18 22 8Z" fill="#7c3aed" opacity="0.72"/>
+    </g>
+    <text x="685" y="208" fill="#ede9fe" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">INFRAESTRUTURA COMO CÓDIGO</text>
+    <text x="685" y="253" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="42" font-weight="850">100% Terraform</text>
+    <line x1="605" y1="286" x2="995" y2="286" stroke="#fff" stroke-opacity="0.25"/>
+    <text x="605" y="326" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="650">Ambiente reproduzível e versionado</text>
+    <text x="605" y="359" fill="#ddd6fe" font-family="Inter,Arial,sans-serif" font-size="17">Recursos, permissões e integrações</text>
+    <rect x="605" y="384" width="220" height="30" rx="15" fill="#fff" fill-opacity="0.16"/>
+    <text x="622" y="405" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="700">Provisionamento automatizado</text>
+  </g>
+
+  <!-- Histórico -->
+  <g filter="url(#shadow)">
+    <rect x="1070" y="155" width="460" height="280" rx="24" fill="url(#data)"/>
+    <g transform="translate(1100 183)">
+      <ellipse cx="30" cy="12" rx="29" ry="11" fill="none" stroke="#e0f2fe" stroke-width="4"/>
+      <path d="M1 12v43c0 7 13 12 29 12s29-5 29-12V12M1 34c0 7 13 12 29 12s29-5 29-12" fill="none" stroke="#e0f2fe" stroke-width="4"/>
+    </g>
+    <text x="1180" y="208" fill="#bae6fd" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">DADOS HISTÓRICOS</text>
+    <text x="1180" y="253" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="42" font-weight="850">8.287.799</text>
+    <text x="1180" y="280" fill="#e0f2fe" font-family="Inter,Arial,sans-serif" font-size="16">registros recebidos na Bronze</text>
+    <rect x="1105" y="310" width="185" height="88" rx="15" fill="#fff" fill-opacity="0.12"/>
+    <text x="1124" y="341" fill="#bae6fd" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">CAMADA GOLD</text>
+    <text x="1124" y="377" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="25" font-weight="800">8.227.642</text>
+    <rect x="1310" y="310" width="185" height="88" rx="15" fill="#fff" fill-opacity="0.12"/>
+    <text x="1329" y="341" fill="#bae6fd" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">QUARENTENA</text>
+    <text x="1329" y="377" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="25" font-weight="800">60.157</text>
+  </g>
+
+  <!-- Qualidade -->
+  <g filter="url(#shadow)">
+    <rect x="70" y="475" width="460" height="280" rx="24" fill="#15803d"/>
+    <circle cx="130" cy="538" r="37" fill="#dcfce7"/>
+    <path d="M111 538l13 13 27-30" fill="none" stroke="#15803d" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="185" y="528" fill="#bbf7d0" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">QUALIDADE DE DADOS</text>
+    <text x="185" y="573" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="850">Reconciliação OK</text>
+    <line x1="105" y1="606" x2="495" y2="606" stroke="#fff" stroke-opacity="0.25"/>
+    <text x="105" y="641" fill="#f0fdf4" font-family="Inter,Arial,sans-serif" font-size="16">✓ Volumes e identidade do lote</text>
+    <text x="105" y="672" fill="#f0fdf4" font-family="Inter,Arial,sans-serif" font-size="16">✓ Duplicidade e medidas analíticas</text>
+    <text x="105" y="703" fill="#f0fdf4" font-family="Inter,Arial,sans-serif" font-size="16">✓ Integridade referencial entre camadas</text>
+    <rect x="395" y="717" width="100" height="24" rx="12" fill="#dcfce7"/>
+    <text x="421" y="734" fill="#166534" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="800">DQ OK</text>
+  </g>
+
+  <!-- NRT -->
+  <g filter="url(#shadow)">
+    <rect x="570" y="475" width="460" height="280" rx="24" fill="url(#nrt)"/>
+    <circle cx="630" cy="538" r="37" fill="#cffafe"/>
+    <path d="M604 541h13l8-17 13 31 8-14h14" fill="none" stroke="#0e7490" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="685" y="528" fill="#cffafe" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">MONITORAMENTO ATIVO</text>
+    <text x="685" y="573" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="38" font-weight="850">Indicadores NRT</text>
+    <line x1="605" y1="606" x2="995" y2="606" stroke="#fff" stroke-opacity="0.25"/>
+    <text x="605" y="643" fill="#ecfeff" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="650">Triagens recentes disponibilizadas por API</text>
+    <text x="605" y="677" fill="#cffafe" font-family="Inter,Arial,sans-serif" font-size="16">Território · faixa etária · nível de risco</text>
+    <rect x="605" y="704" width="155" height="30" rx="15" fill="#cffafe"/>
+    <text x="627" y="725" fill="#155e75" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="800">NEAR REAL-TIME</text>
+  </g>
+
+  <!-- Segurança -->
+  <g filter="url(#shadow)">
+    <rect x="1070" y="475" width="460" height="280" rx="24" fill="#334155"/>
+    <circle cx="1130" cy="538" r="37" fill="#e2e8f0"/>
+    <rect x="1113" y="535" width="34" height="29" rx="5" fill="#334155"/>
+    <path d="M1120 535v-9a10 10 0 0 1 20 0v9" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="1130" cy="549" r="4" fill="#e2e8f0"/>
+    <text x="1185" y="528" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">SEGURANÇA E PRIVACIDADE</text>
+    <text x="1185" y="573" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="38" font-weight="850">Dados protegidos</text>
+    <line x1="1105" y1="606" x2="1495" y2="606" stroke="#fff" stroke-opacity="0.22"/>
+    <text x="1105" y="643" fill="#f8fafc" font-family="Inter,Arial,sans-serif" font-size="17" font-weight="650">CPF pseudonimizado com HMAC no KMS</text>
+    <text x="1105" y="676" fill="#e2e8f0" font-family="Inter,Arial,sans-serif" font-size="16">Histórico protegido por AWS IAM</text>
+    <text x="1105" y="707" fill="#e2e8f0" font-family="Inter,Arial,sans-serif" font-size="16">Sem exposição de PII nas tabelas operacionais</text>
+    <rect x="1345" y="717" width="150" height="24" rx="12" fill="#e2e8f0"/>
+    <text x="1360" y="734" fill="#334155" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="800">PRIVACY BY DESIGN</text>
+  </g>
+
+  <text x="800" y="800" text-anchor="middle" fill="#64748b" font-family="Inter,Arial,sans-serif" font-size="13">BAIP · Brazil Arbovirus Intelligence Platform · Caso Dengue</text>
+</svg>

@@ -10,20 +10,10 @@
 
 ---
 
+
 ## Visão geral da entrega
 
-A BAIP foi construída com **13 serviços AWS**, compartilhados entre os fluxos Batch e NRT. Toda a infraestrutura AWS foi declarada e provisionada com **Terraform**, permitindo reproduzir o ambiente e manter suas configurações versionadas.
-
-| Resultado | Entrega |
-|---|---|
-| **13 serviços AWS** | S3, Glue, Athena, Lambda, Step Functions, SQS, DynamoDB, API Gateway, KMS, CloudWatch, SNS, Secrets Manager e IAM |
-| **Infraestrutura como código** | Recursos, permissões, configurações e integrações provisionados com Terraform |
-| **8.287.799 registros históricos** | Registros recebidos na camada Bronze entre janeiro de 2024 e fevereiro de 2026 |
-| **8.227.642 registros analíticos** | Registros tratados e disponibilizados na camada Gold |
-| **60.157 registros em quarentena** | Registros isolados por não atenderem às regras obrigatórias de qualidade |
-| **Reconciliação automatizada** | Validação de volumes, identidade do lote, duplicidade, medidas e integridade referencial |
-| **Indicadores NRT por API** | Triagens recentes disponibilizadas por território, faixa etária e nível de risco |
-| **Proteção de dados pessoais** | CPF pseudonimizado com HMAC no AWS KMS e histórico protegido por AWS IAM |
+![Visão geral da entrega da BAIP](docs/assets/baip-visao-geral-entrega.svg)
 
 A reconciliação do processamento histórico foi concluída com todas as verificações aprovadas:
 
