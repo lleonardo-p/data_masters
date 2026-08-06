@@ -1,9 +1,9 @@
-# Instalação e execução da plataforma
+# Instalação e execução da BAIP
 
-Este guia provisiona o ambiente `dev`, carrega os arquivos necessários e
-executa o fluxo Batch de dengue até as views e validações no Athena.
+Este guia prepara o ambiente local, provisiona a infraestrutura AWS e valida
+os fluxos Batch e NRT no ambiente `dev`.
 
-Execute os comandos a partir da raiz do repositório.
+Execute todos os comandos a partir da raiz do repositório.
 
 ## 1. Pré-requisitos
 
@@ -12,112 +12,82 @@ Execute os comandos a partir da raiz do repositório.
 - Terraform `>= 1.10.0`;
 - Docker com Docker Compose;
 - Python 3;
-- uma conta AWS com permissão para criar S3, IAM, Glue, Athena, Step Functions,
-  CloudWatch e SNS;
-- o arquivo de referência `municipios_ufs_ibge.json`.
+- GNU Make;
+- `curl`;
+- conta e token do ngrok;
+- conta AWS com permissão para provisionar os recursos do projeto;
+- acesso à API de Localidades do IBGE.
 
-Verifique as ferramentas:
-
-```bash
-aws --version
-terraform version
-```
-
-## 2. Configurar a credencial AWS
-
-O projeto utiliza por padrão o profile `baip-dev` e a região `us-east-1`.
-
-### Opção recomendada: AWS IAM Identity Center
+Clone o projeto:
 
 ```bash
-aws configure sso --profile baip-dev
-aws sso login --profile baip-dev
+git clone https://github.com/lleonardo-p/data_masters.git
+cd data_masters
 ```
 
-### Alternativa: credencial de acesso
+## 2. Configuração local
 
-Se a conta não utilizar IAM Identity Center:
+### 2.1 Credenciais AWS
+
+O projeto utiliza o profile `baip-dev` e a região `us-east-1`.
 
 ```bash
 aws configure --profile baip-dev
-```
 
-Informe o Access Key ID, o Secret Access Key, `us-east-1` e o formato `json`
-quando solicitado.
+export AWS_PROFILE=baip-dev
+export AWS_REGION=us-east-1
+export AWS_DEFAULT_REGION=us-east-1
+export TF_VAR_aws_profile=baip-dev
+export TF_VAR_aws_region=us-east-1
 
-> Nunca salve chaves AWS no repositório, em arquivos `.tfvars`, scripts ou
-> documentação. O profile deve permanecer em `~/.aws/`, fora do Git.
-
-Defina as variáveis usadas pelos comandos e pelo Terraform:
-
-```bash
-export AWS_PROFILE="baip-dev"
-export AWS_REGION="us-east-1"
-export AWS_DEFAULT_REGION="us-east-1"
-export TF_VAR_aws_profile="${AWS_PROFILE}"
-export TF_VAR_aws_region="${AWS_REGION}"
-```
-
-Valide a sessão e capture o ID da conta:
-
-```bash
 aws sts get-caller-identity \
   --profile "${AWS_PROFILE}" \
   --region "${AWS_REGION}"
-
-export AWS_ACCOUNT_ID="$(
-  aws sts get-caller-identity \
-    --profile "${AWS_PROFILE}" \
-    --region "${AWS_REGION}" \
-    --query Account \
-    --output text
-)"
-
-echo "${AWS_ACCOUNT_ID}"
 ```
 
-O resultado deve ser um ID numérico de 12 dígitos. Se o comando falhar, corrija
-a autenticação antes de executar o Terraform.
+Para contas com AWS IAM Identity Center, utilize `aws configure sso` e
+`aws sso login` no mesmo profile.
 
-## 3. Criar o state remoto do Terraform
+> Nunca salve credenciais AWS no repositório.
 
-O diretório `infra/terraform/bootstrap` cria o bucket S3 que armazena o state
-remoto. O bootstrap possui state local porque ele cria o próprio backend.
+### 2.2 Variáveis dos componentes locais
+
+Crie o arquivo local de configuração:
+
+```bash
+cp api-local/.env.example api-local/.env
+```
+
+Edite `api-local/.env` e substitua os valores de exemplo. A mesma senha deve
+ser usada em `POSTGRES_PASSWORD` e `DATABASE_URL`.
+
+Campos obrigatórios:
+
+- `POSTGRES_PASSWORD`: senha do PostgreSQL local;
+- `DATABASE_URL`: conexão com o PostgreSQL no Docker;
+- `API_KEY`: chave usada entre a Lambda Batch e a API local;
+- `NGROK_AUTHTOKEN`: token obtido no painel do ngrok.
+
+O arquivo `.env` é ignorado pelo Git e não deve ser versionado.
+
+## 3. Provisionar a infraestrutura AWS
+
+### 3.1 Criar o backend do Terraform
+
+O bootstrap cria o bucket que armazena o state remoto:
 
 ```bash
 terraform -chdir=infra/terraform/bootstrap init
-terraform -chdir=infra/terraform/bootstrap fmt -check
-terraform -chdir=infra/terraform/bootstrap validate
 terraform -chdir=infra/terraform/bootstrap plan -out=bootstrap.tfplan
 terraform -chdir=infra/terraform/bootstrap apply bootstrap.tfplan
-```
 
-Capture o bucket criado:
-
-```bash
 export TF_STATE_BUCKET="$(
   terraform -chdir=infra/terraform/bootstrap \
     output -raw terraform_state_bucket
 )"
-
-echo "${TF_STATE_BUCKET}"
 ```
 
-O bucket segue o padrão:
-
-```text
-baip-dev-terraform-state-<AWS_ACCOUNT_ID>
-```
-
-Ele possui bloqueio de acesso público, versionamento e criptografia SSE-S3. O
-backend utiliza o lockfile nativo do S3 (`use_lockfile = true`) para impedir
-alterações simultâneas no state.
-
-### Inicializar o ambiente com o backend remoto
-
-O `backend.tf` versionado representa o ambiente original do projeto. Os
-parâmetros abaixo sobrescrevem conta e profile durante a inicialização, evitando
-usar por engano o bucket de outra conta:
+Inicialize o ambiente `dev` com esse backend:
 
 ```bash
 terraform -chdir=infra/terraform/environments/dev init \
@@ -130,72 +100,61 @@ terraform -chdir=infra/terraform/environments/dev init \
   -backend-config="use_lockfile=true"
 ```
 
-Confirme que o state remoto está acessível:
+### 3.2 Aplicar o ambiente
 
 ```bash
-terraform -chdir=infra/terraform/environments/dev state list
+make infra-plan
+make infra-apply
+make infra-output
 ```
 
-Na primeira instalação, a lista pode estar vazia. Isso é esperado.
+Revise o plano antes do `apply`. Os arquivos `*.tfplan` não devem ser
+versionados.
 
-## 4. Provisionar a infraestrutura
+## 4. Configurações obrigatórias do Batch
 
-Formate, valide e gere um plano salvo:
+### 4.1 Registrar a chave da API no Secrets Manager
+
+A chave deve ser igual ao valor `API_KEY` de `api-local/.env`:
 
 ```bash
-terraform -chdir=infra/terraform/environments/dev fmt -check
-terraform -chdir=infra/terraform/environments/dev validate
-terraform -chdir=infra/terraform/environments/dev plan -out=baip-dev.tfplan
+export SOURCE_API_KEY="$(sed -n 's/^API_KEY=//p' api-local/.env)"
+export SOURCE_SECRET_NAME="$(
+  terraform -chdir=infra/terraform/environments/dev \
+    output -raw dengue_source_api_secret_name
+)"
+
+aws secretsmanager put-secret-value \
+  --secret-id "${SOURCE_SECRET_NAME}" \
+  --secret-string "${SOURCE_API_KEY}" \
+  --profile "${AWS_PROFILE}" \
+  --region "${AWS_REGION}"
+
+unset SOURCE_API_KEY
 ```
 
-Revise o resumo do plano. Em uma instalação nova, serão criados buckets, roles,
-jobs Glue, databases do catálogo, crawler, workgroup Athena, Step Functions,
-logs, alarmes e tópico SNS.
+### 4.2 Enviar a referência do IBGE
 
-Depois da revisão, aplique exatamente o plano aprovado:
+A referência é usada pela Silver para resolver município, UF e região. Baixe
+o JSON pela [API oficial de Localidades do IBGE](https://servicodados.ibge.gov.br/api/docs/localidades):
 
 ```bash
-terraform -chdir=infra/terraform/environments/dev apply baip-dev.tfplan
+curl --fail --location \
+  "https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome" \
+  --output municipios_ufs_ibge.json
 ```
 
-`terraform apply baip-dev.tfplan` executa o plano previamente revisado.
-`terraform apply` sem o arquivo calcula um novo plano no momento da execução.
-
-Arquivos `*.tfplan` podem conter valores da infraestrutura e estão ignorados
-pelo Git; não devem ser commitados.
-
-Consulte os recursos e paths criados:
+Envie o arquivo para o caminho esperado pelo job:
 
 ```bash
-terraform -chdir=infra/terraform/environments/dev output
-```
-
-Capture o bucket do Data Lake:
-
-```bash
+export IBGE_FILE="$(pwd)/municipios_ufs_ibge.json"
 export DATA_LAKE_BUCKET="$(
   terraform -chdir=infra/terraform/environments/dev \
     output -raw data_lake_bucket_name
 )"
 
-echo "${DATA_LAKE_BUCKET}"
-```
-
-## 5. Enviar a referência de municípios do IBGE
-
-A Silver utiliza essa referência para converter códigos SINAN/IBGE e resolver
-município, UF e região.
-
-Defina o caminho local do arquivo:
-
-```bash
-export IBGE_FILE="/caminho/para/municipios_ufs_ibge.json"
 test -f "${IBGE_FILE}"
-```
 
-Envie-o para o path esperado pelo job:
-
-```bash
 aws s3 cp \
   "${IBGE_FILE}" \
   "s3://${DATA_LAKE_BUCKET}/reference/ibge/municipalities/municipios_ufs_ibge.json" \
@@ -203,204 +162,129 @@ aws s3 cp \
   --region "${AWS_REGION}"
 ```
 
-Valide o objeto:
+### 4.3 Validar o ambiente
+
+Com o Docker em execução, valide dependências, credenciais e outputs:
 
 ```bash
-aws s3 ls \
-  "s3://${DATA_LAKE_BUCKET}/reference/ibge/municipalities/" \
-  --profile "${AWS_PROFILE}" \
-  --region "${AWS_REGION}"
+make check
 ```
 
-## 6. Preparar a fonte externa local
+## 5. Preparar a fonte histórica local
 
-O projeto automatiza a preparação da fonte histórica utilizada pela API local.
-Execute:
+O comando abaixo baixa os arquivos oficiais de dengue de 2024, 2025 e 2026,
+converte-os para `.csv.gz`, inicia PostgreSQL e FastAPI e importa os registros:
 
 ```bash
 make source-setup
 ```
 
-Esse comando:
-
-1. baixa `DENGBR24.csv.zip`, `DENGBR25.csv.zip` e `DENGBR26.csv.zip` do
-   Portal de Dados Abertos do SUS;
-2. valida os arquivos ZIP;
-3. converte cada CSV para o formato `.csv.gz` esperado pelo importador;
-4. inicia o PostgreSQL e a FastAPI com Docker Compose;
-5. importa os registros no banco;
-6. verifica a disponibilidade da fonte.
-
-Os arquivos são armazenados em `api-local/data/`, diretório ignorado pelo Git.
-Downloads e importações já concluídos são ignorados nas próximas execuções.
-
-Para executar somente o download e a conversão:
-
-```bash
-make source-download
-```
-
-Valide a fonte externa:
+Valide a fonte:
 
 ```bash
 make source-health
 ```
 
-> [!NOTE]
-> O download e a importação inicial processam milhões de registros e podem
-> levar alguns minutos, dependendo da conexão e dos recursos disponíveis para
-> o Docker.
+Na primeira execução, o download e a importação de milhões de registros podem
+levar alguns minutos. Arquivos já preparados e importados são reaproveitados.
 
-## 7. Executar o fluxo Batch
+## 6. Executar o fluxo Batch
 
-O script `dengue_batch.sh` consulta os outputs do Terraform e impede o início de
-uma segunda execução enquanto outra estiver em `RUNNING`.
-
-Inicie a Step Functions:
+Exponha temporariamente a API local para a Lambda:
 
 ```bash
-./scripts/dengue_batch.sh start
+make tunnel-up
+make tunnel-health
 ```
 
-O script gera um identificador no formato:
+Mantenha Docker e ngrok em execução até o fim da extração.
 
-```text
-dengue-YYYYMMDDTHHMMSSZ
-```
+### Carga pontual
 
-Consulte o estado da execução mais recente:
+Exemplo mensal:
 
 ```bash
-./scripts/dengue_batch.sh status
+make batch-run \
+  GRANULARITY=month \
+  PERIOD=2024-01 \
+  PROCESSING_DATE="$(date -u +%F)"
 ```
 
-Consulte o histórico:
+Para uma carga diária, use `GRANULARITY=day` e `PERIOD=AAAA-MM-DD`.
+
+### Backfill
 
 ```bash
-./scripts/dengue_batch.sh history
+make batch-backfill \
+  GRANULARITY=month \
+  START_PERIOD=2024-01 \
+  END_PERIOD=2026-02 \
+  PROCESSING_DATE="$(date -u +%F)"
 ```
 
-O pipeline executa:
-
-```text
-Bronze -> Silver/Quarentena -> Gold -> Reconciliação -> Crawler
-```
-
-Espere o status `SUCCEEDED` antes das próximas etapas. A execução pode levar
-dezenas de minutos, dependendo do volume e da capacidade disponível no Glue.
-
-### Consultar o manifesto de reconciliação
+### Acompanhar e validar
 
 ```bash
-./scripts/dengue_batch.sh manifest
+make batch-watch
+make batch-manifest
+make athena-deploy-views
+make batch-validate
 ```
 
-O manifesto deve apresentar `"status": "SUCCEEDED"` e todos os itens de
-`checks` como `true`.
+Antes de avançar, confirme:
 
-Para consultar um lote específico:
+- execução da Step Functions em `SUCCEEDED`;
+- manifesto com `status: SUCCEEDED` e verificações em `true`;
+- testes de aceitação do Athena aprovados.
+
+## 7. Validar o fluxo NRT
+
+Construa o simulador e publique eventos sintéticos de triagem:
 
 ```bash
-export BATCH_ID="dengue-YYYYMMDDTHHMMSSZ"
-./scripts/dengue_batch.sh manifest
-unset BATCH_ID
+make hospital-build
+make nrt-publish COUNT=100 INTERVAL=1
 ```
 
-## 8. Criar as views do Athena
-
-Depois que o pipeline e o crawler terminarem com sucesso, execute:
+Verifique o processamento e a API:
 
 ```bash
-./scripts/deploy_athena_dengue_views.sh
+make nrt-queues
+make nrt-health
+make nrt-indicators SCOPE_TYPE=GLOBAL WINDOW_MINUTES=60
 ```
 
-O script executa os arquivos de `src/athena/dengue/views/` em ordem e espera o
-Athena concluir cada comando. O resultado esperado é:
+O resultado esperado é a fila principal sem mensagens pendentes, a DLQ vazia
+e os indicadores contendo as triagens publicadas.
 
-```text
-All dengue analytical views were deployed successfully.
-```
-
-## 9. Executar os testes de aceitação
-
-Use o comando integrado:
+### Dashboard NRT
 
 ```bash
-./scripts/dengue_batch.sh validate
+make nrt-dashboard-up WINDOW_MINUTES=60 REFRESH_SECONDS=120
+make nrt-dashboard-health
 ```
 
-Ele chama `run_athena_dengue_acceptance.sh` e verifica:
+Acesse [http://localhost:8501](http://localhost:8501).
 
-- unicidade do grão da fato;
-- consistência do `batch_id`;
-- medidas binárias;
-- chaves das dimensões;
-- coerência dos totais analíticos.
+## 8. Encerrar os componentes locais
 
-O resultado esperado é:
-
-```text
-All Athena dengue acceptance checks passed.
+```bash
+make down
 ```
 
-## 10. Conferência final no Athena
+Esse comando encerra os contêineres locais, mas preserva os recursos AWS e o
+volume do PostgreSQL.
 
-No editor do Athena, selecione:
+Os demais comandos e parâmetros estão documentados em
+[Comandos de demonstração](commands.md).
 
-- fonte de dados: `AwsDataCatalog`;
-- database: `baip_dev_gold`;
-- workgroup: `baip-dev-workgroup`.
+## Problemas frequentes
 
-Liste os objetos:
-
-```sql
-SHOW TABLES IN baip_dev_gold;
-```
-
-Consulte uma view analítica:
-
-```sql
-SELECT
-    notification_year,
-    notification_month,
-    SUM(notification_count) AS notifications,
-    SUM(confirmed_case_count) AS confirmed_cases,
-    SUM(hospitalized_case_count) AS hospitalized_cases,
-    SUM(death_by_disease_count) AS deaths
-FROM baip_dev_gold.vw_dengue_cases_enriched
-GROUP BY
-    notification_year,
-    notification_month
-ORDER BY
-    notification_year,
-    notification_month;
-```
-
-## Sequência resumida
-
-```text
-1. Autenticar na AWS
-2. Criar o bucket de state remoto
-3. Inicializar e aplicar o Terraform do ambiente dev
-4. Enviar a referência IBGE
-5. Enviar os três CSVs para a Staging
-6. Executar dengue_batch.sh start
-7. Aguardar SUCCEEDED e consultar o manifesto
-8. Executar deploy_athena_dengue_views.sh
-9. Executar dengue_batch.sh validate
-10. Consultar as views no Athena
-```
-
-## Solução rápida de problemas
-
-| Erro | Verificação |
+| Problema | Verificação |
 |---|---|
-| `Invalid endpoint: https://glue..amazonaws.com` | Confirme `AWS_REGION` e `AWS_DEFAULT_REGION` |
-| `Invalid bucket name ""` | Refaça o `terraform output` e confira `DATA_LAKE_BUCKET` |
-| `NoRegion` | Exporte `AWS_REGION=us-east-1` |
-| `PATH_NOT_FOUND` | Confira os paths e se os uploads terminaram |
-| Bronze não encontra arquivos | Confirme que os objetos terminam em `.csv` |
-| Silver falha no enriquecimento | Confira o JSON IBGE no path de referência |
-| Manifesto retorna `404` | Aguarde a reconciliação ou informe o `BATCH_ID` correto |
-| Athena não mostra tabelas | Aguarde o crawler concluir e atualize o catálogo no console |
-| O script não inicia outro lote | Existe uma execução `RUNNING`; consulte `history` e `status` |
+| `.env` ausente | Crie `api-local/.env` a partir do arquivo de exemplo |
+| Falha de autenticação na fonte | Confira se `API_KEY` e o segredo AWS possuem o mesmo valor |
+| Túnel indisponível | Confira `NGROK_AUTHTOKEN` e execute `make tunnel-up` |
+| Silver falha no enriquecimento | Confira a referência do IBGE no S3 |
+| Manifesto não encontrado | Aguarde a reconciliação terminar com sucesso |
+| Indicadores NRT vazios | Publique eventos recentes ou aumente `WINDOW_MINUTES` |
