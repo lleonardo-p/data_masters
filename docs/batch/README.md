@@ -1,8 +1,8 @@
 # Fluxo Batch de Dengue
 
 Este documento apresenta o fluxo Batch utilizado para processar dados públicos
-de notificações de dengue dos anos de 2024, 2025 e do período entre janeiro e
-julho de 2026.
+de notificações de dengue referentes aos anos de 2024 e 2025 e ao período entre
+janeiro e fevereiro de 2026.
 
 ## Diagrama do processo Batch
 
@@ -10,619 +10,414 @@ julho de 2026.
 
 ## 1. Fonte de dados externa
 
-A fonte externa será uma API executada localmente e exposta temporariamente por
-meio de um túnel HTTPS criado com o ngrok. A API será alimentada com arquivos
-públicos de dengue disponibilizados pelo Ministério da Saúde no formato
-`.csv.gz`.
+Para representar a fonte externa do fluxo Batch, foi criada uma API local
+alimentada com arquivos oficiais de dengue disponibilizados pelo
+[DATASUS](https://datasus.saude.gov.br/transferencia-de-arquivos/).
 
-- [Arquivos do DATASUS](https://datasus.saude.gov.br/transferencia-de-arquivos/)
+A API utiliza FastAPI e é exposta temporariamente por meio de um túnel HTTPS do
+ngrok, permitindo que o processo de extração executado na AWS consulte os dados.
 
-> A implementação interna da API não faz parte do escopo deste projeto. Ela será
-> utilizada apenas para representar uma fonte externa controlada.
+> [!NOTE]
+> A implementação da API local é apenas um componente de apoio à demonstração e
+> não faz parte do escopo avaliativo da plataforma. O fluxo Batch começa no
+> consumo dessa fonte pela AWS.
 
-A API oficial do governo não foi utilizada porque apresentou problemas de
-paginação durante os testes, comprometendo a extração completa e determinística
-dos dados.
+Cada requisição consulta um único período de notificação. A API aceita períodos
+com granularidade mensal ou diária:
 
-
-## 2. Extração de dados com AWS Lambda
-
-A extração será executada por uma função AWS Lambda. A função consumirá a API,
-converterá o resultado para JSONL, aplicará compressão Gzip e gravará os dados
-na área Staging do Amazon S3.
-
-A Lambda receberá a URL temporária do ngrok e o período que deverá ser
-consultado. A granularidade será definida pelo formato do período:
-
-| Formato | Granularidade | Exemplo |
+| Granularidade | Formatos aceitos | Exemplos |
 |---|---|---|
-| `YYYY-MM` | Mensal | `2024-01` |
-| `YYYY-MM-DD` | Diária | `2024-01-01` |
+| Mensal | `YYYY-MM` ou `MM-YYYY` | `2024-01` ou `01-2024` |
+| Diária | `YYYY-MM-DD` ou `DD-MM-YYYY` | `2024-01-01` ou `01-01-2024` |
 
-Na carga histórica, serão realizadas extrações mensais entre janeiro de 2024 e
-julho de 2026. A granularidade diária poderá ser utilizada nas novas cargas ou
-no reprocessamento de datas específicas.
+O pipeline oferece dois modos de execução:
 
-A Lambda organizará os arquivos de acordo com a data de processamento, a
-granularidade e o período consultado.
+- **carga pontual:** processa um único mês ou dia;
+- **backfill:** recebe um período inicial e um período final e processa todos
+  os meses ou dias compreendidos no intervalo.
 
-Extração mensal:
+No backfill, a orquestração divide o intervalo em períodos individuais. A API
+continua responsável por entregar uma referência por requisição, enquanto o
+pipeline controla o processamento do intervalo completo.
 
-```text
-staging/opendatasus/dengue/
-└── processing_date=YYYY-MM-DD/
-    └── granularity=month/
-        └── reference_period=YYYY-MM/
-            └── dengue.jsonl.gz
-```
+## 2. Orquestração e acionamento do pipeline
 
-Extração diária:
+O fluxo Batch é orquestrado pelo AWS Step Functions e iniciado manualmente por
+meio dos comandos de demonstração do projeto.
 
-```text
-staging/opendatasus/dengue/
-└── processing_date=YYYY-MM-DD/
-    └── granularity=day/
-        └── reference_period=YYYY-MM-DD/
-            └── dengue.jsonl.gz
-```
+A Step Functions identifica se a execução é pontual ou backfill, coordena a
+extração e executa as etapas seguintes na ordem correta.
 
-Essa organização permite identificar quando o arquivo foi processado, qual
-granularidade foi utilizada e qual período de notificação foi consultado.
+Cada execução recebe um `BATCH_ID`, utilizado para rastrear o mesmo lote entre
+as camadas e nos logs.
 
-> [ADR-0XX — Extração Batch com AWS Lambda](../../architecture/ADR/ADR-024-Extracao-Batch-Lambda.md)
+O fluxo executado é:
 
+1. extração da API para a Staging;
+2. transformação de Staging para Bronze;
+3. transformação de Bronze para Silver e Quarentena;
+4. modelagem da Silver para Gold;
+5. reconciliação das camadas;
+6. atualização do Glue Data Catalog.
 
+Os jobs são executados de forma síncrona. A Step Functions aguarda o término de
+cada etapa e interrompe o pipeline quando ocorre uma falha.
 
-## 3. Transformação de dados com AWS Glue
+### 2.1 Acionamento do pipeline
 
-O AWS Glue será utilizado para processar os dados entre as camadas Staging,
-Bronze, Silver e Gold.
+No MVP, o pipeline é executado manualmente nos modos pontual ou backfill. Essa
+decisão evita execuções automáticas e custos desnecessários durante a
+demonstração.
 
-Cada job possui uma responsabilidade específica, permitindo separar a
-preservação dos dados, as regras de qualidade e a modelagem analítica.
+O Amazon EventBridge poderá ser incorporado futuramente caso seja necessário
+agendar execuções recorrentes.
 
-> [ADR-003 — Processamento Batch com AWS Glue](../../architecture/ADR/ADR-003-Processamento-Batch-Glue.md)
-
-### 3.1 Staging para Bronze
-
-O primeiro job Glue lerá o arquivo `.jsonl.gz` produzido pela Lambda, adicionará
-metadados de rastreabilidade e gravará os dados na Bronze em formato
-Parquet/Snappy.
-
-Nesta etapa não serão aplicadas regras de negócio. Os dados de origem serão
-preservados para permitir auditoria e reprocessamento.
-
-O processo realizará:
-
-1. leitura do arquivo JSONL compactado;
-2. validação do schema de entrada;
-3. normalização dos nomes das colunas;
-4. inclusão dos metadados técnicos;
-5. conversão para Parquet/Snappy;
-6. gravação na Bronze seguindo o período recebido da Lambda.
-
-#### Metadados adicionados
-
-| Campo | Descrição |
-|---|---|
-| `_batch_id` | Identificador da execução do pipeline |
-| `_source_file` | Arquivo de origem na Staging |
-| `_source_system` | Sistema que forneceu os dados |
-| `_source_format` | Formato recebido na Staging |
-| `_bronze_loaded_at` | Data e horário da carga na Bronze |
-| `_environment` | Ambiente de execução |
-| `processing_date` | Data em que a extração foi processada |
-| `granularity` | Granularidade mensal ou diária |
-| `reference_period` | Período de notificação consultado na API |
-
-#### Parâmetros do job
-
-| Parâmetro | Descrição |
-|---|---|
-| `--STAGING_INPUT_PATH` | Caminho exato gravado pela Lambda |
-| `--BRONZE_OUTPUT_PATH` | Caminho base da camada Bronze |
-| `--BATCH_ID` | Identificador do lote |
-| `--PROCESSING_DATE` | Data de processamento |
-| `--GRANULARITY` | Granularidade `month` ou `day` |
-| `--REFERENCE_PERIOD` | Período mensal ou diário consultado |
-
-A Lambda retornará o `STAGING_INPUT_PATH` após concluir a escrita. Esse valor
-será repassado ao Glue pela orquestração, evitando que o job precise descobrir
-qual arquivo deve processar.
-
-#### Leitura mensal
-
-```text
-s3://<data-lake-bucket>/staging/opendatasus/dengue/
-└── processing_date=YYYY-MM-DD/
-    └── granularity=month/
-        └── reference_period=YYYY-MM/
-            └── dengue.jsonl.gz
-```
-
-#### Escrita mensal
-
-```text
-s3://<data-lake-bucket>/bronze/opendatasus/dengue/
-└── processing_date=YYYY-MM-DD/
-    └── granularity=month/
-        └── reference_period=YYYY-MM/
-            └── *.snappy.parquet
-```
-
-Para cargas diárias, `granularity` será `day` e `reference_period` utilizará o
-formato `YYYY-MM-DD`.
-
-#### Evidência — Data Lake
-
-<!--
-Adicionar captura dos paths da Staging e da Bronze no Amazon S3.
-
-![Staging e Bronze no S3](assets/staging-bronze-s3.png)
--->
-
-#### Evidência — Glue Job
-
-<!--
-Adicionar captura da execução concluída do Glue Job.
-
-![Execução do Glue Staging to Bronze](assets/glue-staging-bronze.png)
--->
-
-#### Amostra dos dados
-
-<!--
-Adicionar uma amostra dos dados gravados na Bronze, sem informações sensíveis.
--->
-
-### 3.2 Bronze para Silver
-
-O job Bronze to Silver será responsável pela padronização, validação e
-enriquecimento dos dados.
-
-O processo realizará:
-
-1. leitura dos dados em Parquet da Bronze;
-2. padronização de valores nulos;
-3. conversão de datas, números, códigos e indicadores;
-4. tradução dos códigos de domínio;
-5. cálculo da idade e da faixa etária;
-6. enriquecimento dos municípios com a referência do IBGE;
-7. criação de identificadores técnicos;
-8. identificação de registros duplicados;
-9. aplicação das regras de qualidade;
-10. separação entre Silver e quarentena.
-
-A referência do IBGE será utilizada para resolver os nomes dos municípios, UFs
-e regiões de residência, notificação e provável infecção.
-
-#### Principais campos tratados
-
-| Grupo | Campos |
-|---|---|
-| Identificação | `record_id`, `record_hash`, `source_batch_id` |
-| Datas | notificação, sintomas, investigação, internação, óbito e encerramento |
-| Localização | município, UF e região |
-| Demografia | idade, faixa etária, sexo, gestação, raça e escolaridade |
-| Classificação | classificação final, critério de confirmação e evolução |
-| Indicadores | confirmado, descartado, grave, hospitalizado, óbito e autóctone |
-| Qualidade | `data_quality_status` e `quality_warning_codes` |
-| Rastreabilidade | arquivo de origem e datas de carga |
-
-Os registros sem erros bloqueantes serão gravados na Silver. Registros com
-alertas não bloqueantes permanecerão disponíveis com o status `warning`.
-
-#### Parâmetros do job
-
-| Parâmetro | Descrição |
-|---|---|
-| `--BATCH_ID` | Identificador do lote |
-| `--BRONZE_INPUT_PATH` | Caminho dos dados na Bronze |
-| `--IBGE_REFERENCE_PATH` | Caminho da referência de municípios |
-| `--SILVER_OUTPUT_PATH` | Caminho de saída da Silver |
-| `--QUARANTINE_OUTPUT_PATH` | Caminho de saída da quarentena |
-| `--WRITE_MODE` | Modo de escrita |
-
-#### Leitura da Bronze
-
-```text
-s3://<data-lake-bucket>/bronze/opendatasus/dengue/
-└── processing_date=YYYY-MM-DD/
-    └── granularity=<month|day>/
-        └── reference_period=<YYYY-MM|YYYY-MM-DD>/
-```
-
-#### Escrita na Silver
-
-```text
-s3://<data-lake-bucket>/silver/opendatasus/dengue/cases/
-└── disease_name=dengue/
-    └── notification_year=YYYY/
-        └── notification_month=MM/
-            └── *.snappy.parquet
-```
-
-A Bronze mantém a organização operacional da extração. A Silver utiliza a data
-de notificação porque essa é a principal referência para consultas e
-reprocessamentos de negócio.
-
-> [ADR-011 — Qualidade de Dados](../../architecture/ADR/ADR-011-Qualidade-Dados.md)
-
-#### Evidência — Silver no Data Lake
-
-<!--
-Adicionar captura dos arquivos e partições da Silver no Amazon S3.
-
-![Silver no Amazon S3](assets/silver-s3.png)
--->
-
-#### Evidência — Glue Job
-
-
-![Execução do Glue Bronze to Silver](assets/glue-bronze-silver.png)
-
-
-#### Amostra dos dados Silver
-
-<!--
-Adicionar uma amostra de registros com status valid e warning.
--->
-
-#### 3.2.1 Bronze para quarentena
-
-Os registros que violarem regras bloqueantes serão enviados para a quarentena,
-sem interromper o processamento dos registros válidos.
-
-Entre os motivos de quarentena estão:
-
-- doença não reconhecida;
-- data de notificação inválida, futura ou incompatível;
-- município de residência ausente ou não encontrado;
-- identidade da fonte ou do lote ausente;
-- divergência entre o lote recebido e o lote processado;
-- sequência cronológica inválida;
-- registro duplicado.
-
-Cada registro rejeitado manterá os dados necessários para investigação e
-reprocessamento.
-
-#### Campos de controle da quarentena
-
-| Campo | Descrição |
-|---|---|
-| `quality_error_codes` | Lista de erros encontrados |
-| `primary_error_code` | Principal motivo da rejeição |
-| `source_batch_id` | Lote de origem |
-| `source_file` | Arquivo de origem |
-| `quarantined_at` | Data e horário da rejeição |
-| `quarantine_year` | Ano da rejeição |
-| `quarantine_month` | Mês da rejeição |
-
-#### Escrita na quarentena
-
-```text
-s3://<data-lake-bucket>/quarantine/opendatasus/dengue/silver_cases/
-└── primary_error_code=<ERROR_CODE>/
-    └── quarantine_year=YYYY/
-        └── quarantine_month=MM/
-            └── *.snappy.parquet
-```
-
-A quarentena permite investigar problemas sem descartar os registros e sem
-contaminar a camada analítica.
-
-#### Evidência — Quarentena no Data Lake
-
-<!--
-Adicionar captura das partições da quarentena organizadas por código de erro.
-
-![Quarentena no Amazon S3](assets/quarantine-s3.png)
--->
-
-#### Amostra dos dados em quarentena
-
-<!--
-Adicionar uma amostra com quality_error_codes e primary_error_code.
--->
-
-### 3.3 Silver para Gold
-
-O job Silver to Gold construirá o modelo dimensional utilizado para consultas
-analíticas.
-
-Somente registros Silver com status `valid` ou `warning` serão processados.
-Registros enviados para a quarentena não entrarão na Gold.
-
-Antes da escrita, o job validará:
-
-- presença das colunas obrigatórias;
-- correspondência do `batch_id`;
-- existência de registros;
-- unicidade do `record_id`.
-
-#### Modelo dimensional
-
-| Tabela | Responsabilidade |
-|---|---|
-| `dim_date` | Datas utilizadas nos diferentes eventos do caso |
-| `dim_location` | Municípios, UFs e regiões |
-| `dim_disease` | Código e nome da doença |
-| `dim_demographic` | Idade, faixa etária, sexo, gestação, raça e escolaridade |
-| `dim_clinical` | Classificação, critério, evolução, hospitalização e sorotipo |
-| `fact_dengue_cases` | Medidas e chaves relacionadas a cada caso |
-
-A tabela fato terá uma linha por `record_id` e armazenará medidas binárias para
-facilitar as agregações:
-
-- notificações;
-- casos confirmados;
-- casos descartados;
-- casos com sinais de alarme;
-- casos graves;
-- casos em investigação;
-- hospitalizações;
-- óbitos;
-- casos autóctones;
-- registros com alerta de qualidade.
-
-#### Parâmetros do job
-
-| Parâmetro | Descrição |
-|---|---|
-| `--BATCH_ID` | Identificador do lote |
-| `--SILVER_INPUT_PATH` | Caminho de leitura da Silver |
-| `--GOLD_OUTPUT_PATH` | Caminho base da Gold |
-| `--WRITE_MODE` | Modo de escrita |
-
-#### Leitura da Silver
-
-```text
-s3://<data-lake-bucket>/silver/opendatasus/dengue/cases/
-```
-
-#### Escrita das dimensões
-
-```text
-s3://<data-lake-bucket>/gold/opendatasus/dengue/
-├── dim_date/
-├── dim_location/
-├── dim_disease/
-├── dim_demographic/
-└── dim_clinical/
-```
-
-#### Escrita da tabela fato
-
-```text
-s3://<data-lake-bucket>/gold/opendatasus/dengue/
-└── fact_dengue_cases/
-    └── notification_year=YYYY/
-        └── notification_month=MM/
-            └── *.snappy.parquet
-```
-
-O particionamento mensal da fato reduz a quantidade de dados lidos nas consultas
-por período no Athena.
-
-> [ADR-009 — Modelagem de Data Warehouse](../../architecture/ADR/ADR-009-Modelagem-Data-Warehouse.md)
-
-#### Evidência — Gold no Data Lake
-
-
-
-
-![Gold no Amazon S3](assets/gold-s3.png)
-
-
-#### Evidência — Glue Job
-
-
-
-![Execução do Glue Silver to Gold](assets/glue-silver-gold.png)
-
-
-#### Amostra do modelo dimensional
-
-<!--
-Adicionar uma amostra da tabela fato e das principais dimensões.
--->
-
-## 4. Job de reconciliação
-
-O job de reconciliação é executado após o processamento das camadas Bronze,
-Silver e Gold. Sua responsabilidade é verificar se o lote terminou de forma
-consistente antes de disponibilizar os dados para consulta.
-
-![Job de reconciliação](../../architecture/c4/batch/reconciliation-job.drawio.svg)
-
-### 4.1 Motivo do job
-
-Um job pode terminar tecnicamente com sucesso, mas ainda produzir dados
-incompletos ou inconsistentes.
-
-Por exemplo, a Gold pode conter menos registros que a Silver ou a tabela fato
-pode possuir chaves duplicadas.
-
-A reconciliação adiciona uma validação final ao pipeline. Ela compara as camadas
-e verifica se as regras estruturais do modelo analítico foram atendidas.
-
-### 4.2 Funcionamento
-
-O job recebe o `batch_id` da execução e realiza as seguintes verificações:
-
-| Verificação | Regra esperada |
-|---|---|
-| Identidade do lote | Bronze, Silver e Gold devem pertencer ao mesmo `batch_id` |
-| Fechamento da Silver | Bronze deve ser igual a Silver mais Quarentena |
-| Status da Silver | Silver deve ser igual a registros válidos mais registros com aviso |
-| Fechamento da Gold | Quantidade da tabela fato deve ser igual à quantidade da Silver |
-| Granularidade da fato | Cada `record_id` deve aparecer uma única vez |
-| Chaves das dimensões | As chaves das dimensões não podem estar duplicadas |
-| Integridade referencial | As chaves da fato devem existir nas dimensões |
-| Medidas da fato | Indicadores de contagem devem conter somente `0` ou `1` |
-
-Ao final, o job gera um relatório JSON contendo:
-
-- identificação do lote;
-- quantidade de registros por camada;
-- quantidade de registros em quarentena;
-- resultado de cada verificação;
-- inconsistências de chaves;
-- caminhos verificados;
-- status final da reconciliação.
-
-O relatório é armazenado no seguinte caminho:
-
-```text
-s3://<logs-bucket>/
-└── pipeline-runs/
-    └── dengue-batch/
-        └── reconciliation/
-            └── batch_id=<BATCH_ID>/
-                └── reconciliation.json
-```
-
-Quando todas as verificações são aprovadas:
-
-```text
-status = SUCCEEDED
-```
-
-Quando alguma verificação falha:
-
-```text
-status = FAILED
-```
-
-Se o parâmetro `FAIL_ON_MISMATCH` estiver habilitado, uma divergência também
-causa a falha do job e interrompe o pipeline.
-
-> ****Evidência:**:** execução do job de reconciliação.
-
-
-![Execução do job de reconciliação](./assets/reconciliation-glue-job.png)
-
-> ****Evidência:**:** relatório de reconciliação no Amazon S3.
-
-
-![Relatório de reconciliação](./assets/reconciliation-report.png)
-
-
-## 5. Orquestração e acionamento do pipeline
-
-A execução do fluxo Batch é coordenada pelo AWS Step Functions. Esse serviço
-controla a ordem das etapas, aguarda a conclusão de cada processamento e
-interrompe o pipeline quando ocorre uma falha.
+### Diagrama da orquestração
 
 ![Orquestração do fluxo Batch](../../architecture/c4/batch/batch-orchestration.drawio.svg)
 
-### 5.1 Funcionamento
+### Evidência da execução
 
-Cada execução recebe um identificador único. Esse valor é enviado aos jobs como
-`BATCH_ID` e permite rastrear o mesmo lote entre as diferentes camadas.
+![Execução completa no AWS Step Functions](assets/step-functions-execution.png)
 
-O fluxo seguirá esta ordem:
+## 3. Extração de dados com AWS Lambda
 
-1. extrair os dados da API com AWS Lambda;
-2. executar o job Staging para Bronze;
-3. executar o job Bronze para Silver;
-4. executar o job Silver para Gold;
-5. executar o job de reconciliação;
-6. iniciar o Glue Crawler da Gold;
-7. aguardar a atualização do Glue Data Catalog;
-8. finalizar o pipeline com sucesso.
+A extração é realizada por uma função AWS Lambda coordenada pelo AWS Step
+Functions. A função consulta a API externa e transfere os dados em streaming
+para a Staging do Amazon S3 no formato `JSONL.GZ`.
 
-Os jobs do AWS Glue são chamados de forma síncrona. A Step Functions aguarda o
-término de uma etapa antes de iniciar a próxima.
+Para cada período, também é criado um manifesto com informações de controle,
+como quantidade de registros, tamanho do arquivo, hash SHA-256 do conteúdo
+compactado e duração da extração.
 
-Se um job falhar, as etapas seguintes não são executadas. As falhas são
-registradas no Amazon CloudWatch e podem gerar notificações pelo Amazon SNS.
+Na carga pontual, a Lambda processa apenas o mês ou dia informado. No backfill,
+a Step Functions divide o intervalo e realiza uma invocação da Lambda para cada
+período, de forma sequencial, evitando sobrecarregar a API.
 
-### 5.2 Formas de acionamento
+Esse modelo evita manter uma única invocação ativa durante todo o backfill e
+permite identificar e reprocessar períodos específicos. A AWS pode reutilizar
+o ambiente de execução entre invocações, mas cada período permanece uma
+execução lógica independente.
 
-O pipeline poderá ser acionado de duas formas.
+## 4. Transformação de dados com AWS Glue
 
-#### Carga histórica
+O fluxo possui três jobs de transformação e um job de reconciliação,
+desenvolvidos com PySpark no AWS Glue.
 
-A carga histórica será iniciada manualmente, informando:
+| Job | Responsabilidade |
+|---|---|
+| Staging para Bronze | Preservar a origem, adicionar rastreabilidade e converter o formato |
+| Bronze para Silver | Padronizar, enriquecer e validar os registros |
+| Silver para Gold | Construir o modelo dimensional para consumo analítico |
+| Reconciliação | Verificar a consistência do lote e do snapshot analítico |
 
-- URL temporária da API publicada pelo ngrok;
-- período que deverá ser extraído;
-- granularidade mensal ou diária.
+### 4.1 Staging para Bronze
 
-Exemplo:
+O primeiro job lê os arquivos `JSONL.GZ` produzidos pela Lambda. O Spark realiza
+a descompressão, aplica um schema explícito e preserva as colunas da fonte como
+texto.
 
-```json
-{
-  "api_url": "https://exemplo.ngrok-free.app",
-  "reference_period": "2024-01",
-  "granularity": "month"
-}
+Antes da escrita, o job verifica se a quantidade de registros lidos corresponde
+à soma informada nos manifestos de extração.
+
+Os dados são convertidos para Parquet com compressão Snappy e particionados por:
+
+- data de processamento;
+- granularidade diária ou mensal;
+- período consultado.
+
+Essa organização permite processar cargas pontuais e backfills com a mesma
+estrutura.
+
+#### Campos adicionados
+
+| Campo | Finalidade |
+|---|---|
+| `_batch_id` | Identificar a execução do pipeline |
+| `_source_file` | Informar o arquivo de origem |
+| `_source_system` | Identificar o sistema de origem |
+| `_ingestion_source` | Identificar a API utilizada na ingestão |
+| `_source_format` | Registrar o formato `jsonl.gz` |
+| `_source_extraction_batch_id` | Relacionar o registro à extração da Lambda |
+| `_source_manifest` | Informar o manifesto da extração |
+| `_bronze_loaded_at` | Registrar o horário de carga |
+| `_environment` | Identificar o ambiente |
+| `processing_date` | Registrar a data de processamento |
+| `granularity` | Identificar a carga como diária ou mensal |
+| `reference_period` | Registrar o período consultado |
+| `reference_year` | Identificar o ano de referência |
+| `notification_year` | Extrair o ano da notificação |
+| `notification_month` | Extrair o mês da notificação |
+| `disease` | Identificar os registros de dengue |
+
+A Bronze não aplica regras de negócio. Sua finalidade é preservar os dados
+recebidos, acrescentar rastreabilidade e disponibilizar um formato eficiente
+para as próximas etapas.
+
+### 4.2 Bronze para Silver
+
+O segundo job transforma os dados brutos em um contrato padronizado para
+análise e aplicação das regras de qualidade.
+
+As principais tratativas são:
+
+- conversão de datas, números e indicadores;
+- tradução dos códigos do SINAN;
+- cálculo da idade e da faixa etária;
+- enriquecimento de municípios, UFs e regiões com a referência do IBGE;
+- criação de indicadores de confirmação, gravidade, hospitalização e óbito;
+- geração de identificadores técnicos;
+- identificação de duplicidades;
+- classificação dos registros como `valid`, `warning` ou `quarantined`.
+
+#### Principais campos adicionados
+
+| Grupo | Exemplos |
+|---|---|
+| Identificação | `record_id` e `record_hash` |
+| Localização | Município, UF e região de residência, notificação e infecção |
+| Demografia | Idade, faixa etária, sexo, gestação, raça e escolaridade |
+| Classificação | Classificação final, critério de confirmação e evolução |
+| Indicadores | Confirmado, descartado, grave, hospitalizado, óbito e autóctone |
+| Qualidade | `data_quality_status` e `quality_warning_codes` |
+| Rastreabilidade | Lote, manifesto, arquivo e datas de carga |
+
+Como a fonte não possui um identificador estável para cada notificação, o job
+calcula o `record_hash` com SHA-256 a partir das 121 colunas de negócio da
+origem. O `record_id` combina esse hash com o sistema e o ano de referência,
+criando a identidade técnica utilizada na deduplicação.
+
+Registros com alertas não bloqueantes permanecem na Silver com status
+`warning`. Alguns exemplos são classificação ausente, hospitalização
+desconhecida ou diferença entre o ano do arquivo e o ano da notificação.
+
+> [ADR-011 — Qualidade de Dados](../../architecture/ADR/ADR-011-Qualidade-Dados.md)
+
+#### 4.2.1 Quarentena
+
+Registros que violam regras obrigatórias são separados na Quarentena e não
+seguem para a Gold.
+
+| Regra | Exemplo simplificado |
+|---|---|
+| Doença não reconhecida | Código da doença diferente de dengue |
+| Data inválida | Data de notificação ausente ou ilegível |
+| Data futura ou implausível | Data posterior ao dia atual ou anterior ao ano 2000 |
+| Município obrigatório ausente | Município de residência não informado |
+| Município não encontrado | Código do município inexistente na referência do IBGE |
+| Identidade da origem ausente | Lote, arquivo ou hash não informado |
+| Lote divergente | Registro associado a outro `BATCH_ID` |
+| Sequência cronológica inválida | Datas do caso em uma ordem inválida |
+| Duplicidade | Mais de um registro com o mesmo `record_id` no lote |
+
+Cada registro rejeitado recebe:
+
+- `quality_error_codes`, com todos os erros encontrados;
+- `primary_error_code`, com o principal motivo da rejeição;
+- `quarantined_at`, com o horário da rejeição;
+- metadados de rastreabilidade para auditoria e reprocessamento.
+
+A Quarentena evita descartar dados silenciosamente e impede que registros
+inválidos contaminem as análises.
+
+#### Amostra dos registros em Quarentena
+
+<!--
+![Amostra dos registros em Quarentena](assets/quarantine-data-sample.png)
+-->
+
+### 4.3 Silver para Gold
+
+O terceiro job utiliza os registros `valid` e `warning` da Silver para construir
+o modelo dimensional.
+
+A Gold é reconstruída como um snapshot completo. Quando o mesmo `record_id`
+aparece em diferentes processamentos, o job mantém a versão mais recente da
+Silver.
+
+O modelo possui cinco dimensões e uma tabela fato:
+
+| Tabela | Conteúdo |
+|---|---|
+| `dim_date` | Calendário utilizado pelos diferentes papéis de data |
+| `dim_location` | Município, UF e região |
+| `dim_disease` | Código e nome da doença |
+| `dim_demographic` | Idade, faixa etária, sexo, gestação, raça e escolaridade |
+| `dim_clinical` | Classificação, critério, evolução, hospitalização, origem e sorotipo |
+| `fact_dengue_cases` | Uma linha por registro técnico de notificação |
+
+A `dim_date` é reutilizada para as datas de notificação, sintomas, investigação,
+digitação, internação, encerramento e óbito.
+
+A `dim_location` é reutilizada para os locais de residência, notificação e
+provável infecção.
+
+#### Granularidade da tabela fato
+
+A granularidade da tabela fato é uma linha por registro técnico de notificação.
+O `case_id` corresponde ao `record_id` criado na Silver a partir da identidade
+da origem e do conteúdo do registro.
+
+Como a fonte não disponibiliza uma chave pública estável para cada notificação,
+o `case_id` não deve ser interpretado como identificador de paciente. Uma
+alteração nas colunas de negócio pode gerar uma nova identidade técnica.
+
+#### Modelo estrela
+
+```mermaid
+erDiagram
+    DIM_DATE ||--o{ FACT_DENGUE_CASES : "7 papéis de data"
+    DIM_LOCATION ||--o{ FACT_DENGUE_CASES : "3 papéis de localização"
+    DIM_DISEASE ||--o{ FACT_DENGUE_CASES : "doença"
+    DIM_DEMOGRAPHIC ||--o{ FACT_DENGUE_CASES : "perfil demográfico"
+    DIM_CLINICAL ||--o{ FACT_DENGUE_CASES : "perfil clínico"
+
+    FACT_DENGUE_CASES {
+        string case_id PK
+        string record_hash
+        bigint disease_key FK
+        bigint demographic_key FK
+        bigint clinical_key FK
+        int notification_date_key FK
+        int symptoms_start_date_key FK
+        int investigation_date_key FK
+        int digitization_date_key FK
+        int hospitalization_date_key FK
+        int closure_date_key FK
+        int death_date_key FK
+        bigint residence_location_key FK
+        bigint notification_location_key FK
+        bigint infection_location_key FK
+        int notification_count
+        int confirmed_case_count
+        int discarded_case_count
+        int alarm_case_count
+        int severe_case_count
+        int under_investigation_count
+        int hospitalized_case_count
+        int death_by_disease_count
+        int death_other_cause_count
+        int autochthonous_case_count
+        int quality_warning_count
+    }
+
+    DIM_DATE {
+        int date_key PK
+        date calendar_date
+        int year
+        int quarter
+        int month
+        int day
+        int iso_week_of_year
+        int day_of_week
+        string year_month
+        boolean is_weekend
+    }
+
+    DIM_LOCATION {
+        bigint location_key PK
+        string municipality_code_sinan
+        string municipality_code_ibge
+        string municipality_name
+        string uf_code
+        string uf_abbreviation
+        string uf_name
+        string region_code
+        string region_abbreviation
+        string region_name
+    }
+
+    DIM_DISEASE {
+        bigint disease_key PK
+        string disease_code
+        string disease_name
+    }
+
+    DIM_DEMOGRAPHIC {
+        bigint demographic_key PK
+        string age_unit_code
+        string age_unit_name
+        int age_value
+        int age_years
+        string age_group_name
+        string sex_code
+        string sex_name
+        string pregnancy_code
+        string pregnancy_name
+        string race_code
+        string race_name
+        string education_code
+        string education_name
+    }
+
+    DIM_CLINICAL {
+        bigint clinical_key PK
+        string classification_code
+        string classification_name
+        string confirmation_criterion_code
+        string confirmation_criterion_name
+        string case_outcome_code
+        string case_outcome_name
+        string hospitalization_code
+        string hospitalization_name
+        string autochthonous_code
+        string autochthonous_name
+        string serotype_code
+    }
 ```
 
-Esse formato permite executar ou reprocessar períodos específicos.
+As medidas da fato são binárias e aditivas. Cada indicador recebe `0` ou `1`,
+permitindo calcular totais por meio de agregações. A tabela é particionada pelo
+ano e mês da notificação para reduzir o volume de dados lido no Athena.
 
-#### Execução agendada
+> [ADR-009 — Modelagem de Data Warehouse](../../architecture/ADR/ADR-009-Modelagem-Data-Warehouse.md)
 
-O Amazon EventBridge poderá iniciar a Step Functions em um horário definido,
-permitindo a execução recorrente do pipeline.
+## 5. Reconciliação do lote
 
-Entretanto, o agendamento automático depende de um endereço acessível para a
-API. Como a URL gratuita do ngrok pode mudar, ela deverá ser atualizada antes da
-execução ou armazenada em uma configuração consultada pela Lambda.
+A reconciliação é executada após a criação da Gold. Seu objetivo é confirmar
+que o pipeline produziu dados completos e consistentes antes da atualização do
+catálogo.
 
-Durante o desenvolvimento, o acionamento poderá permanecer manual. Em uma
-evolução da solução, a API poderá utilizar um endereço estável, permitindo a
-execução automática pelo EventBridge.
+Um job pode terminar sem erro técnico e ainda produzir registros ausentes,
+duplicados ou com relacionamentos inválidos. Por isso, a reconciliação funciona
+como a validação final de Data Quality.
 
-> ****Evidência:**:** execução completa no AWS Step Functions.
+![Job de reconciliação](../../architecture/c4/batch/reconciliation-job.drawio.svg)
 
-<!--
-![Execução da Step Functions](./assets/step-functions-execution.png)
--->
+### 5.1 Verificações realizadas
 
-> **Evidência a adicionar:** alerta ou logs da execução no Amazon CloudWatch.
+| Verificação | Resultado esperado |
+|---|---|
+| Fechamento do lote | Bronze = Silver + Quarentena |
+| Status da Silver | Silver = registros válidos + registros com aviso |
+| Publicação na Gold | Registros atuais da Silver presentes na Gold |
+| Snapshot da Gold | Gold corresponde à versão mais recente da Silver |
+| Hash dos registros | Silver e Gold possuem o mesmo conteúdo |
+| Granularidade da fato | Um único registro por `case_id` |
+| Chaves dimensionais | Ausência de chaves duplicadas |
+| Integridade referencial | Todas as chaves da fato existem nas dimensões |
+| Medidas | Indicadores de contagem possuem somente `0` ou `1` |
+| Identidade do lote | Registros pertencem ao `BATCH_ID` processado |
 
-<!--
-![Logs da orquestração](./assets/orchestration-cloudwatch.png)
--->
+O resultado é gravado no relatório `reconciliation.json`, contendo os volumes,
+as divergências encontradas e o resultado de cada verificação.
 
-> [ADR-0XX — Orquestração do fluxo Batch com AWS Step Functions](../../architecture/ADR/ADR-0XX-Orquestracao-Batch-Step-Functions.md)
+Se alguma regra falhar, o relatório recebe o status `FAILED`, o job termina com
+erro e a Step Functions não inicia o Glue Crawler.
+
+### Evidência da reconciliação
+
+![Relatório de reconciliação](assets/reconciliation-report.png)
 
 ## 6. Glue Crawler e Data Catalog
 
-Após a aprovação do job de reconciliação, a Step Functions inicia o Glue
-Crawler da camada Gold.
+Após a aprovação da reconciliação, a Step Functions inicia o Glue Crawler da
+camada Gold e aguarda sua conclusão.
 
-O Crawler examina os diretórios da Gold no Amazon S3, identifica os schemas e
-as partições e atualiza as tabelas técnicas no AWS Glue Data Catalog.
+O Crawler identifica as tabelas e partições armazenadas no Amazon S3 e atualiza
+o banco `baip_dev_gold` no AWS Glue Data Catalog.
 
-O fluxo dessa etapa é:
-
-```text
-Gold no Amazon S3
-        ↓
-AWS Glue Crawler
-        ↓
-AWS Glue Data Catalog
-        ↓
-Amazon Athena
-```
-
-O Crawler utiliza como origem:
-
-```text
-s3://<data-lake-bucket>/gold/opendatasus/dengue/
-```
-
-As tabelas são registradas no banco:
-
-```text
-baip_dev_gold
-```
-
-O prefixo `dengue_` é adicionado aos nomes identificados pelo Crawler. Como
-resultado, o catálogo disponibiliza as seguintes tabelas:
+O catálogo disponibiliza:
 
 - `dengue_dim_date`;
 - `dengue_dim_location`;
@@ -631,237 +426,85 @@ resultado, o catálogo disponibiliza as seguintes tabelas:
 - `dengue_dim_clinical`;
 - `dengue_fact_dengue_cases`.
 
-O Data Catalog não movimenta nem copia os arquivos. Ele armazena metadados como:
+O Data Catalog armazena somente os metadados. Os arquivos permanecem na camada
+Gold do Amazon S3.
 
-- nome da tabela;
-- nomes e tipos das colunas;
-- formato dos arquivos;
-- localização no Amazon S3;
-- estrutura de partições.
+### Evidências do catálogo
 
-Esses metadados permitem que o Athena interprete os arquivos Parquet da Gold
-como tabelas consultáveis por SQL.
+![Execução do Glue Crawler](assets/glue-crawler-execution.png)
 
-Durante a atualização do catálogo, o Crawler:
-
-- adiciona ou atualiza partições;
-- incorpora novas colunas identificadas;
-- atualiza schemas existentes;
-- remove do catálogo tabelas que deixaram de existir na origem.
-
-Após iniciar o Crawler, a Step Functions consulta seu estado periodicamente. O
-pipeline somente termina com sucesso quando a última execução do Crawler possui
-o status `SUCCEEDED`.
-
-> O Crawler realiza descoberta de metadados. Ele não substitui as validações de
-> qualidade nem o job de reconciliação.
-
-> ****Evidência:**:** execução concluída do Glue Crawler.
-
-
-![Execução do Glue Crawler](./assets/glue-crawler-execution.png)
-
-
-> ****Evidência:**:** tabelas da Gold registradas no Glue Data Catalog.
-
-
-![Tabelas no Glue Data Catalog](./assets/glue-data-catalog-tables.png)
-
+![Tabelas no Glue Data Catalog](assets/glue-data-catalog-tables.png)
 
 > [ADR-010 — Catálogo de Dados com AWS Glue Data Catalog](../../architecture/ADR/ADR-010-Catalogo-Dados-Glue.md)
 
 ## 7. Consumo analítico com Amazon Athena
 
-O Amazon Athena é utilizado para consultar os dados da Gold diretamente no
-Amazon S3 por meio de comandos SQL.
+O Amazon Athena consulta os arquivos Parquet da Gold utilizando os metadados
+registrados no Glue Data Catalog.
 
-O Athena utiliza os schemas e as partições registrados no Glue Data Catalog.
-Por ser um serviço serverless, não é necessário provisionar ou administrar um
-banco de dados dedicado para realizar as consultas.
+As consultas são executadas em um workgroup próprio, com definição do local dos
+resultados, publicação de métricas e limite de dados processados por consulta.
 
-Os resultados das consultas são armazenados em:
-
-```text
-s3://<athena-results-bucket>/query-results/
-```
-
-As consultas são executadas por um workgroup próprio do projeto. O workgroup
-centraliza a configuração dos resultados, publica métricas no CloudWatch e
-limita a quantidade de dados que uma consulta pode examinar.
-
-### 7.1 Views analíticas
-
-As views criam contratos de consumo sobre as tabelas fato e dimensões. Elas
-escondem a complexidade dos relacionamentos da modelagem dimensional e
-disponibilizam estruturas mais simples para analistas e ferramentas de BI.
-
-Uma view não copia os dados da Gold. Ela armazena uma consulta SQL e apresenta
-os resultados atuais das tabelas utilizadas.
-
-As seguintes views fazem parte do fluxo:
+Para simplificar o consumo, foram criadas views analíticas sobre o modelo
+dimensional:
 
 | View | Finalidade |
 |---|---|
-| `vw_dengue_cases_enriched` | Relaciona a fato com as dimensões e apresenta os casos enriquecidos |
-| `vw_dengue_monthly_municipality` | Consolida indicadores mensais por município |
-| `vw_dengue_monthly_uf` | Consolida indicadores mensais por UF |
-| `vw_dengue_monthly_age_group` | Consolida indicadores mensais por faixa etária |
-| `vw_dengue_monthly_classification` | Consolida indicadores mensais por classificação e critério |
+| `vw_dengue_cases_enriched` | Apresentar os registros relacionados às dimensões |
+| `vw_dengue_monthly_municipality` | Consolidar indicadores mensais por município |
+| `vw_dengue_monthly_uf` | Consolidar indicadores mensais por UF |
+| `vw_dengue_monthly_age_group` | Consolidar indicadores mensais por faixa etária |
+| `vw_dengue_monthly_classification` | Consolidar indicadores mensais por classificação |
 
-Os arquivos SQL utilizados para criar as views estão em:
+As views disponibilizam notificações, confirmações, hospitalizações, casos
+graves, óbitos e outros indicadores sem exigir que o consumidor conheça os
+relacionamentos internos do modelo dimensional.
 
-```text
-src/athena/dengue/views/
-```
+### Evidências do consumo analítico
 
-A view enriquecida é a base das demais views analíticas. Ela relaciona a tabela
-fato às dimensões de data, localização, doença, demografia e informações
-clínicas.
+![Views disponíveis no Athena](assets/athena-views.png)
 
-As views agregadas disponibilizam indicadores como:
-
-- notificações;
-- casos confirmados;
-- casos descartados;
-- casos com sinais de alarme;
-- casos graves;
-- casos em investigação;
-- hospitalizações;
-- óbitos;
-- casos autóctones;
-- registros com avisos de qualidade.
-
-Exemplo de consulta:
-
-```sql
-SELECT
-    notification_year,
-    notification_month,
-    uf_abbreviation,
-    SUM(notification_count) AS notifications,
-    SUM(confirmed_case_count) AS confirmed_cases,
-    SUM(hospitalized_case_count) AS hospitalized_cases,
-    SUM(death_by_disease_count) AS deaths
-FROM baip_dev_gold.vw_dengue_monthly_uf
-GROUP BY
-    notification_year,
-    notification_month,
-    uf_abbreviation
-ORDER BY
-    notification_year,
-    notification_month,
-    uf_abbreviation;
-```
-
-> ****Evidência:**:** views criadas no banco `baip_dev_gold`.
-
-
-![Views disponíveis no Athena](./assets/athena-views.png)
-
-
-> ****Evidência:**:** resultado de uma consulta analítica.
-
-
-![Resultado da consulta no Athena](./assets/athena-query-result.png)
-
+![Resultado de consulta no Athena](assets/athena-query-result.png)
 
 > [ADR-014 — Consumo Analítico com Amazon Athena](../../architecture/ADR/ADR-014-Consumo-Analitico-PowerBI-Athena.md)
 
 ## 8. Observabilidade com Amazon CloudWatch
 
-O Amazon CloudWatch concentra os logs, as métricas e os alarmes operacionais do
-fluxo Batch.
+O Amazon CloudWatch centraliza logs e métricas da Lambda, dos jobs Glue, da
+Step Functions e do Athena.
 
-A observabilidade permite responder perguntas como:
+Os registros incluem:
 
-- qual etapa está em execução;
-- quanto tempo cada job levou;
-- quantos registros foram processados;
-- por que uma execução falhou;
-- qual `batch_id` apresentou o problema;
-- se a Step Functions falhou, expirou ou foi interrompida.
+- início e término das execuções;
+- duração das etapas;
+- quantidade de registros processados;
+- caminhos de entrada e saída;
+- erros e motivos de falha;
+- `BATCH_ID` utilizado na rastreabilidade do lote.
 
-### 8.1 Logs dos jobs
+A Step Functions envia seus logs para um grupo com retenção de 30 dias. O
+conteúdo completo das entradas e saídas não é armazenado, reduzindo exposição
+e custo de armazenamento.
 
-Os jobs do AWS Glue possuem métricas e logs contínuos habilitados. Cada job
-registra eventos de início, término, quantidade de registros e caminhos de
-entrada e saída.
+O projeto possui alarmes para execuções que terminam com falha, excedem o tempo
+limite ou são interrompidas. Quando acionados, os alarmes publicam uma
+notificação no tópico SNS do fluxo Batch.
 
-O `batch_id` é incluído nos logs para relacionar os eventos da Bronze, Silver,
-Gold e reconciliação à mesma execução.
+A observabilidade técnica é complementada pelo relatório de reconciliação:
 
-Os logs também registram métricas de dados, como:
-
-- registros recebidos;
-- registros aceitos na Silver;
-- registros com avisos;
-- registros enviados para a Quarentena;
-- registros escritos na Gold;
-- resultado das verificações de reconciliação.
-
-### 8.2 Logs da orquestração
-
-A Step Functions envia os erros da execução para um grupo de logs específico:
-
-```text
-/aws/vendedlogs/states/baip-dev-dengue-batch-pipeline
-```
-
-Os logs possuem retenção configurada de 30 dias. O conteúdo completo dos dados
-de entrada e saída não é registrado, reduzindo exposição desnecessária de
-informações e volume de armazenamento.
-
-### 8.3 Métricas e alarmes
-
-O projeto possui alarmes para os seguintes estados terminais da Step Functions:
-
-| Métrica | Situação monitorada |
+| Componente | Responsabilidade |
 |---|---|
-| `ExecutionsFailed` | Execução finalizada com falha |
-| `ExecutionsTimedOut` | Execução excedeu o tempo máximo |
-| `ExecutionsAborted` | Execução foi interrompida |
+| CloudWatch | Monitorar execução, duração, logs e falhas técnicas |
+| Reconciliação | Validar volumetria, duplicidade, chaves e consistência dos dados |
 
-Quando uma dessas métricas registra pelo menos uma ocorrência, o CloudWatch
-aciona o tópico SNS:
+### Evidências da observabilidade
 
-```text
-baip-dev-dengue-batch-alerts
-```
+#### CloudWatch
 
-O tópico representa o canal de notificação do pipeline. Para que uma pessoa ou
-sistema receba o alerta, deve ser cadastrada uma assinatura no SNS, como e-mail
-ou outro destino autorizado.
+![Logs do Glue no CloudWatch](assets/cloudwatch-glue-logs.png)
 
-O workgroup do Athena também publica métricas no CloudWatch, permitindo
-acompanhar as execuções e o volume de dados processado pelas consultas.
+#### Amazon SNS
 
-### 8.4 Observabilidade técnica e de dados
-
-O CloudWatch acompanha a saúde técnica da execução. O relatório de
-reconciliação complementa esse monitoramento verificando a consistência dos
-dados.
-
-```text
-CloudWatch
-└── execução, duração, logs, falhas e alarmes
-
-Reconciliação
-└── volumetria, duplicidade, chaves e consistência entre camadas
-```
-
-Essa combinação evita considerar o pipeline saudável apenas porque os serviços
-terminaram sem erro técnico.
-
-> ****Evidência:**:** logs estruturados de um job do AWS Glue.
-
-
-![Logs do Glue no CloudWatch](./assets/cloudwatch-glue-logs.png)
-
-
-> ****Evidência:**:** métricas e alarmes da Step Functions.
-
-
-![Alarmes da Step Functions](./assets/cloudwatch-step-functions-alarms.png)
-
+![Alarmes da Step Functions](assets/cloudwatch-step-functions-alarms.png)
 
 > [ADR-012 — Observabilidade e Monitoramento](../../architecture/ADR/ADR-012-Observabilidade-Monitoramento.md)
