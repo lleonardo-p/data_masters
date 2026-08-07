@@ -1,83 +1,36 @@
 # ADR-010: Catálogo de Dados com AWS Glue Data Catalog
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP precisa disponibilizar metadados técnicos das tabelas do Data Lake para processamento, consulta SQL e consumo analítico.
-
-As camadas Silver, Gold e DW precisam ser consultáveis por Athena e integradas aos pipelines de processamento.
+Os arquivos Parquet da camada Gold precisam ser apresentados como tabelas para consultas no Amazon Athena. O catálogo deve registrar schemas, formatos, localizações e partições sem copiar os dados armazenados no Amazon S3.
 
 ## Decisão
 
-O **AWS Glue Data Catalog** será utilizado como catálogo técnico de metadados do Data Lake.
+Utilizar o AWS Glue Data Catalog como catálogo técnico da camada Gold.
 
-O catálogo deverá registrar bancos, tabelas, schemas, partições e localização dos datasets no S3.
+Após a aprovação da reconciliação, a Step Functions:
 
-As camadas **Bronze**, **Silver**, **Gold** e **DW** poderão ser catalogadas conforme necessidade de processamento, rastreabilidade e consulta.
+1. inicia o AWS Glue Crawler;
+2. aguarda a conclusão da execução;
+3. atualiza as tabelas e partições no banco `baip_dev_gold`;
+4. finaliza o pipeline somente após o sucesso do Crawler.
 
-A camada **Staging** não será catalogada por padrão, por possuir finalidade temporária. Quando necessário, poderá ter metadados técnicos mínimos para controle operacional, sem ser tratada como camada analítica.
+O Crawler examina apenas a camada Gold validada.
 
 ## Justificativa
 
-O Glue Data Catalog é integrado nativamente ao AWS Glue, Amazon Athena, Lake Formation e Amazon S3, reduzindo esforço operacional para descoberta e consulta de dados.
+O Glue Data Catalog oferece um catálogo gerenciado e compartilhado entre AWS Glue e Amazon Athena.
 
-A centralização dos metadados facilita a execução dos jobs, o consumo via SQL e a organização das tabelas por camada e domínio.
+O Crawler reduz a necessidade de cadastrar manualmente tabelas e partições a cada processamento. Sua execução após a reconciliação evita disponibilizar no catálogo um lote que não passou pelas verificações de qualidade.
 
-Evitar catalogar a Staging por padrão reduz ruído no catálogo e reforça que essa área é temporária, não uma fonte oficial de consumo.
+## Alternativas
 
-## Alternativas consideradas
-
-- **Catálogo manual em documentação:** simples no início, mas não permite integração técnica com Athena e Glue.
-- **DataHub:** oferece governança e linhagem mais avançadas, mas adiciona complexidade ao MVP.
-- **Apache Atlas:** forte para governança, mas mais complexo de operar e fora do escopo inicial.
-- **Sem catálogo:** simplifica a implantação inicial, mas dificulta consultas SQL, descoberta de dados e manutenção de partições.
-
-## Consequências
-
-### Positivas
-
-- Integração nativa com Glue e Athena.
-- Melhor organização de schemas e partições.
-- Facilita descoberta técnica dos dados.
-- Permite consulta SQL sobre dados no S3.
-- Base para evolução futura com Lake Formation e governança mais avançada.
-
-### Negativas / Trade-offs
-
-- Exige manutenção de schemas e partições.
-- Mudanças de schema precisam ser controladas.
-- Catálogo técnico não substitui catálogo de negócio.
-- Pode haver inconsistência se o layout no S3 e o catálogo não forem atualizados corretamente.
-
-## Escalabilidade e alternativas
-
-Crawlers recursivos em grandes lakes aumentam duração, custo e risco de
-inferência. Schemas críticos devem ser definidos por contrato; partições podem
-usar APIs ou partition projection. Crawler é descoberta controlada, não
-substituto de contrato.
-
-Lake Formation adiciona autorização fina. DataZone/DataHub passa a ser
-considerado quando ownership, glossário, linhagem e descoberta por múltiplas
-equipes forem requisitos.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- houver necessidade de catálogo de negócio com glossário, ownership e linhagem;
-- múltiplos times passarem a consumir a plataforma;
-- houver exigência formal de governança de dados;
-- o volume de tabelas crescer significativamente;
-- a arquitetura adotar Lake Formation, DataHub ou outro catálogo corporativo.
-
-## Referências
-
-- AWS Glue Data Catalog
-- Amazon Athena
-- AWS Glue Crawlers
-- AWS Lake Formation
+* **Criação manual de tabelas no Athena:** não adotada porque exigiria manutenção dos schemas e das partições a cada alteração.
+* **Tabelas declaradas integralmente com Terraform:** ofereceriam maior controle do schema, mas aumentariam a manutenção da infraestrutura para cada evolução do modelo.
+* **Hive Metastore próprio:** não adotado devido à necessidade de provisionamento, disponibilidade, atualização e monitoramento do serviço.
+* **Consulta direta aos caminhos do Amazon S3:** não adotada porque dificultaria a descoberta, padronização e reutilização dos conjuntos de dados.
+* **AWS Lake Formation:** não adotado no MVP porque seus controles avançados de governança e acesso granular não são necessários para o consumo atual.

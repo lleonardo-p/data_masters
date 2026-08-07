@@ -1,96 +1,53 @@
-# ADR-004: Segurança e Governança de Dados
+# ADR-004: Segurança e Controle de Acesso
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP armazena e processa dados de múltiplas fontes, incluindo dados públicos, dados enriquecidos e eventos hospitalares simulados que podem representar cenários com identificadores pessoais.
-
-A arquitetura precisa demonstrar boas práticas de segurança, privacidade, controle de acesso, rastreabilidade e governança, mesmo em um MVP.
+A BAIP processa dados públicos no fluxo Batch e dados pessoais sintéticos no fluxo NRT. A plataforma precisa proteger credenciais, limitar acessos e evitar a exposição de informações pessoais, mantendo uma implementação compatível com o escopo do MVP.
 
 ## Decisão
 
-A arquitetura adotará controles de segurança e governança desde a concepção.
+Adotar os seguintes controles:
 
-As principais diretrizes serão:
+* funções e políticas IAM para os principais componentes;
+* princípio do menor privilégio nas permissões;
+* criptografia em trânsito com HTTPS;
+* criptografia dos dados armazenados nos serviços AWS;
+* armazenamento da chave da API no AWS Secrets Manager;
+* pseudonimização do CPF com HMAC no AWS KMS;
+* proteção dos endpoints de negócio da API com AWS IAM;
+* bloqueio de acesso público aos buckets;
+* logs sem CPF, nome, telefone ou e-mail.
 
-- bloqueio de acesso público nos buckets S3;
-- criptografia em repouso com KMS quando aplicável;
-- criptografia em trânsito para comunicação entre serviços;
-- segregação de permissões por camada: Staging, Bronze, Silver, Gold e DW;
-- uso do princípio do menor privilégio em políticas IAM;
-- uso de Secrets Manager e/ou KMS para segredos, chaves e parâmetros sensíveis;
-- logs operacionais sem PII ou payloads sensíveis;
-- trilhas de auditoria com CloudTrail quando aplicável;
-- monitoramento operacional com CloudWatch;
-- separação clara entre dados identificáveis, dados pseudonimizados e dados analíticos;
-- ausência de CPF ou identificadores sensíveis em Gold, DW, dashboards e APIs analíticas.
+A solução utiliza endpoints gerenciados da AWS e não possui uma VPC dedicada.
 
 ## Justificativa
 
-A segurança precisa ser considerada desde o início para evitar propagação indevida de dados sensíveis e reduzir riscos de exposição.
+Os controles implementados protegem os principais pontos de acesso e os dados utilizados pelo MVP, sem adicionar a complexidade e o custo operacional de uma arquitetura de rede privada.
 
-A camada Staging merece controle específico porque pode receber dados brutos temporários antes da validação e da pseudonimização. Bronze, Silver, Gold e DW também exigem níveis distintos de permissão conforme finalidade, sensibilidade e público consumidor.
+O uso de serviços gerenciados reduz a administração de infraestrutura e centraliza o controle de identidade, criptografia e auditoria na AWS.
 
-A adoção de IAM com menor privilégio, criptografia, logs sem PII e segregação por camada cria uma base mais adequada para evolução futura com dados reais e requisitos formais de governança.
+## Alternativas
 
-## Alternativas consideradas
+* **VPC dedicada com sub-redes privadas:** não implementada devido ao custo e à complexidade adicionais para o volume atual.
+* **Autenticação corporativa ou Amazon Cognito:** não implementada porque a demonstração utiliza credenciais AWS IAM.
+* **Chaves gerenciadas pelo cliente para todos os serviços:** não adotadas; foram utilizadas quando necessárias, como na geração do HMAC do CPF.
+* **Ambientes em contas AWS separadas:** não adotados porque o MVP possui apenas o ambiente de desenvolvimento.
 
-- **Controle de acesso amplo no MVP:** simplifica testes, mas aumenta risco de exposição e cria dívida técnica de segurança.
-- **Aplicar segurança apenas em produção:** reduz esforço inicial, mas pode exigir retrabalho significativo e permitir padrões inseguros desde o início.
-- **Manter dados sensíveis em todas as camadas:** facilita rastreabilidade, mas aumenta risco e reduz aderência a princípios de minimização e privacidade.
-- **Governança apenas documental:** insuficiente sem controles técnicos aplicados em IAM, S3, logs, catálogo e pipelines.
+## Controles recomendados para produção
 
-## Consequências
+Em um ambiente produtivo, a segurança deveria evoluir para:
 
-### Positivas
+* contas separadas para desenvolvimento, homologação e produção;
+* VPC dedicada, sub-redes privadas e VPC Endpoints para os serviços AWS;
+* segregação mais granular de funções e políticas IAM;
+* autenticação federada com um provedor corporativo de identidade;
+* AWS WAF, limitação de requisições e proteção adicional da API;
+* rotação automática de segredos e chaves;
+* auditoria com AWS CloudTrail, AWS Config, GuardDuty e Security Hub;
+* centralização e proteção contra alteração dos logs de segurança.
 
-- Redução do risco de exposição de dados.
-- Melhor aderência a privacidade e minimização de dados.
-- Separação clara de responsabilidades por camada.
-- Base técnica mais adequada para evolução com dados reais.
-- Maior rastreabilidade operacional.
-- Melhor controle sobre acesso a dados brutos, tratados e analíticos.
-
-### Negativas / Trade-offs
-
-- Maior esforço inicial de configuração.
-- Necessidade de manter políticas IAM, KMS, Secrets Manager e permissões atualizadas.
-- Pode aumentar complexidade para desenvolvimento e testes.
-- Erros de configuração podem bloquear pipelines ou consultas legítimas.
-
-## Escalabilidade e alternativas
-
-IAM por recurso/prefixo atende uma equipe no MVP. Com múltiplos times, dados
-reais ou compartilhamento, Lake Formation deve centralizar permissões de
-catálogo e filtros por linha/coluna, e AWS Organizations deve separar ambientes.
-
-CloudTrail data events em todos os objetos pode gerar custo e ruído; selecionar
-buckets sensíveis e retenção. KMS também possui quotas e custo por request; S3
-Bucket Keys, cache seguro e chaves por sensibilidade devem ser avaliados.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- dados reais forem utilizados;
-- houver exigência formal de Lake Formation;
-- múltiplos usuários ou times passarem a consumir o Data Lake;
-- houver necessidade de segregação por conta AWS;
-- houver requisito formal de auditoria, compliance ou RIPD;
-- forem criadas APIs ou produtos de dados externos.
-
-## Referências
-
-- AWS IAM
-- AWS KMS
-- AWS Secrets Manager
-- Amazon S3 Block Public Access
-- AWS CloudTrail
-- Amazon CloudWatch
-- AWS Lake Formation
-- LGPD
+Esses controles não foram implementados por restrições de tempo, custo e escopo, mas são necessários antes da utilização da plataforma com dados reais de pacientes.

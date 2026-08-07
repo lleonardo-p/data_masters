@@ -1,116 +1,73 @@
-# ADR-015: Particionamento, Layout e Formato de Arquivos
+# ADR-015: Formatos de Arquivo e Particionamento
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O desempenho e o custo das consultas no Data Lake dependem diretamente do formato dos arquivos, tamanho dos objetos, particionamento e organização dos prefixos no Amazon S3.
+O fluxo Batch precisa armazenar os dados extraídos com rastreabilidade e disponibilizar as camadas processadas em um formato eficiente para AWS Glue e Amazon Athena.
 
-O BAIP precisa suportar reprocessamento, consultas analíticas por período, rastreabilidade por fonte e organização dos dados por camada do Data Lake.
-
-Como o projeto está em fase de MVP, o particionamento deve ser simples, previsível e alinhado aos principais padrões de consulta, evitando excesso de partições e complexidade operacional desnecessária.
+O layout também deve separar execuções, permitir reprocessamentos e identificar quando cada conjunto de dados foi produzido.
 
 ## Decisão
 
-A arquitetura adotará:
+Utilizar os seguintes formatos:
 
-- **formato de entrega** na Staging, como CSV anual no caso dengue;
-- **Parquet/Snappy** nas camadas Bronze, Silver, Gold e DW;
-- **particionamento mensal por data de notificação** nas tabelas de dengue,
-  combinado com ano de referência quando necessário à linhagem;
-- compactação periódica para evitar excesso de pequenos arquivos;
-- nomes de pastas padronizados por camada, domínio, fonte e período;
-- particionamento orientado pelos padrões de consulta, e não apenas pela estrutura original da fonte.
+* **Staging:** JSON Lines compactado com Gzip (`.jsonl.gz`);
+* **Bronze, Silver, Quarentena e Gold:** Apache Parquet com compressão Snappy.
 
-O particionamento mensal será utilizado para reduzir a quantidade de partições e manter boa eficiência em consultas por período.
-
-O padrão base para partições analíticas será:
+As camadas de processamento são organizadas pela data lógica da execução:
 
 ```text
-year=YYYY/month=MM
+processing_date=YYYY-MM-DD/granularity=day|month/
 ```
 
-Exemplo:
+Na Staging, o período solicitado também faz parte do caminho:
 
 ```text
-s3://baip-data-lake/silver/opendatasus/dengue/processing_date=2026-07-26/granularity=month/reference_period=2026-07/
-s3://baip-data-lake/gold/opendatasus/dengue/fact_dengue_cases/notification_year=2026/notification_month=07/
+processing_date=YYYY-MM-DD/
+granularity=day|month/
+reference_period=YYYY-MM-DD|YYYY-MM/
 ```
 
-Campos como domínio, fonte e camada poderão ser usados na organização dos prefixos do S3, mas não necessariamente como partições formais das tabelas.
+O `reference_period` e o `batch_id` permanecem como metadados nos registros processados.
 
-Não será adotado particionamento diário no batch de dengue no MVP, pois o volume
-e os filtros atuais não justificam esse nível e poderiam gerar excesso de
-partições e pequenos arquivos.
+A Gold é organizada por tabela fato e dimensões e representa o snapshot analítico mais recente.
 
 ## Justificativa
 
-O formato Parquet reduz o volume de dados lidos em consultas analíticas, melhora a performance e reduz custos no Athena por ser colunar e eficiente para filtros e agregações.
+### JSONL com Gzip
 
-O particionamento mensal atende ao padrão esperado de consulta do projeto, que tende a analisar séries históricas, indicadores por mês, evolução epidemiológica e recortes temporais agregados.
+O JSONL mantém um objeto JSON independente por linha, permitindo que a Lambda transfira a resposta da API por streaming sem carregar todo o conteúdo em memória.
 
-Essa estratégia simplifica a manutenção do Data Lake, reduz a quantidade de partições no Glue Data Catalog e evita a criação excessiva de diretórios e metadados.
+A compressão Gzip reduz o volume transferido e armazenado. Esse formato é adequado para a Staging, onde a prioridade é preservar o conteúdo extraído.
 
-A compactação periódica é necessária para manter arquivos em tamanhos mais adequados para leitura analítica, evitando degradação de performance causada por muitos arquivos pequenos.
+### Parquet com Snappy
 
-## Alternativas consideradas
+O Parquet é colunar e permite que Glue e Athena leiam apenas as colunas necessárias. Ele também preserva tipos, reduz o volume examinado e melhora consultas analíticas.
 
-- **CSV em todas as camadas:** simples para leitura manual, mas ineficiente para analytics, com maior custo de leitura e menor performance em consultas.
-- **JSON em todas as camadas:** flexível para ingestão e auditoria, mas menos eficiente para consultas analíticas, principalmente em grandes volumes.
-- **Particionamento diário:** oferece maior granularidade, mas pode gerar excesso de partições e aumentar a complexidade operacional no MVP.
-- **Particionar por muitos campos:** pode parecer vantajoso para filtros específicos, mas aumenta a quantidade de partições, dificulta manutenção e pode prejudicar performance se mal utilizado.
-- **Sem particionamento:** simplifica a escrita dos dados, mas aumenta o volume escaneado nas consultas e pode elevar custo e latência no Athena.
+O Snappy foi escolhido por oferecer descompressão rápida e baixo consumo de CPU. Ele comprime menos que o Gzip, mas apresenta melhor equilíbrio para operações frequentes de leitura e transformação.
 
-## Consequências
+### Data de processamento
 
-### Positivas
+O particionamento por `processing_date`:
 
-- Melhor performance em consultas analíticas por período.
-- Redução de custo no Athena por menor volume de dados escaneados.
-- Organização clara por camada, domínio, fonte e período.
-- Menor quantidade de partições em comparação com particionamento diário.
-- Melhor suporte a reprocessamento mensal.
-- Maior simplicidade operacional no MVP.
+* separa as execuções do pipeline;
+* facilita auditoria e rastreabilidade;
+* evita mistura entre lotes;
+* permite localizar e reprocessar uma execução;
+* mantém o período dos dados independente da data em que foram processados.
 
-### Negativas / Trade-offs
+A data de processamento representa quando o lote foi executado. O período de referência representa quais notificações foram solicitadas à API.
 
-- Consultas muito específicas por dia podem escanear o mês inteiro.
-- Reprocessamentos pontuais podem exigir sobrescrita ou reprocessamento da partição mensal.
-- Pode ser necessário evoluir o particionamento se o volume crescer significativamente.
-- Exige rotina de compactação para evitar pequenos arquivos.
-- Particionamento incorreto ou desalinhado com os filtros das consultas pode reduzir os ganhos de performance.
+## Alternativas
 
-## Escalabilidade e alternativas
-
-O layout deve ser revisto por métricas de bytes escaneados, quantidade e tamanho
-de arquivos, planejamento e filtros reais. Athena sofre com muitos objetos
-pequenos; jobs de compactação e arquivos maiores devem preceder novas partições.
-
-Partition projection reduz manutenção quando o padrão é previsível. Iceberg
-passa a ser considerado para late data, evolução de schema, upserts e grande
-volume de metadados. Particionar por alta cardinalidade, como município, exige
-benchmark e normalmente não é a primeira escolha.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- o volume de dados crescer significativamente;
-- consultas por dia se tornarem muito frequentes;
-- o custo das consultas no Athena aumentar por excesso de dados escaneados;
-- houver necessidade de reprocessamentos mais granulares;
-- surgirem muitos dados late arriving;
-- forem necessários updates, deletes ou time travel frequentes;
-- houver necessidade de formato transacional no Data Lake;
-- a arquitetura evoluir para Apache Iceberg, Apache Hudi ou Delta Lake.
-
-## Referências
-
-- Apache Parquet
-- Amazon Athena Partitioning
-- AWS Glue Data Catalog
-- S3 Data Lake Best Practices
+* **CSV:** não adotado porque não preserva tipos, ocupa mais espaço e exige interpretação adicional durante a leitura.
+* **JSON sem compressão:** não adotado devido ao maior volume de armazenamento e transferência.
+* **JSONL em todas as camadas:** não adotado porque é menos eficiente para consultas analíticas.
+* **Apache Avro:** não adotado porque seu formato orientado a linhas é mais adequado a eventos do que às agregações do Athena.
+* **Apache ORC:** tecnicamente viável, mas não adotado porque o Parquet possui ampla integração com os componentes utilizados.
+* **Parquet com Gzip:** não adotado porque economizaria mais espaço, mas aumentaria o custo de CPU durante leituras e transformações.
+* **Apache Iceberg, Delta Lake ou Apache Hudi:** não adotados porque controle transacional, versionamento e operações de `MERGE` aumentariam a complexidade sem necessidade para o snapshot atual.
+* **Particionamento pela data de notificação:** não adotado como partição principal porque uma mesma execução pode processar diferentes períodos e precisa permanecer rastreável como um único lote.

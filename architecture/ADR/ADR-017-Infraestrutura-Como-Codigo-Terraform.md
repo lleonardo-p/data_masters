@@ -1,93 +1,66 @@
 # ADR-017: Infraestrutura como Código com Terraform
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP depende de múltiplos recursos AWS, como buckets S3, filas SQS, funções Lambda, tabelas DynamoDB, jobs Glue, Step Functions, permissões IAM, alarmes e configurações de observabilidade.
-
-Criar e manter esses recursos manualmente aumenta risco de inconsistência, dificulta reprodutibilidade e reduz controle sobre mudanças.
+A BAIP utiliza diferentes serviços AWS nos fluxos Batch e NRT. A infraestrutura precisa ser reproduzível, versionada e consistente, evitando configurações manuais difíceis de auditar.
 
 ## Decisão
 
-A infraestrutura será definida como código utilizando **Terraform**.
+Utilizar Terraform para provisionar e gerenciar a infraestrutura AWS da plataforma.
 
-O Terraform deverá ser utilizado para provisionar e versionar os principais recursos da arquitetura.
+O código contempla:
 
-As configurações devem seguir boas práticas como:
+* armazenamento e catálogo de dados;
+* processamento Batch e NRT;
+* filas e DLQ;
+* funções Lambda;
+* orquestração;
+* tabelas DynamoDB;
+* API Gateway;
+* KMS e Secrets Manager;
+* funções e políticas IAM;
+* logs, métricas, alarmes e notificações.
 
-- módulos reutilizáveis quando fizer sentido;
-- variáveis por ambiente;
-- tags padronizadas;
-- separação entre código de infraestrutura e código de aplicação;
-- validação em pull request;
-- análise estática quando aplicável;
-- uso de `prevent_destroy` para recursos críticos quando necessário.
+Os recursos são organizados por ambiente e módulos reutilizáveis. As alterações são verificadas com `terraform fmt`, `terraform validate` e `terraform plan` antes do `terraform apply`.
 
-No MVP, o estado poderá ser local durante experimentação controlada. Para ambientes compartilhados ou produtivos, o backend remoto com locking será obrigatório.
+O plano e a aplicação são executados manualmente no MVP. Os componentes locais da pasta `api-local/` permanecem gerenciados pelo Docker Compose.
 
 ## Justificativa
 
-Terraform permite versionar a infraestrutura, revisar mudanças, reproduzir ambientes e reduzir configuração manual.
+O Terraform oferece:
 
-A escolha também aproxima o projeto de práticas profissionais de Cloud Engineering, Data Platform e DevOps.
+* infraestrutura declarativa e versionada;
+* visualização das alterações antes da aplicação;
+* gerenciamento das dependências entre recursos;
+* redução de configurações manuais;
+* reprodução do ambiente;
+* rastreabilidade das mudanças;
+* possibilidade de reutilizar módulos em novos ambientes.
 
-Permitir estado local apenas em experimentação evita complexidade inicial desnecessária. Exigir backend remoto em ambientes compartilhados ou produtivos reduz risco de concorrência, perda de estado e alterações não rastreadas.
+O Terraform também é uma tecnologia conhecida pelo desenvolvedor e atende aos serviços AWS utilizados no projeto.
 
-## Alternativas consideradas
+## Limitação atual
 
-- **Provisionamento manual no console AWS:** rápido para testes, mas pouco reprodutível e sujeito a erros.
-- **AWS CloudFormation:** nativo da AWS, mas menos portátil e com menor familiaridade para este projeto.
-- **AWS CDK:** poderoso e flexível, mas adiciona dependência de linguagem e abstrações adicionais.
-- **Scripts CLI:** úteis para automação simples, mas menos adequados para controle declarativo de estado.
+O projeto não possui pipeline CI/CD para executar automaticamente validações, planos e aplicações.
 
-## Consequências
+Em uma evolução, o Terraform deverá ser integrado a um pipeline com:
 
-### Positivas
+* validação automática em pull requests;
+* armazenamento do plano como artefato;
+* análise de segurança do código;
+* aprovação antes da aplicação;
+* credenciais temporárias por federação;
+* aplicação separada por ambiente;
+* bloqueio de alterações diretas no ambiente produtivo.
 
-- Infraestrutura versionada e reprodutível.
-- Redução de configuração manual.
-- Melhor controle de mudanças.
-- Facilidade para recriar ambientes.
-- Base para evolução com CI/CD de infraestrutura.
-- Melhor rastreabilidade de recursos cloud.
+## Alternativas
 
-### Negativas / Trade-offs
-
-- Exige organização do código Terraform.
-- Requer cuidado com estado e locking.
-- Mudanças incorretas podem afetar recursos críticos.
-- Pode aumentar esforço inicial em comparação com criação manual.
-
-## Escalabilidade e alternativas
-
-Com mais ambientes, o estado deve usar backend remoto com locking, criptografia
-e acesso separado. Módulos precisam de versões e testes; um módulo genérico
-demais pode aumentar blast radius. Planos binários, state e secrets não devem
-ser versionados.
-
-Multi-account e Multi-Region exigem providers/roles explícitos e pipelines com
-aprovação. Atlantis, Terraform Cloud ou CI corporativo serão avaliados quando
-concorrência de mudanças e segregação de funções justificarem um control plane.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- o projeto adotar outra ferramenta corporativa de IaC;
-- múltiplos times passarem a manter a infraestrutura;
-- houver necessidade de módulos mais avançados ou registry privado;
-- o ambiente evoluir para múltiplas contas AWS;
-- forem exigidos pipelines formais de aprovação e deploy de infraestrutura.
-
-## Referências
-
-- Terraform
-- Terraform AWS Provider
-- AWS IAM
-- Terraform Remote State
-- Infrastructure as Code
+* **Provisionamento manual pelo console AWS:** não adotado porque dificultaria reprodução, auditoria e controle de mudanças.
+* **AWS CloudFormation:** tecnicamente viável, mas não adotado devido à preferência e maior experiência do desenvolvedor com Terraform.
+* **AWS CDK:** não adotado porque adicionaria geração de CloudFormation e maior dependência de código para definir a infraestrutura.
+* **Pulumi:** não adotado devido à menor experiência do desenvolvedor e à ausência de benefício relevante para o projeto.
+* **Scripts AWS CLI:** não adotados como mecanismo principal porque não oferecem o mesmo controle declarativo de estado e dependências.

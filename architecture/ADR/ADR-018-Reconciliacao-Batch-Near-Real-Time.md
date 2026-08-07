@@ -1,94 +1,59 @@
-# ADR-018: Separação e Reconciliação entre Batch e Near Real-Time
+# ADR-018: Reconciliacao Batch Near Real Time
 
-- **Status:** Aceito
-- **Data:** 2026-07-18
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP possui um batch baseado em notificações oficiais do SINAN/OpenDataSUS e
-planeja um NRT baseado em eventos sintéticos de triagem hospitalar.
+A BAIP possui dois fluxos relacionados à dengue:
 
-Esses eventos não possuem o mesmo grão nem representam necessariamente a mesma
-população. Somá-los criaria uma falsa consolidação: triagem ou suspeita
-hospitalar não equivale a notificação oficial confirmada.
+* **Batch:** utiliza notificações públicas oficiais disponibilizadas pelo Ministério da Saúde;
+* **NRT:** utiliza eventos sintéticos de triagem produzidos pelo simulador hospitalar.
+
+As fontes não compartilham CPF, identificador do caso, identificador da triagem ou outra chave que permita relacionar os registros de forma confiável.
 
 ## Decisão
 
-O batch e o NRT serão produtos separados:
+Manter os fluxos Batch e NRT independentes, sem sincronização ou reconciliação entre seus registros.
 
-- **Batch dengue:** fonte oficial consolidada para análise histórica no
-  `fact_dengue_cases`.
-- **NRT hospitalar:** visão operacional sintética de eventos recentes servida
-  por API/DynamoDB.
+O fluxo Batch demonstra processamento histórico, qualidade, quarentena, modelagem dimensional e consumo pelo Athena.
 
-O dashboard deve rotular origem, atualização e caráter oficial/provisório de
-cada métrica. Não será criado `official_total + nrt_delta` entre fontes sem
-correspondência semântica comprovada.
+O fluxo NRT demonstra mensageria, processamento orientado a eventos, pseudonimização, idempotência, indicadores recentes e consumo por API.
 
-A reconciliação atual ocorre dentro de cada fluxo:
-
-- batch: Staging → Bronze → Silver/quarentena → Gold;
-- NRT: recebidos → válidos/invalidados → processados/idempotentes → indicador.
-
-Se futuramente eventos NRT forem formalmente incorporados ao sistema oficial,
-um novo contrato deverá definir chave de correlação, estados, fonte de verdade,
-janela, late events e precedência antes de combinar métricas.
+Os resultados podem ser apresentados como visões complementares do domínio, mas não devem ser somados ou relacionados registro a registro.
 
 ## Justificativa
 
-Separar os produtos evita dupla contagem e impede que uma métrica operacional
-seja apresentada como estatística epidemiológica oficial. Também permite que
-cada fonte mantenha qualidade, latência e finalidade apropriadas.
+Não é possível reconciliar as duas fontes de forma confiável porque:
 
-## Alternativas consideradas
+* os dados oficiais não possuem CPF disponível;
+* os eventos NRT são exclusivamente sintéticos;
+* os identificadores são gerados por sistemas diferentes;
+* uma triagem não representa necessariamente uma notificação oficial;
+* os eventos possuem granularidades e finalidades distintas.
 
-- **Somar NRT ao batch:** rejeitado porque os grãos e processos de negócio são
-  distintos.
-- **Substituir o batch pelo NRT:** rejeitado porque o simulador não é fonte
-  oficial.
-- **Ocultar a divergência no dashboard:** rejeitado por comprometer semântica e
-  governança.
-- **Manter produtos separados e rotulados:** escolhido para o MVP.
+Criar uma correspondência artificial exigiria grande esforço e produziria uma integração sem valor real, construída apenas para a demonstração.
 
-## Consequências
+A separação é uma decisão consciente de arquitetura, e não uma falha de implementação. O objetivo do projeto é demonstrar, no mesmo domínio, um fluxo Batch e um fluxo NRT com necessidades diferentes.
 
-### Positivas
+## Evolução futura
 
-- semântica clara;
-- menor risco de dupla contagem;
-- preserva a fonte oficial;
-- SLO NRT pode evoluir sem alterar o batch;
-- consumidores entendem atualização e finalidade.
+Uma integração poderia ser avaliada se existissem:
 
-### Negativas / Trade-offs
+* sistemas hospitalares reais autorizados;
+* identificador comum entre triagem e notificação;
+* contrato de dados compartilhado;
+* regras para evitar duplicidade;
+* base legal para o tratamento;
+* processo de qualidade e reconciliação específico.
 
-- o dashboard possui métricas separadas;
-- não existe um “total em tempo real” oficial;
-- correlação futura exigirá contrato e governança adicionais.
+Nesse cenário, os eventos poderiam ser consolidados periodicamente no Data Lake antes de sua incorporação ao modelo analítico.
 
-## Escalabilidade e alternativas
+## Alternativas
 
-Reconciliações devem operar por `batch_id`, janela e partição. No NRT,
-`event_id` e escrita condicional evitam efeito duplicado. Se surgir uma fonte
-comum entre batch e stream, watermarks e tabela transacional podem controlar
-late data e correção, mas isso altera a fonte de verdade e exige novo ADR.
-
-## Critérios de evolução
-
-Revisar se:
-
-- hospitais enviarem eventos reais ao processo oficial;
-- existir identificador de correlação autorizado;
-- a visão NRT se tornar oficial;
-- uma regulamentação definir consolidação e precedência;
-- for adotado streaming stateful com correção histórica.
-
-## Referências
-
-- Idempotent Event Processing
-- Event Time vs Processing Time
-- [Lambda com SQS](https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html)
-- [DynamoDB conditional operations](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html)
+* **Criar eventos sintéticos correspondentes aos dados oficiais:** não adotado porque produziria uma reconciliação artificial e pouco representativa.
+* **Relacionar registros por data, município, sexo e idade:** não adotado devido ao risco elevado de associações incorretas.
+* **Enviar diretamente os eventos NRT para a Gold:** não adotado porque misturaria triagens operacionais com notificações oficiais.
+* **Somar os indicadores dos dois fluxos:** não adotado porque possuem significados e granularidades diferentes.
+* **Implementar uma consolidação diária sem chave comum:** não adotada devido à complexidade e à ausência de uma regra confiável de correspondência.

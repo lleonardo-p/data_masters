@@ -1,99 +1,32 @@
-# ADR-002: Armazenamento do Data Lake no Amazon S3
+# ADR-002: Arquitetura do Data Lake
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP (Brazil Arbovirus Intelligence Platform) precisa armazenar dados de múltiplas fontes, incluindo saúde pública, clima, eventos ambientais, infraestrutura de saúde e eventos hospitalares simulados.
-
-A solução deve suportar dados temporários de ingestão, dados brutos, dados tratados e dados analíticos, mantendo baixo custo, rastreabilidade, reprocessamento, auditoria, particionamento, integração com catálogo e consulta SQL.
+O fluxo Batch precisa armazenar milhões de registros históricos de dengue com baixo custo, rastreabilidade e possibilidade de reprocessamento. Os dados também devem ser tratados progressivamente até ficarem disponíveis para análise.
 
 ## Decisão
 
-O **Amazon S3** será a camada principal de armazenamento do Data Lake.
+Utilizar o Amazon S3 como Data Lake, organizado nas seguintes camadas:
 
-Os dados serão organizados em uma arquitetura baseada em camadas:
-
-- **Staging:** área temporária de aterrissagem dos dados ingeridos, usada para validações iniciais, controle técnico da ingestão e preparação antes da persistência na Bronze.
-- **Bronze:** dados brutos persistidos, preservados no formato original ou semi-original, mantendo rastreabilidade da origem.
-- **Silver:** dados tratados, padronizados, deduplicados, enriquecidos e pseudonimizados quando necessário.
-- **Gold:** dados analíticos, agregações, fatos, dimensões e indicadores para consumo.
-
-A **Staging** não será considerada camada histórica do Data Lake. A **Bronze** será a primeira camada persistida com finalidade de auditoria e reprocessamento.
-
-A área Staging terá retenção curta e será limpa automaticamente após **7 dias**.
-
-As demais camadas do Data Lake deverão possuir políticas de **retenção**, **expurgo** e **lifecycle**, definidas conforme a natureza dos dados, necessidade de auditoria, custo de armazenamento e requisitos de reprocessamento.
-
-O Data Lake deverá utilizar criptografia, bloqueio de acesso público, controle de permissões, versionamento quando aplicável e políticas de lifecycle.
+* **Staging:** preserva os arquivos extraídos da API;
+* **Bronze:** converte os dados para Parquet e adiciona metadados do lote;
+* **Silver:** valida, padroniza, enriquece e remove duplicidades;
+* **Quarentena:** isola registros que não atendem às regras obrigatórias;
+* **Gold:** disponibiliza fatos e dimensões para consumo analítico.
 
 ## Justificativa
 
-O Amazon S3 foi escolhido por ser um serviço escalável, durável, flexível e de baixo custo para armazenamento de dados em diferentes formatos e estágios de processamento.
+O Amazon S3 oferece armazenamento escalável, durável e com baixo esforço operacional. A separação em camadas facilita auditoria, reprocessamento, aplicação de regras de qualidade e identificação da origem dos dados.
 
-O S3 também possui integração nativa com serviços analíticos e de governança da AWS, como AWS Glue, Glue Data Catalog, Amazon Athena e AWS Lake Formation.
+A arquitetura também se integra diretamente ao AWS Glue, Glue Data Catalog e Amazon Athena.
 
-A separação entre Staging, Bronze, Silver e Gold permite organizar melhor o ciclo de vida dos dados. A Staging reduz acoplamento entre ingestão e persistência, enquanto Bronze, Silver e Gold mantêm uma estrutura clara para rastreabilidade, tratamento, enriquecimento e consumo analítico.
+## Alternativas
 
-A política de exclusão da Staging após 7 dias evita acúmulo de arquivos temporários e reduz custo operacional. Já as políticas de retenção e expurgo nas demais camadas permitem controlar o ciclo de vida dos dados de acordo com requisitos técnicos, analíticos e regulatórios.
-
-## Alternativas consideradas
-
-- **Amazon Redshift:** adequado para Data Warehouse e consultas analíticas de alta performance, mas menos flexível como armazenamento principal de dados brutos e históricos em múltiplos formatos.
-- **Amazon RDS/PostgreSQL:** adequado para dados relacionais e transacionais, mas limitado para armazenar grandes volumes de dados brutos, semi-estruturados e históricos em uma arquitetura de Data Lake.
-- **Amazon DynamoDB:** adequado para acesso de baixa latência e indicadores near real-time, mas não para armazenar o histórico analítico completo do Data Lake.
-- **Armazenamento local/on-premises:** oferece maior controle físico da infraestrutura, porém aumenta o esforço operacional, reduz elasticidade e dificulta a integração com serviços analíticos gerenciados.
-
-## Consequências
-
-### Positivas
-
-- Baixo custo de armazenamento.
-- Escalabilidade e alta durabilidade.
-- Separação clara entre dados temporários, brutos, tratados e analíticos.
-- Suporte a reprocessamento, auditoria e rastreabilidade.
-- Integração com serviços analíticos e catálogo de dados.
-- Possibilidade de evolução para padrões de Lakehouse.
-- Redução de acúmulo de dados temporários por meio de limpeza automática da Staging.
-
-### Negativas / Trade-offs
-
-- Exige governança clara de buckets, prefixes, permissões e particionamento.
-- Pode gerar problema de pequenos arquivos se a ingestão e o processamento forem mal projetados.
-- Depende de catálogo para consultas estruturadas via SQL.
-- Exige definição cuidadosa de políticas de retenção, expurgo e lifecycle.
-- Dados armazenados em S3 não oferecem, por padrão, controle transacional como um banco relacional.
-
-## Escalabilidade e alternativas
-
-S3 Standard escala sem provisionar capacidade e mantém redundância entre pelo
-menos três AZs da região. O risco operacional está no layout: objetos pequenos,
-partições mal escolhidas e listagens elevam custo e latência. Compactação,
-lifecycle e partições orientadas a consulta devem preceder a troca de storage.
-
-Cross-Region Replication é evolução para requisito formal de DR ou residência.
-Ela não reconstrói sozinha Glue Catalog, KMS, IAM, jobs ou orquestração. Iceberg
-é alternativa para transações e evolução de metadados, não substituto do S3.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- as tabelas Silver ou Gold exigirem updates, deletes e time travel frequentes;
-- houver necessidade de transações ACID diretamente no Data Lake;
-- o volume de dados exigir otimização avançada de layout e compactação;
-- consultas analíticas exigirem performance previsível de um Data Warehouse dedicado;
-- houver requisitos regulatórios mais rígidos de retenção, expurgo ou isolamento de dados;
-- a arquitetura evoluir para um modelo Lakehouse com formatos transacionais como Apache Iceberg, Apache Hudi ou Delta Lake.
-
-## Referências
-
-- Amazon S3
-- AWS Glue Data Catalog
-- Amazon Athena
-- AWS Lake Formation
-- AWS S3 Lifecycle
+* **Banco de dados relacional:** não adotado devido ao custo e à necessidade de dimensionar infraestrutura para o volume histórico.
+* **Camada única no Amazon S3:** não adotada porque dificultaria a rastreabilidade, o reprocessamento e a separação entre dados brutos, tratados e analíticos.
+* **Data Lakehouse:** não adotado porque os recursos adicionais de gerenciamento transacional não são necessários para o processo atual. Sua implementação aumentaria o tempo e o custo de desenvolvimento do MVP.
+* **Data warehouse dedicado:** não adotado devido ao maior custo e à complexidade desnecessária para a carga atual.

@@ -1,111 +1,55 @@
-# ADR-013: Orquestração com AWS Step Functions e EventBridge
+# ADR-013: Acionamento do Fluxo Batch
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP possui cargas por arquivos, planeja ingestões diárias, executa validações,
-transformações, publicação de dados analíticos e possíveis backfills
-parametrizados.
+O fluxo Batch precisa permitir cargas pontuais e backfills por dia ou mês. No MVP, a fonte de dados é uma API local exposta temporariamente pelo ngrok e não permanece disponível continuamente.
 
-A arquitetura precisa coordenar etapas, controlar dependências, tratar falhas e permitir agendamento sem administrar infraestrutura de orquestração.
+Uma execução automática poderia iniciar o processamento quando a fonte estivesse indisponível ou gerar execuções e custos desnecessários durante o período de demonstração.
 
 ## Decisão
 
-A orquestração será feita com **AWS Step Functions**. O **Amazon EventBridge
-Scheduler** será utilizado apenas nos fluxos que possuírem recorrência definida.
+Manter o acionamento manual da AWS Step Functions por meio dos comandos de demonstração do projeto.
 
-O batch de dengue atual começa após a entrega manual governada do arquivo e,
-portanto, é iniciado sob demanda. Não existe recorrência automática nesse fluxo.
-O caso de API externa diária poderá usar EventBridge Scheduler quando for
-implementado.
+A execução informa:
 
-O Step Functions será utilizado para coordenar etapas do pipeline, incluindo:
+* modo pontual ou backfill;
+* granularidade diária ou mensal;
+* período ou intervalo de períodos;
+* data de processamento;
+* endereço atual da API;
+* opção de reprocessamento.
 
-- extração, quando fizer parte do fluxo;
-- validação;
-- processamento Glue;
-- atualização de catálogo;
-- publicação de camadas Silver/Gold/DW;
-- notificações e tratamento de falhas.
-
-Backfills deverão ser modelados como execuções parametrizadas, evitando alterar
-o fluxo operacional padrão.
-
-A arquitetura deve evitar uma DAG única e excessivamente acoplada. Os fluxos deverão ser separados por domínio, fonte ou responsabilidade quando fizer sentido.
+A Step Functions continua responsável por orquestrar todas as etapas após o acionamento.
 
 ## Justificativa
 
-Step Functions permite orquestrar fluxos serverless com controle de estados,
-tratamento de erro e rastreabilidade visual. Retry automático deve ser aplicado
-somente quando a etapa for idempotente e o erro for transitório.
+O acionamento manual oferece controle sobre o período processado, garante que a API e o túnel estejam disponíveis e evita a execução desnecessária dos jobs AWS Glue.
 
-EventBridge Scheduler atende ao agendamento de execuções recorrentes sem necessidade de manter um scheduler próprio.
+O principal custo evitado não é o EventBridge, mas os serviços iniciados automaticamente por ele durante a execução completa do pipeline.
 
-A combinação é adequada ao MVP por ser gerenciada, integrada à AWS e suficiente para coordenar pipelines batch sem introduzir Airflow ou outra plataforma de orquestração mais pesada.
+Essa abordagem também facilita demonstrações, testes e reprocessamentos controlados.
 
-## Alternativas consideradas
+## Evolução com Amazon EventBridge
 
-- **Apache Airflow/MWAA:** forte para DAGs complexas, mas adiciona custo e complexidade operacional para o MVP.
-- **Control-M:** adequado em ambientes corporativos, mas fora do escopo de uma arquitetura AWS serverless para portfólio.
-- **Cron em EC2:** simples, mas pouco resiliente e com maior responsabilidade operacional.
-- **EventBridge sem Step Functions:** atende agendamento, mas não oferece orquestração visual, controle de estados e tratamento estruturado de falhas.
+O Amazon EventBridge poderá iniciar a Step Functions automaticamente em uma periodicidade definida.
 
-## Consequências
+Essa evolução é recomendada quando:
 
-### Positivas
+* a API de origem possuir endereço estável;
+* a fonte estiver disponível continuamente;
+* existir uma frequência operacional definida;
+* houver monitoramento e tratamento para períodos sem dados;
+* o processamento recorrente fizer parte da operação da plataforma.
 
-- Orquestração gerenciada.
-- Boa integração com Glue, Lambda, SNS e CloudWatch.
-- Suporte a tratamento de erro e retries explicitamente configurados.
-- Execuções rastreáveis e parametrizadas.
-- Simplicidade para agendamento de pipelines batch.
-- Possibilidade de separar fluxo diário e backfill.
+O agendamento automático é tecnicamente compatível com a arquitetura atual, mas não foi implementado no MVP.
 
-### Negativas / Trade-offs
+## Alternativas
 
-- Pode ficar limitado para DAGs muito complexas.
-- Fluxos grandes podem se tornar difíceis de manter.
-- Exige modelagem adequada de estados e exceções.
-- Pode gerar custo por transição de estado em cenários de alta frequência.
-
-## Estado implementado no batch de dengue
-
-A state machine executa Bronze, Silver, Gold, reconciliação e crawler. Ela usa
-o nome da execução como `batch_id`, possui timeout global e falha quando uma
-etapa falha. O retry atual é uma nova execução completa com nome único; não há
-retry automático de jobs de dados para evitar reprocessamento implícito.
-
-## Escalabilidade e alternativas
-
-Pipelines serão separados por produto e usarão parâmetros como `run_date`,
-`batch_id` e `is_backfill`. Concorrência de backfill deve ser limitada para não
-esgotar quotas do Glue ou pressionar S3 e APIs. Distributed Map é alternativa
-para fan-out controlado, com checkpoint e idempotência.
-
-MWAA/Airflow passa a ser avaliado quando dependências entre muitos domínios,
-calendários, sensores, SLA e operação por múltiplas equipes superarem state
-machines independentes. Transições de estado e histórico também possuem custo e
-quotas que devem ser monitorados.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- a quantidade de pipelines crescer significativamente;
-- houver muitas dependências entre domínios;
-- for necessário recurso avançado de scheduler, calendário ou SLA;
-- múltiplos times precisarem operar DAGs independentes;
-- houver necessidade de ambiente de orquestração mais completo, como Airflow/MWAA.
-
-## Referências
-
-- AWS Step Functions
-- Amazon EventBridge Scheduler
-- AWS Glue Jobs
-- AWS Lambda
-- Amazon CloudWatch
+* **Amazon EventBridge Scheduler:** não adotado no MVP devido à disponibilidade temporária da fonte e ao risco de iniciar processamentos desnecessários.
+* **Evento de criação no Amazon S3:** não adotado porque a extração começa em uma API e não pela chegada direta de um arquivo ao bucket.
+* **Acionamento direto dos jobs AWS Glue:** não adotado porque ignoraria a extração, a ordem das etapas e o controle centralizado da Step Functions.
+* **Acionamento direto da Lambda:** não adotado porque iniciaria apenas a extração e não representaria a execução completa do pipeline.
