@@ -465,7 +465,7 @@ relacionamentos internos do modelo dimensional.
 
 ![Resultado de consulta no Athena](assets/athena-query-result.png)
 
-> [ADR-014 — Consumo Analítico com Amazon Athena](../../architecture/ADR/ADR-014-Consumo-Analitico-PowerBI-Athena.md)
+> [ADR-014 — Consumo Analítico com Amazon Athena](../../architecture/ADR/ADR-014-Consumo-Analitico-Athena.md)
 
 ## 8. Observabilidade com Amazon CloudWatch
 
