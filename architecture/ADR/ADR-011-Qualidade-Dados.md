@@ -1,117 +1,95 @@
-# ADR-011: Qualidade de Dados e Quarentena
+# ADR-011: Qualidade de Dados e Reconciliação
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP processa dados de múltiplas fontes com formatos, granularidades e níveis de confiabilidade diferentes.
-
-Sem validações de qualidade, registros inválidos podem contaminar as camadas Silver, Gold e DW, prejudicando indicadores, dashboards e análises.
-
-A arquitetura precisa definir regras para bloqueio, quarentena, alertas e rastreabilidade de problemas de dados.
+A conclusão técnica dos jobs não garante a qualidade dos dados. O fluxo precisa normalizar os registros, isolar dados inválidos e comprovar que não houve perda, duplicação ou inconsistência entre Bronze, Silver, Quarentena e Gold.
 
 ## Decisão
 
-Será adotada uma estratégia de qualidade de dados com três níveis de tratamento:
+Aplicar a qualidade durante as transformações e utilizar um job independente para reconciliar os resultados.
 
-- **Bloqueante:** falhas críticas que impedem a continuidade do processamento.
-- **Quarentena:** registros inválidos ou suspeitos que devem ser isolados para análise posterior.
-- **Alerta:** desvios que não impedem o processamento, mas devem ser monitorados.
+### Bronze para Silver
 
-As validações deverão cobrir, quando aplicável:
+O job:
 
-- schema obrigatório;
-- tipos de dados;
-- campos nulos críticos;
-- chaves de negócio;
-- duplicidade;
-- datas inválidas ou fora de intervalo;
-- domínios e valores permitidos;
-- volumetria;
-- freshness;
-- presença indevida de PII em camadas analíticas.
+* converte e padroniza tipos, datas e códigos;
+* enriquece os registros com referências utilizadas pelo projeto;
+* aplica regras de preenchimento e validade;
+* classifica os registros como `VALID`, `WARNING` ou inválidos;
+* envia registros inválidos para a Quarentena;
+* preserva o motivo da rejeição, o `batch_id` e os metadados de processamento.
 
-Registros em quarentena serão armazenados em área controlada do S3, separados por fonte, data de processamento e tipo de erro.
+### Silver para Gold
 
-Padrão sugerido:
+O job:
 
-```text
-s3://baip-data-lake/quarantine/<domain>/<source>/year=YYYY/month=MM/day=DD/error_type=<error_type>/
-```
+* seleciona o snapshot mais recente dos casos;
+* elimina duplicidades pela identidade do caso;
+* cria as dimensões e a tabela fato;
+* transforma os indicadores em medidas analíticas;
+* mantém a granularidade de uma linha por caso na tabela fato.
 
-Os registros de quarentena devem conter metadados mínimos para rastreabilidade, como:
+### Job de reconciliação
 
-- `source_system`;
-- `ingestion_date`;
-- `processing_time`;
-- `rule_name`;
-- `error_code`;
-- `error_message`;
-- `raw_payload_reference` ou payload controlado;
-- `pipeline_execution_id`.
+Após a criação da Gold, um job próprio em PySpark verifica:
+
+* identidade do lote entre as camadas;
+* igualdade entre Bronze e Silver mais Quarentena;
+* fechamento dos status da Silver;
+* correspondência entre o snapshot da Silver e a Gold;
+* correspondência dos identificadores e hashes;
+* unicidade das dimensões;
+* unicidade da granularidade da tabela fato;
+* integridade referencial;
+* validade das medidas binárias.
+
+O job de reconciliação **não transforma, corrige ou remove dados**. Ele apenas audita os resultados e interrompe o pipeline quando uma verificação obrigatória falha.
+
+O relatório é armazenado em JSON e a Gold somente é publicada no Glue Data Catalog após sua aprovação.
 
 ## Justificativa
 
-A separação entre bloqueio, quarentena e alerta evita tratar todos os problemas de dados da mesma forma.
+A normalização na Silver cria uma representação consistente dos dados. A Quarentena evita descartes silenciosos e permite investigar registros inválidos sem bloquear os dados aceitos.
 
-Falhas críticas devem interromper o processamento para evitar propagação de dados inválidos. Registros pontuais com erro podem ser isolados em quarentena sem impedir o processamento de todo o lote. Desvios não críticos podem gerar alertas para investigação posterior.
+A deduplicação na Gold garante a granularidade da tabela fato. A reconciliação funciona como um **quality gate**, comprovando a consistência entre as camadas antes da publicação.
 
-A quarentena aumenta rastreabilidade e permite correção sem contaminar as camadas analíticas.
+O job próprio oferece controle sobre as regras, o formato do relatório e sua integração com a Step Functions.
 
-## Alternativas consideradas
+## Contrato de dados
 
-- **Falhar o pipeline para qualquer erro:** aumenta segurança, mas reduz disponibilidade e pode bloquear cargas por problemas pontuais.
-- **Ignorar registros inválidos:** simplifica o processamento, mas reduz confiabilidade e rastreabilidade.
-- **Corrigir automaticamente todos os erros:** pode mascarar problemas de origem e gerar inconsistências.
-- **Validar apenas na Gold:** detecta problemas tarde demais, após propagação para camadas intermediárias.
+As validações atuais estão implementadas diretamente nos jobs. O projeto ainda não possui um contrato de dados formal, independente e versionado.
 
-## Consequências
+Como evolução, o contrato poderá definir:
 
-### Positivas
+* campos obrigatórios;
+* tipos e formatos;
+* regras de nulabilidade;
+* valores aceitos;
+* compatibilidade entre versões do schema;
+* responsáveis pelo dado e regras de evolução.
 
-- Maior confiabilidade dos dados.
-- Redução de contaminação em Silver, Gold e DW.
-- Melhor rastreabilidade de erros.
-- Possibilidade de reprocessamento de registros corrigidos.
-- Separação clara entre erro crítico, erro pontual e alerta.
+## Trade-off aceito
 
-### Negativas / Trade-offs
+A Gold é reconstruída a partir do snapshot completo da Silver. Essa estratégia:
 
-- Aumenta complexidade dos pipelines.
-- Exige manutenção de regras de qualidade.
-- Pode gerar volume adicional de dados em quarentena.
-- Regras muito rígidas podem bloquear dados úteis.
-- Regras muito flexíveis podem permitir propagação de problemas.
+* simplifica reprocessamentos;
+* mantém fatos e dimensões sincronizados;
+* reduz o risco de versões conflitantes;
+* facilita a reconciliação integral;
+* torna a publicação idempotente.
 
-## Escalabilidade e alternativas
+Por outro lado, os jobs Silver para Gold e de reconciliação releem milhões de registros, aumentando duração e custo conforme o histórico cresce.
 
-Regras por registro devem ser combinadas com controles agregados: volumetria,
-nulos, percentual de match, freshness e distribuição. Quarentena precisa de
-lifecycle, métricas por código e procedimento de reprocessamento.
+Esse comportamento é aceitável para o volume atual. Em uma evolução, o fluxo poderá utilizar processamento incremental, operações de `MERGE` e formatos de tabela como Apache Iceberg.
 
-Glue Data Quality, Deequ ou Great Expectations serão avaliados quando volume e
-reutilização de regras superarem a manutenção em código. Nem toda fonte precisa
-da mesma implementação; severidade depende do impacto no consumidor.
+## Alternativas
 
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- novos domínios exigirem regras específicas de qualidade;
-- o volume de registros em quarentena crescer significativamente;
-- houver necessidade de ferramenta dedicada de Data Quality;
-- regras de negócio oficiais forem alteradas;
-- dados reais forem processados;
-- houver necessidade de workflow formal para correção e reprocessamento.
-
-## Referências
-
-- Data Quality Rules
-- Great Expectations
-- AWS Glue Data Quality
-- Amazon S3
-- Amazon CloudWatch
+* **Validar somente na Silver:** não adotado porque não comprovaria a consistência da Gold.
+* **Consultas manuais no Athena:** não adotadas porque ocorreriam após a publicação e dependeriam de execução humana.
+* **AWS Glue Data Quality:** não adotado para manter as regras integradas aos jobs do MVP.
+* **Great Expectations ou Amazon Deequ:** não adotados devido às dependências e à complexidade adicionais.
+* **Processamento incremental:** não adotado inicialmente por exigir controle de estado, atualização e reconciliação mais complexos.

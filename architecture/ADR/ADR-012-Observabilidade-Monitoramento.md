@@ -1,93 +1,57 @@
 # ADR-012: Observabilidade e Monitoramento
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP possui pipelines batch, fluxo near real-time, filas, funções Lambda, jobs Glue, tabelas no S3, indicadores no DynamoDB e consultas analíticas no Athena.
-
-A arquitetura precisa permitir acompanhamento de falhas, latência, custo, freshness, volumetria, qualidade e saúde operacional dos componentes.
+Os fluxos Batch e NRT precisam registrar execuções, falhas, duração, volume processado e mensagens rejeitadas. A observabilidade deve permitir localizar problemas sem expor dados pessoais nos logs.
 
 ## Decisão
 
-A observabilidade será estruturada em três dimensões:
+Centralizar logs, métricas e alarmes no Amazon CloudWatch.
 
-- **Operacional:** falhas, duração de jobs, retries, DLQ, erros de Lambda, execuções Step Functions e status de pipelines.
-- **Dados:** freshness, volumetria, quantidade de registros, qualidade, duplicidade, registros em quarentena e variações inesperadas.
-- **Custo:** consumo de Glue DPU, dados escaneados no Athena, invocações Lambda, capacidade/uso do DynamoDB e armazenamento S3.
+A observabilidade contempla:
 
-A arquitetura utilizará principalmente:
+* logs das funções AWS Lambda;
+* logs e métricas dos jobs AWS Glue;
+* histórico e falhas da Step Functions;
+* métricas do Amazon SQS e da DLQ;
+* logs de acesso e erros da API NRT;
+* métricas de consultas do Athena;
+* alarmes para falhas, timeouts, filas acumuladas, mensagens na DLQ e erros da API;
+* notificações de alarmes por Amazon SNS.
 
-- Amazon CloudWatch para logs, métricas e alarmes;
-- CloudWatch Alarms para falhas críticas e DLQ;
-- AWS CloudTrail para auditoria de ações na conta quando aplicável;
-- AWS Budgets e Cost Anomaly Detection para controle de custo;
-- notificações via SNS ou mecanismo equivalente em cenários produtivos.
-
-Logs não devem conter CPF, PII ou payloads sensíveis.
+Os logs utilizam identificadores técnicos, como `batch_id`, `event_id` e `message_id`, sem registrar CPF, nome, telefone ou e-mail.
 
 ## Justificativa
 
-Observabilidade é necessária para operar pipelines de dados com confiabilidade, identificar falhas rapidamente e evitar que problemas de qualidade ou custo passem despercebidos.
+O CloudWatch possui integração nativa com os serviços utilizados e permite centralizar o monitoramento sem provisionar outra infraestrutura.
 
-Separar observabilidade operacional, de dados e de custo facilita a priorização dos alertas e evita tratar todos os sinais como falhas técnicas.
+Os identificadores técnicos relacionam os eventos da mesma execução e facilitam a investigação de falhas. O relatório de reconciliação complementa o monitoramento técnico com verificações de qualidade dos dados.
 
-CloudWatch é a escolha natural para o MVP por ser integrado aos serviços AWS utilizados na arquitetura.
+## Limitação atual
 
-## Alternativas consideradas
+Os logs permanecem no Amazon CloudWatch e não são encaminhados para uma plataforma externa ou central corporativa de observabilidade.
 
-- **Monitoramento manual:** simples no início, mas não escala e aumenta risco de falhas não percebidas.
-- **Ferramentas externas como Datadog ou New Relic:** oferecem recursos avançados, mas adicionam custo e complexidade ao MVP.
-- **Apenas logs sem métricas:** dificulta análise histórica, alertas e acompanhamento de tendências.
-- **Observabilidade apenas técnica:** ignora problemas de dados, como freshness, volumetria e qualidade.
+Não foram implementadas integrações com Grafana, Prometheus, OpenSearch, Splunk ou Datadog. Essa limitação é aceitável para o MVP, mas reduz a capacidade de criar painéis unificados, correlacionar eventos e manter análises históricas de longo prazo.
 
-## Consequências
+## Melhorias futuras
 
-### Positivas
+Uma evolução produtiva poderá incluir:
 
-- Melhor visibilidade operacional dos pipelines.
-- Detecção mais rápida de falhas.
-- Controle de DLQ e retries.
-- Acompanhamento de freshness e volumetria.
-- Redução de risco de aumento inesperado de custo.
-- Base para operação mais profissional em produção.
+* centralização dos logs de diferentes ambientes e contas;
+* dashboards operacionais no Amazon Managed Grafana;
+* métricas customizadas e indicadores de nível de serviço;
+* rastreamento distribuído com AWS X-Ray;
+* arquivamento de logs no Amazon S3;
+* correlação automática entre `batch_id`, `event_id` e alarmes;
+* integração com uma plataforma corporativa de observabilidade.
 
-### Negativas / Trade-offs
+## Alternativas
 
-- Exige configuração de métricas, alarmes e retenção de logs.
-- Pode gerar ruído se alertas não forem bem calibrados.
-- Logs e métricas também geram custo.
-- Necessita manutenção conforme novos pipelines forem adicionados.
-
-## Escalabilidade e alternativas
-
-Métricas devem ter dimensões controladas; usar `event_id` como dimensão gera
-alta cardinalidade e custo. Logs estruturados precisam de retenção por ambiente
-e sampling quando volume crescer, sem perder erros e auditoria.
-
-Com mais domínios, SLOs, painéis e alarmes devem ser definidos por produto de
-dados. OpenTelemetry e plataformas externas serão avaliados quando correlação
-entre contas/regiões e volume operacional superarem o CloudWatch do MVP.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- o número de pipelines crescer significativamente;
-- houver necessidade de SLO/SLA formal;
-- múltiplos times precisarem operar a plataforma;
-- o volume de alertas se tornar alto;
-- houver necessidade de dashboards operacionais dedicados;
-- a arquitetura evoluir para produção crítica.
-
-## Referências
-
-- Amazon CloudWatch
-- AWS CloudTrail
-- AWS Budgets
-- AWS Cost Anomaly Detection
-- Amazon SNS
+* **Prometheus e Grafana:** não adotados porque exigiriam configuração, integração e manutenção adicionais.
+* **Amazon OpenSearch Service:** não adotado devido ao custo e à complexidade para o volume atual de logs.
+* **Plataforma externa de observabilidade:** não adotada por não fazer parte do escopo e adicionar custos de licenciamento ou ingestão.
+* **Logs armazenados somente no Amazon S3:** não adotados porque dificultariam consultas e alarmes operacionais imediatos.

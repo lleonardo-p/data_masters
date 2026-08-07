@@ -1,101 +1,81 @@
-# ADR-016: Retenção e Lifecycle de Dados
+# ADR-016: Retenção, Lifecycle e Expurgo de Dados
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP armazena dados em diferentes camadas com finalidades distintas: aterrissagem temporária, auditoria, tratamento, consumo analítico e indicadores near real-time.
+A BAIP armazena dados públicos no fluxo Batch e dados pessoais sintéticos pseudonimizados no fluxo NRT.
 
-Sem uma política clara de retenção e lifecycle, o custo de armazenamento tende a crescer, arquivos temporários podem se acumular e dados sensíveis podem permanecer armazenados além do necessário.
-
-A estratégia de retenção deve considerar a finalidade de cada camada, a necessidade de reprocessamento, o custo de armazenamento, a rastreabilidade e os princípios de minimização de dados.
+A retenção indefinida aumentaria custos e contrariaria o princípio de manter dados pessoais somente pelo tempo necessário. A plataforma também precisa considerar a remoção do histórico quando solicitada por um paciente.
 
 ## Decisão
 
-Será adotada uma estratégia de retenção por camada e tipo de dado.
+Aplicar retenção conforme a finalidade de cada componente.
 
-As políticas iniciais serão:
+### Controles implementados
 
-- **Staging:** retenção curta de até **7 dias**, com exclusão automática após esse período.
-- **Bronze:** retenção maior para auditoria, rastreabilidade e reprocessamento, com lifecycle para classes de armazenamento mais baratas quando aplicável.
-- **Silver:** retenção alinhada à necessidade de reprocessamento, qualidade de dados e rastreabilidade dos dados tratados.
-- **Gold/DW:** retenção conforme necessidade analítica, histórica e de consumo pelos indicadores.
-- **Near real-time/DynamoDB:** uso de TTL para dados temporários quando aplicável.
-- **Logs:** retenção limitada, sem registro de PII ou payloads sensíveis.
+* TTL nas tabelas operacionais do DynamoDB pelo atributo `expires_at`;
+* retenção limitada das mensagens no SQS e na DLQ;
+* retenção configurada para os logs do CloudWatch;
+* recuperação point-in-time nas tabelas do DynamoDB;
+* versionamento nos buckets S3.
 
-Os prazos exatos de retenção das camadas Bronze, Silver, Gold e DW serão definidos por domínio de dado. Para o MVP, apenas a Staging terá prazo fixo inicial de 7 dias.
+No MVP, o histórico NRT utiliza retenção aproximada de 90 dias.
 
-Dados pessoais ou sensíveis devem seguir o princípio de minimização e não devem ser mantidos por mais tempo do que o necessário para a finalidade definida.
+### Controles conceituais para o Data Lake
 
-As políticas de lifecycle devem ser aplicadas principalmente no Amazon S3, considerando expurgo, transição de storage class e redução de custo ao longo do tempo.
+As políticas automáticas de lifecycle do Amazon S3 ainda não foram implementadas.
+
+Em uma evolução, deverão ser aplicadas para:
+
+* excluir arquivos antigos da Staging;
+* remover snapshots anteriores da Silver;
+* manter a Quarentena somente durante o período de investigação;
+* expirar versões anteriores da Gold;
+* remover resultados antigos do Athena;
+* preservar relatórios de reconciliação por um prazo maior;
+* transferir dados públicos de auditoria para classes de armazenamento mais econômicas.
+
+No fluxo Batch, o expurgo tem finalidade principalmente financeira e operacional, pois os dados processados são públicos.
+
+## Solicitação de remoção por um paciente
+
+A remoção individual está definida conceitualmente, mas não possui endpoint automatizado no MVP.
+
+Após a validação da identidade e da autorização do solicitante, o processo deverá:
+
+1. normalizar o CPF informado;
+2. gerar o fingerprint HMAC no AWS KMS;
+3. localizar o `patient_token` no cofre de tokens;
+4. excluir todos os eventos associados ao token na tabela de histórico;
+5. excluir a associação entre o fingerprint e o token;
+6. registrar a conclusão do expurgo sem armazenar o CPF;
+7. impedir que uma restauração de backup recupere permanentemente os dados removidos.
+
+Os indicadores agregados poderão permanecer porque não armazenam CPF, token ou outra informação que permita identificar diretamente o paciente.
+
+O cofre de tokens não deve remover o token antes do histórico. Caso contrário, os eventos permaneceriam armazenados sem uma chave de busca para localizá-los e excluí-los.
+
+## Backups e recuperação
+
+A recuperação point-in-time protege contra exclusões acidentais, mas não substitui a política de retenção.
+
+Dados removidos podem permanecer recuperáveis durante a janela de backup. Caso uma restauração seja realizada, os expurgos registrados deverão ser reaplicados antes da liberação do ambiente.
 
 ## Justificativa
 
-A camada Staging possui finalidade temporária e operacional. Ela serve apenas como área de aterrissagem e preparação inicial dos dados antes da persistência em camadas definitivas. Por isso, sua retenção deve ser curta para evitar acúmulo desnecessário de arquivos e reduzir custo.
+O TTL reduz armazenamento desnecessário sem exigir um processo periódico de exclusão. As retenções do SQS, DLQ e CloudWatch limitam a permanência de mensagens e logs operacionais.
 
-As camadas Bronze, Silver e Gold possuem finalidades diferentes e, portanto, não devem seguir a mesma política de retenção. A Bronze precisa preservar maior capacidade de auditoria e reprocessamento. A Silver deve manter dados tratados enquanto forem úteis para rastreabilidade e reconstrução das camadas analíticas. A Gold/DW deve preservar o histórico necessário para análise e consumo.
+A separação entre dados públicos, históricos pseudonimizados e indicadores agregados permite aplicar prazos diferentes conforme a finalidade e a sensibilidade.
 
-A adoção de lifecycle reduz custo, melhora governança e evita retenção indefinida de dados sem finalidade clara.
+O lifecycle do S3 permanece como melhoria porque o ambiente atual é um MVP e não executa cargas contínuas.
 
-## Alternativas consideradas
+## Alternativas
 
-- **Retenção indefinida:** simples de implementar, mas aumenta custo, dificulta governança e eleva o risco de retenção indevida de dados.
-- **Exclusão agressiva:** reduz custo, mas pode prejudicar auditoria, rastreabilidade e reprocessamento.
-- **Retenção única para todas as camadas:** simplifica a configuração, mas ignora diferenças de finalidade, criticidade e sensibilidade entre Staging, Bronze, Silver, Gold, DW, logs e dados near real-time.
-- **Lifecycle apenas manual:** reduz automação e aumenta risco de esquecimento, inconsistência e acúmulo de dados antigos.
-
-## Consequências
-
-### Positivas
-
-- Redução de custo de armazenamento.
-- Limpeza automática da camada Staging.
-- Melhor aderência ao princípio de minimização de dados.
-- Menor risco de retenção indevida.
-- Governança mais clara por camada.
-- Melhor controle sobre dados temporários, históricos e analíticos.
-- Possibilidade de evolução para políticas de retenção mais específicas por domínio ou tipo de dado.
-
-### Negativas / Trade-offs
-
-- Exige configuração e manutenção de políticas de lifecycle.
-- Pode dificultar reprocessamento se dados forem expirados cedo demais.
-- Necessita documentação clara dos prazos de retenção.
-- Regras incorretas de lifecycle podem excluir dados ainda necessários.
-- Pode exigir revisão caso dados reais ou sensíveis sejam utilizados.
-
-## Escalabilidade e alternativas
-
-Lifecycle deve ser definido por classe e acesso, não apenas por idade. Em alto
-volume, S3 Storage Lens/Inventory ajudam a acompanhar objetos, versões e small
-files. Expirar dados físicos sem remover metadados do catálogo cria partições
-vazias e overhead de planejamento.
-
-Em Multi-Region, replicação e lifecycle precisam ser compatíveis nos buckets de
-destino. Para PII, retenção e expurgo prevalecem sobre conveniência de replay;
-backups e réplicas também entram no escopo de exclusão.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- dados reais forem processados;
-- surgirem requisitos legais específicos de retenção;
-- houver necessidade de retenção diferenciada por domínio de dado;
-- o custo de armazenamento crescer acima do previsto;
-- a frequência de reprocessamentos mudar;
-- a janela de auditoria precisar ser ampliada;
-- dados sensíveis passarem a ser armazenados em maior escala;
-- houver necessidade de políticas formais de expurgo por solicitação do titular de dados.
-
-## Referências
-
-- Amazon S3 Lifecycle
-- Amazon S3 Storage Classes
-- DynamoDB TTL
-- CloudWatch Logs Retention
-- LGPD
+* **Retenção indefinida:** não adotada devido ao aumento contínuo de custo e exposição de dados.
+* **Exclusão imediata após o processamento:** não adotada porque impediria auditoria, investigação e reprocessamento.
+* **Expurgo exclusivamente manual:** aceitável no MVP, mas inadequado para uma operação produtiva devido ao risco de falhas e ausência de rastreabilidade.
+* **Arquivamento permanente de todas as camadas:** não adotado porque snapshots completos e versões antigas possuem baixo valor operacional.
+* **Remoção apenas pelo TTL:** não adotada como solução para solicitações individuais porque o paciente não deve depender do vencimento natural do registro.

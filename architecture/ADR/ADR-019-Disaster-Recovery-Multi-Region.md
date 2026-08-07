@@ -1,90 +1,96 @@
-# ADR-019: Estratégia de Disaster Recovery
+# ADR-019: Plano Conceitual de Recuperação de Desastre
 
-- **Status:** Aceito
-- **Data:** 2026-07-05
-- **Decisor:** Leonardo Lucas Pereira
-
----
+* **Status:** Aceito
+* **Data:** 2026-07-05
+* **Decisor:** Leonardo Lucas Pereira
 
 ## Contexto
 
-O BAIP será implementado inicialmente como MVP em uma única região AWS, com foco em simplicidade, baixo custo e velocidade de desenvolvimento.
+A BAIP está implantada somente na região `us-east-1`. Uma indisponibilidade regional, exclusão acidental ou corrupção de dados poderia interromper os fluxos Batch e NRT.
 
-Mesmo sem requisito produtivo crítico no momento, a arquitetura deve deixar explícitos os limites de resiliência assumidos e os critérios para evolução futura de Disaster Recovery.
+O volume atual não justifica uma arquitetura ativa em múltiplas regiões, mas a plataforma precisa possuir uma estratégia conceitual de recuperação dentro da AWS.
 
 ## Decisão
 
-O MVP será implantado em **uma única região AWS**, sem estratégia ativa de **Multi-Region**.
+Adotar conceitualmente uma estratégia de **backup e restauração em uma região secundária**.
 
-Não será desenhada uma estratégia explícita de alta disponibilidade Multi-AZ além da disponibilidade nativa oferecida pelos serviços gerenciados utilizados.
+A região secundária não permanecerá com todos os serviços ativos. Em caso de desastre, a infraestrutura será recriada com Terraform e os dados serão restaurados a partir de cópias mantidas na AWS.
 
-A recuperação no MVP será baseada em:
+### Metas propostas
 
-- infraestrutura versionada com Terraform;
-- dados armazenados no S3 com versionamento quando aplicável;
-- políticas de lifecycle e retenção;
-- backups ou exportações de metadados quando necessário;
-- documentação dos recursos necessários para reconstrução do ambiente.
+| Fluxo |          RPO |         RTO |
+| ----- | -----------: | ----------: |
+| Batch | Até 24 horas | Até 8 horas |
+| NRT   |   Até 1 hora | Até 4 horas |
 
-Uma estratégia formal de DR, com RTO/RPO definidos, replicação cross-region e testes periódicos, será considerada apenas em uma evolução produtiva ou crítica da plataforma.
+O Batch aceita um RPO maior porque os dados públicos podem ser extraídos e reprocessados. O NRT exige uma recuperação mais rápida devido à natureza operacional dos indicadores.
+
+## Controles existentes
+
+O projeto já possui:
+
+* infraestrutura declarada com Terraform;
+* código-fonte e scripts versionados;
+* versionamento nos buckets S3;
+* recuperação point-in-time no DynamoDB;
+* reconciliação do fluxo Batch;
+* DLQ para falhas no processamento NRT.
+
+Esses controles ajudam na recuperação, mas não protegem isoladamente contra uma indisponibilidade regional.
+
+## Controles conceituais de DR
+
+Uma implementação produtiva deverá incluir:
+
+* replicação dos objetos S3 para uma região secundária;
+* cópias regionais dos backups do DynamoDB;
+* chave KMS disponível na região de recuperação;
+* replicação controlada dos segredos;
+* estado remoto do Terraform protegido e disponível;
+* pacotes das funções e scripts armazenados fora da região principal;
+* procedimento de reenvio dos eventos não processados;
+* testes periódicos de restauração.
+
+O SQS não deve ser tratado como armazenamento permanente. Em caso de perda de mensagens durante um desastre, o sistema produtor deverá permitir o reenvio dos eventos, mantendo o mesmo `event_id` para preservar a idempotência.
+
+## Procedimento de recuperação
+
+Em caso de desastre:
+
+1. declarar a indisponibilidade da região principal;
+2. interromper novos acionamentos;
+3. aplicar o Terraform na região secundária;
+4. restaurar os objetos do S3 e as tabelas DynamoDB;
+5. disponibilizar as chaves, segredos e artefatos;
+6. atualizar os endereços utilizados pelos produtores e consumidores;
+7. validar filas, funções, API, catálogo e permissões;
+8. executar a reconciliação do Batch;
+9. solicitar o reenvio dos eventos NRT pendentes;
+10. liberar novamente a plataforma.
 
 ## Justificativa
 
-No escopo atual, o custo e a complexidade de uma arquitetura Multi-Region não são proporcionais ao objetivo do MVP.
+A estratégia de backup e restauração possui menor custo do que manter duas regiões ativas continuamente.
 
-A escolha single-region reduz esforço operacional e permite concentrar o projeto na arquitetura de dados, pipelines, governança e consumo analítico.
+O Terraform reduz o tempo necessário para recriar os recursos. O reprocessamento dos dados públicos simplifica a recuperação do Batch, enquanto backups e reenvio idempotente protegem o NRT.
 
-Ao mesmo tempo, manter infraestrutura como código e dados organizados no S3 permite uma base mínima de recuperação e evolução futura para DR formal.
+Essa abordagem é compatível com o volume e o objetivo atual do projeto.
 
-## Alternativas consideradas
+## Limitação atual
 
-- **Multi-Region ativo-ativo:** oferece maior disponibilidade, mas adiciona alta complexidade de replicação, consistência, rede, custo e operação.
-- **Multi-Region ativo-passivo:** reduz tempo de recuperação em cenários críticos, mas ainda adiciona custo e desenho operacional fora do escopo do MVP.
-- **Backups manuais sem IaC:** simples, mas pouco confiável e difícil de reproduzir.
-- **Ignorar DR completamente:** reduz esforço inicial, mas não documenta riscos e limitações assumidas.
+O plano é conceitual. Não foram implementados:
 
-## Consequências
+* replicação entre regiões;
+* failover automático;
+* ambiente secundário ativo;
+* cópias regionais automatizadas;
+* testes de recuperação.
 
-### Positivas
+O versionamento do S3 e o point-in-time recovery do DynamoDB protegem contra falhas lógicas, mas não representam, isoladamente, um plano completo de desastre regional.
 
-- Menor custo no MVP.
-- Menor complexidade operacional.
-- Decisão alinhada ao escopo de portfólio e validação arquitetural.
-- Infraestrutura pode ser reconstruída a partir de código.
-- Evolução futura para DR formal permanece possível.
+## Alternativas
 
-### Negativas / Trade-offs
-
-- Indisponibilidade regional pode afetar toda a solução.
-- RTO/RPO não são agressivos no MVP.
-- Recuperação pode depender de reexecução de pipelines e reconstrução de recursos.
-- Sem replicação cross-region ativa no escopo inicial.
-
-## Escalabilidade e alternativas
-
-S3 Standard, SQS e DynamoDB já são Multi-AZ dentro da região; a decisão atual
-aceita falha regional. O primeiro passo de DR é comprovar reconstrução por IaC,
-restauração de metadados e reprocessamento a partir da Bronze.
-
-Com RTO/RPO formais, comparar backup/restore, pilot light, warm standby e
-active/active. Multi-Region exige CRR, catálogo, artefatos, KMS, API/roteamento,
-checkpoint e prevenção de execução dupla. O plano só é válido quando testado.
-
-## Critérios de evolução
-
-Esta decisão deve ser revisada se:
-
-- o projeto evoluir para produção crítica;
-- forem definidos RTO/RPO formais e agressivos;
-- houver exigência de continuidade em caso de falha regional;
-- dados ou metadados precisarem ser replicados entre regiões;
-- consumidores externos dependerem da plataforma com SLA;
-- houver requisito regulatório ou corporativo de DR testado.
-
-## Referências
-
-- AWS Well-Architected Framework — Reliability Pillar
-- AWS Disaster Recovery Strategies
-- Amazon S3 Replication
-- Terraform
-- AWS Backup
+* **Arquitetura ativa-ativa em duas regiões:** não adotada devido ao custo e à complexidade.
+* **Warm standby:** não adotado porque manteria recursos ativos sem necessidade para a carga atual.
+* **Recuperação somente na região principal:** não adotada conceitualmente porque não cobre uma indisponibilidade regional.
+* **Ausência de plano de DR:** não adotada porque impediria definir responsabilidades, prioridades e ordem de recuperação.
