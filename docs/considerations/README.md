@@ -1,106 +1,107 @@
 # Considerações do projeto
 
-A BAIP foi desenvolvida como um MVP para demonstrar uma solução de engenharia de dados de ponta a ponta. O projeto prioriza processamento, qualidade, segurança, rastreabilidade e disponibilização dos dados para consumo.
+A BAIP foi desenvolvida como um MVP para demonstrar uma plataforma de dados de
+ponta a ponta. O escopo principal começa na ingestão pela AWS e termina na
+disponibilização dos dados pelo Athena e pela API NRT.
 
-## 1. Componentes locais de apoio
+## 1. Componentes locais
 
-A pasta `api-local/` contém componentes criados exclusivamente para viabilizar a demonstração dos fluxos:
+A pasta `api-local/` contém recursos utilizados somente na demonstração:
 
-- API local responsável por disponibilizar os arquivos históricos de dengue;
-- banco PostgreSQL utilizado pela API local;
-- simulador de triagens hospitalares com dados pessoais sintéticos;
-- dashboard Streamlit utilizado para visualizar os indicadores NRT;
-- configuração do ngrok para exposição temporária da fonte Batch.
+- API e PostgreSQL para disponibilizar os dados históricos;
+- ngrok para exposição temporária da fonte Batch;
+- simulador de triagens hospitalares;
+- dashboard Streamlit para visualização do NRT.
 
-Esses componentes representam sistemas externos que, em um cenário real, seriam mantidos por órgãos governamentais, hospitais ou aplicações consumidoras.
+Esses componentes representam sistemas externos e não fazem parte do núcleo
+avaliativo da plataforma. Todos os dados pessoais utilizados na simulação são
+sintéticos.
 
-Por esse motivo, a implementação interna desses componentes não faz parte do núcleo avaliativo da plataforma. O escopo principal começa na ingestão dos dados pela AWS e termina na disponibilização das informações pelo Athena e pela API NRT.
+## 2. Limitações do MVP
 
-Nenhum dado real de paciente é utilizado no fluxo NRT. CPF, nome, telefone e e-mail são gerados exclusivamente para simulação.
+O projeto prioriza serviços gerenciados e serverless para reduzir custo e
+esforço operacional.
 
-## 2. Limitações e decisões do MVP
+Não foram implementados:
 
-Por se tratar de um MVP desenvolvido em um período limitado, foram priorizados serviços gerenciados e serverless, reduzindo custos e esforço operacional.
+- VPC dedicada, sub-redes privadas e VPC Endpoints;
+- AWS WAF e domínio próprio para a API;
+- autenticação integrada a um provedor corporativo;
+- ambientes separados de desenvolvimento, homologação e produção;
+- centralização de observabilidade em Prometheus ou Grafana;
+- recuperação multirregional automatizada.
 
-A solução não utiliza uma VPC dedicada, sub-redes privadas ou endpoints privados. Os serviços se comunicam por meio dos endpoints gerenciados da AWS, protegidos por controles de IAM, criptografia e políticas de acesso.
+Os componentes utilizam IAM, criptografia, logs, métricas e alarmes. Em uma
+evolução produtiva, as políticas devem ser revisadas com maior granularidade e
+os recursos públicos devem ser protegidos por controles adicionais de rede.
 
-Uma evolução para produção poderia incluir:
+## 3. Dados e limites de interpretação
 
-- VPC dedicada e sub-redes privadas;
-- VPC Endpoints para S3, DynamoDB, SQS e outros serviços;
-- restrição adicional do tráfego de entrada e saída;
-- AWS WAF na API pública;
-- autenticação integrada a um provedor corporativo de identidade;
-- separação mais granular de políticas e responsabilidades;
-- ambientes independentes para desenvolvimento, homologação e produção.
+Os dados históricos são arquivos oficiais de dengue do SINAN/DATASUS referentes
+a 2024, 2025 e ao período disponível de 2026. Os dados de 2026 são parciais e
+podem ser revisados pela fonte.
 
-A infraestrutura atual utiliza funções e políticas IAM específicas para os principais componentes. Em uma evolução produtiva, essas permissões poderiam ser ainda mais restritivas, considerando recursos, operações e condições específicas para cada responsabilidade.
-
-A observabilidade está concentrada no Amazon CloudWatch, com logs, métricas e alarmes. A centralização em ferramentas como Prometheus e Grafana não foi incluída devido ao tempo e ao escopo do MVP, mas permanece como possibilidade de evolução.
-
-## 3. Fonte dos dados históricos
-
-Os dados históricos utilizados no projeto foram obtidos no conjunto oficial [Sinan/Dengue — Portal de Dados Abertos do SUS](https://dadosabertos.saude.gov.br/dataset/arboviroses-dengue).
-
-Arquivos utilizados:
-
-- [Dengue 2024 — DENGBR24.csv.zip](https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/SINAN/Dengue/csv/DENGBR24.csv.zip)
-- [Dengue 2025 — DENGBR25.csv.zip](https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/SINAN/Dengue/csv/DENGBR25.csv.zip)
-- [Dengue 2026 — DENGBR26.csv.zip](https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/SINAN/Dengue/csv/DENGBR26.csv.zip)
-
-Os arquivos têm como fonte o Sistema de Informação de Agravos de Notificação — SINAN, mantido pelo Ministério da Saúde.
-
-Os dados de 2026 representam um período parcial e podem ser atualizados ou revisados pela fonte oficial.
-
-## 4. Limites de interpretação
-
-Os indicadores produzidos pela BAIP devem ser utilizados como apoio à análise epidemiológica e ao planejamento da rede de atendimento.
-
-A plataforma:
+O fluxo NRT utiliza somente eventos sintéticos de triagem. A plataforma:
 
 - não realiza diagnóstico médico;
-- não confirma automaticamente a ocorrência de epidemias;
+- não confirma nem prevê epidemias automaticamente;
 - não substitui sistemas ou indicadores oficiais;
-- não utiliza dados reais de pacientes no fluxo NRT;
-- apresenta resultados condicionados à cobertura e à qualidade dos dados de origem.
+- apresenta resultados condicionados à cobertura e à qualidade da origem.
 
-O objetivo é reduzir o tempo necessário para transformar dados em informações úteis, oferecendo sinais que possam orientar investigação, priorização territorial e preparação da rede assistencial.
+Os indicadores devem ser interpretados como apoio à investigação
+epidemiológica, à priorização territorial e à preparação da rede assistencial.
 
-## 5. Continuidade e recuperação de desastre
+## 4. Plano de continuidade e recuperação de desastre
 
-O projeto possui um plano conceitual de continuidade e recuperação de desastre. O documento identifica os componentes críticos, os mecanismos de proteção existentes e as estratégias necessárias para recuperação dos fluxos Batch e NRT.
+O plano adota uma estratégia de **warm standby** inteiramente na AWS, mantendo
+`us-east-1` como região primária e `us-east-2` como região de contingência.
 
-O plano aborda:
+O cenário de referência considera até **43 mil eventos NRT por dia**. Como SQS,
+Lambda, DynamoDB e API Gateway são serviços elásticos, a região secundária pode
+utilizar a mesma configuração lógica da região principal. Antes de uma operação
+produtiva, essa capacidade deve ser confirmada com teste de carga.
 
-- cenários de falha;
-- classificação dos componentes críticos;
-- estratégias de backup e restauração;
-- reprocessamento dos dados;
-- recuperação dos recursos por infraestrutura como código;
-- objetivos conceituais de RPO e RTO;
-- possíveis estratégias de recuperação regional.
+### 4.1 Objetivos de recuperação
 
-A recuperação completa em outra região não foi implementada no MVP. O documento registra como a plataforma poderia evoluir para atender requisitos produtivos de continuidade.
+| Fluxo | RPO alvo | RTO alvo |
+|---|---:|---:|
+| Batch | 24 horas | 4 horas |
+| NRT e API | até 5 minutos para eventos aceitos pela AWS | até 30 minutos |
 
-> [Acessar o plano de continuidade e recuperação de desastre](disaster-recovery.md)
+- **RPO**: perda máxima de dados admitida;
+- **RTO**: tempo máximo esperado para restabelecer o serviço.
 
-## 6. Estimativa de custos
+### 4.2 Proteção dos componentes
 
-O projeto também possui uma estimativa conceitual dos custos da plataforma. Os valores são calculados com base em volumes e frequências de execução assumidos para os fluxos Batch e NRT.
+| Componente | Estratégia na AWS |
+|---|---|
+| Infraestrutura | Recriação da região secundária com Terraform |
+| Data Lake S3 | Versionamento e replicação entre regiões |
+| DynamoDB | Global Tables entre as duas regiões e PITR habilitado |
+| CPF pseudonimizado | Chave HMAC multirregional no AWS KMS |
+| Mensageria | SQS e DLQ secundárias com retenção de quatro dias |
+| Eventos NRT | Duplicação para a fila secundária por Amazon SNS |
+| Lambda e API Gateway | Recursos implantados nas duas regiões |
+| Endpoint da API | Failover por Amazon Route 53 |
+| Observabilidade | Alarmes do CloudWatch nas duas regiões |
 
-A análise considera os principais serviços utilizados:
+A fila secundária mantém os eventos recentes enquanto seu consumidor permanece
+desabilitado. Em uma falha regional, o processador secundário é habilitado e
+consome o backlog. O controle de idempotência impede a persistência duplicada
+dos eventos já processados na região principal.
 
-- Amazon S3;
-- AWS Glue;
-- AWS Lambda;
-- AWS Step Functions;
-- Amazon SQS;
-- Amazon DynamoDB;
-- Amazon API Gateway;
-- Amazon Athena;
-- Amazon CloudWatch;
-- AWS KMS.
+### 4.3 Procedimento de failover
 
-Os valores apresentados são projeções e não representam uma fatura real. O custo efetivo pode variar conforme região, volume processado, retenção, frequência das consultas, quantidade de eventos e alterações nos preços da AWS.
+1. confirmar a indisponibilidade regional pelos alarmes do CloudWatch;
+2. direcionar a API pelo Route 53 e os produtores para a SQS de `us-east-2`;
+3. habilitar o mapeamento entre a SQS secundária e a Lambda Processor;
+4. validar API, filas, DLQ, replicação e tabelas do DynamoDB;
+5. processar o backlog e acompanhar erros e latência;
+6. executar a reconciliação antes do retorno controlado à região principal.
 
-> [Acessar a estimativa de custos da plataforma](cost-estimate.md)
+O plano deve ser testado trimestralmente. O teste deve comprovar o RPO, o RTO,
+o processamento do backlog de 43 mil eventos e a consulta pseudonimizada por
+CPF na região secundária.
+
+> O DR multirregional é uma proposta de evolução e não está provisionado no
+> MVP atual.
