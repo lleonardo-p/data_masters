@@ -111,8 +111,16 @@ O fluxo produz indicadores operacionais por território, unidade, faixa etária 
 
 
 ---
+## 3. Estimativa de custos
 
-## 3. Considerações
+![Estimativa mensal de custos da BAIP](docs/assets/baip-custos-cenarios.png)
+
+> [!IMPORTANT]
+> [Acessar a documentação de custos](docs/considerations/costs/README.md)
+
+---
+
+## 4. Considerações
 
 As limitações do MVP, os componentes locais de demonstração, as fontes dos dados, as possibilidades de evolução, o plano de recuperação de desastre e a estimativa de custos estão documentados separadamente.
 
@@ -121,7 +129,7 @@ As limitações do MVP, os componentes locais de demonstração, as fontes dos d
 
 ---
 
-## 4. Instalação e utilização
+## 5. Instalação e utilização
 
 O ambiente pode ser provisionado e demonstrado por meio dos comandos documentados no projeto.
 
